@@ -3205,6 +3205,89 @@ ACT['ppn-jurnal']=t=>{S.settings.ppnJurnal=!!t.checked;commit();refresh();toast(
 ACT['ppn-masuk']=t=>{S.settings.ppnMasukan=!!t.checked;commit();refresh();toast(t.checked?'PPN masukan dikreditkan untuk faktur bertanda pajak':'PPN masukan tidak dikreditkan')};
 ACT['ppn-set']=t=>{S.settings.ppn=Math.max(0,+t.value||0);commit();refresh()};
 
+/* ====== ARSIP PERIODE: unduh arsip periode yang sudah dikunci, meter penyimpanan, pangkas data pendukung lama ======
+   Dokumen, kas, dan jurnal TIDAK PERNAH dihapus oleh fitur ini (supaya neraca, stok, dan piutang tetap benar). */
+const ARS={last:null};
+function canArsip(){return !(typeof OL!=='undefined'&&OL.sess&&!['admin','keuangan'].includes(OL.role))}
+function arsHash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(16)}
+function arsBytes(){try{return JSON.stringify(S).length}catch(e){return 0}}
+function arsData(k){
+  const kas=S.kas.filter(x=>x.tgl<=k),docs=S.docs.filter(d=>d.tgl<=k);
+  return {
+    format:'imagritama-arsip-1',dibuat:new Date().toISOString(),usaha:S.settings.usaha,sampaiTanggal:k,
+    dokumen:docs.map(d=>Object.assign({},d,{_total:D.doc[d.no]?D.doc[d.no].total:null,_sisa:D.doc[d.no]?D.doc[d.no].sisa:null,_status:D.doc[d.no]?D.doc[d.no].status:null})),
+    kas,jurnal:journal().filter(e=>e.tgl<=k),
+    konsultasi:(S.konsultasi||[]).filter(x=>x.tgl<=k),penawaran:(S.penawaran||[]).filter(x=>x.tgl<=k),tugas:(S.tugas||[]).filter(x=>x.tgl<=k),
+    audit:(S.audit||[]).filter(x=>String(x.ts).slice(0,10)<=k)
+  };
+}
+function arsCsvCell(v){v=v==null?'':String(v);return /[",\n;]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+function arsCsv(A){
+  const rows=[['No dokumen','Tanggal','Jenis','Mitra','Total','Sisa','Status','Metode']];
+  A.dokumen.forEach(d=>rows.push([d.no,d.tgl,d.jenis,mitraNama(d.mitra),Math.round(d._total||0),Math.round(d._sisa||0),d._status||'',d.metode||'']));
+  rows.push([],['Kas & Bank'],['No','Tanggal','Tipe','Arah','Nilai','Metode','Keterangan']);
+  A.kas.forEach(x=>rows.push([x.id,x.tgl,x.tipe,x.arah,Math.round(x.nilai||0),x.metode||'',x.ket||'']));
+  return '﻿'+rows.map(r=>r.map(arsCsvCell).join(',')).join('\r\n');
+}
+function arsLimit(){const k=S.settings.kunci;return k||''}
+function arsipCard(){
+  const k=arsLimit(),b=arsBytes(),mb=b/1048576,pct=Math.min(100,Math.round(b/5242880*100)),ar=S.settings.arsip||[];
+  const warn=pct>=70,top=Object.entries(S).map(([a,v])=>[a,JSON.stringify(v).length]).sort((x,y)=>y[1]-x[1]).slice(0,4);
+  const mine=canArsip();
+  const form=!k?`<div class="note">Kunci periode dulu (kartu <b>Status Periode</b> di atas). Arsip hanya bisa dibuat untuk periode yang sudah dikunci, supaya isinya tidak berubah lagi.</div>`
+   :!mine?`<div class="note">Arsip hanya bisa dibuat oleh peran admin atau keuangan.</div>`
+   :`<div class="field" style="max-width:240px"><label class="lbl" for="ar-tgl">Arsipkan sampai tanggal</label><input class="in" type="date" id="ar-tgl" value="${k}" max="${k}"></div>
+   <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn pri" data-act="ar-json">${ic('doc')}Unduh Arsip (JSON)</button><button class="btn" data-act="ar-csv">${ic('doc')}Unduh Transaksi (CSV)</button><button class="btn" data-act="ar-prune">Hapus data pendukung lama…</button></div>`;
+  return `<div class="card" style="margin-top:12px"><h3 class="ch">${ic('shield')}Arsip & Penyimpanan</h3>
+  <div class="small muted" style="margin-bottom:6px">Ukuran data aplikasi: <b>${mb.toFixed(2).replace('.',',')} MB</b> dari batas aman ±5 MB di perangkat ini ${warn?badge('warn','mulai penuh'):badge('ok','aman')}</div>
+  <div style="height:8px;background:#e6ebf5;border-radius:6px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:${pct}%;background:${warn?'#e0922b':'#2f6fed'}"></div></div>
+  <div class="small muted" style="margin-bottom:10px">Terbesar: ${top.map(x=>esc(x[0])+' '+(x[1]/1024).toFixed(0)+' KB').join(' · ')}</div>
+  ${form}
+  <div class="note" style="margin-top:10px">Arsip berisi dokumen, kas, jurnal, dan catatan sampai tanggal yang dipilih. Simpan file hasil unduhan di tempat aman (mis. Google Drive). Dokumen, kas, dan jurnal <b>tidak dihapus</b> dari aplikasi, karena dibutuhkan untuk stok, piutang, dan neraca. Yang bisa dipangkas hanya data pendukung (konsultasi, penawaran yang sudah selesai, tugas selesai).</div>
+  ${ar.length?`<h4 style="margin:12px 0 6px">Riwayat arsip</h4><table class="tbl"><thead><tr><th>Sampai</th><th>Dibuat</th><th>Oleh</th><th class="r">Dokumen</th><th class="r">Kas</th><th>Kode cek</th></tr></thead><tbody>${ar.map(a=>`<tr><td>${fmtTgl(a.tgl)}</td><td>${esc(String(a.dibuat).slice(0,16).replace('T',' '))}</td><td>${esc(a.oleh)}</td><td class="r">${a.docs}</td><td class="r">${a.kas}</td><td><code>${esc(a.hash)}</code></td></tr>`).join('')}</tbody></table>`:''}</div>`;
+}
+const _tutup0=KEU_EXT.tutup;
+KEU_EXT.tutup=()=>_tutup0()+arsipCard();
+function arsCek(){
+  if(!canArsip()){toast('Hanya admin atau keuangan yang boleh mengarsip',true);return null}
+  const k=arsLimit();if(!k){toast('Kunci periode dulu di Tutup Buku',true);return null}
+  const el=document.getElementById('ar-tgl'),t=(el&&el.value)||k;
+  if(t>k){toast('Tanggal arsip tidak boleh melewati tanggal kunci ('+fmtTgl(k)+')',true);return null}
+  return t;
+}
+ACT['ar-json']=()=>{
+  const t=arsCek();if(!t)return;
+  const A=arsData(t),txt=JSON.stringify(A),h=arsHash(txt);
+  XL.save(new Blob([txt],{type:'application/json'}),'Arsip_IMAGRITAMA_sampai_'+t+'.json');
+  S.settings.arsip=S.settings.arsip||[];
+  S.settings.arsip.unshift({tgl:t,dibuat:new Date().toISOString(),oleh:(OL&&OL.sess?(OL.nama||OL.sess.email):(S.settings.kasir||'Kasir')),docs:A.dokumen.length,kas:A.kas.length,hash:h,bytes:txt.length});
+  if(S.settings.arsip.length>50)S.settings.arsip.length=50;
+  ARS.last=t;AUD('Arsip periode','sampai '+t+' · '+A.dokumen.length+' dokumen · kode '+h,'');
+  if(commit()===false)return;refresh();toast('Arsip diunduh. Simpan file di tempat aman.');
+};
+ACT['ar-csv']=()=>{
+  const t=arsCek();if(!t)return;
+  XL.save(new Blob([arsCsv(arsData(t))],{type:'text/csv;charset=utf-8'}),'Transaksi_IMAGRITAMA_sampai_'+t+'.csv');toast('CSV transaksi diunduh');
+};
+function arsPrunable(t){
+  return {kon:(S.konsultasi||[]).filter(x=>x.tgl<=t),pnw:(S.penawaran||[]).filter(x=>x.tgl<=t&&x.status!=='Terbuka'),tgs:(S.tugas||[]).filter(x=>x.tgl<=t&&x.selesai)};
+}
+ACT['ar-prune']=()=>{
+  const t=arsCek();if(!t)return;
+  if(ARS.last!==t&&!(S.settings.arsip||[]).some(a=>a.tgl===t&&String(a.dibuat).slice(0,10)===todayISO()))return toast('Unduh dulu Arsip (JSON) untuk tanggal ini, baru data pendukung boleh dipangkas',true);
+  const p=arsPrunable(t),n=p.kon.length+p.pnw.length+p.tgs.length;
+  if(!n)return toast('Tidak ada data pendukung lama yang bisa dipangkas');
+  ARS.prune=t;
+  openModal('Hapus data pendukung lama',`<p>Yang akan dihapus dari aplikasi (sampai <b>${fmtTgl(t)}</b>):</p><ul style="padding-left:20px;line-height:1.6"><li>${p.kon.length} catatan konsultasi</li><li>${p.pnw.length} penawaran yang sudah selesai atau ditutup</li><li>${p.tgs.length} tugas yang sudah selesai</li></ul><div class="note">Semuanya sudah ada di file arsip yang Anda unduh. Dokumen transaksi, kas, dan jurnal tidak ikut dihapus. Tindakan ini tidak bisa dibatalkan dari aplikasi.</div>`,'<button class="btn" data-act="close">Batal</button><button class="btn danger" data-act="ar-prune-ok">Ya, hapus</button>','sm');
+};
+ACT['ar-prune-ok']=()=>{
+  const t=ARS.prune;if(!t||!canArsip())return;
+  const p=arsPrunable(t),n=p.kon.length+p.pnw.length+p.tgs.length;
+  S.konsultasi=S.konsultasi.filter(x=>!p.kon.includes(x));S.penawaran=S.penawaran.filter(x=>!p.pnw.includes(x));S.tugas=S.tugas.filter(x=>!p.tgs.includes(x));
+  AUD('Pangkas data pendukung','sampai '+t+' · '+n+' catatan','');ARS.prune=null;
+  if(commit()===false)return;closeModal();refresh();toast(n+' catatan lama dihapus');
+};
+
 /* ====== PESANAN PEMBELIAN (PO) & PENJUALAN (SO) ====== */
 Object.assign(ui,{pso:{tab:'all'}});
 const POJ={PO:['Pesanan Pembelian','Beli'],SO:['Pesanan Penjualan','Jual']};
