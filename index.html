@@ -546,6 +546,7 @@ body.tema-terang .nav{transition:background .15s,box-shadow .15s}
 @media (prefers-reduced-motion:reduce){body.tema-terang #view.pgin>*{animation:none}body.tema-terang .card{transition:none}}
 .temaopt{display:flex;gap:12px;flex-wrap:wrap}.temaopt button{flex:1;min-width:150px;border:2px solid var(--line);background:#fff;border-radius:14px;padding:12px;cursor:pointer;text-align:left}
 .temaopt button.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}.temaopt .sw{height:46px;border-radius:9px;margin-bottom:8px;border:1px solid #d9e2f1}
+.wk .v{transition:color .4s ease}.wk .v.gup{color:#118c5e!important}.wk .v.gdn{color:#cf3a40!important}
 </style>
 <div id="app"></div>
 <script>
@@ -4061,6 +4062,89 @@ window.addEventListener('hashchange',()=>{const v=document.getElementById('view'
 function temaCard(){const c=temaGet();return `<div class="card" style="margin-bottom:12px"><h3 class="ch">${ic('gear')}Tema Tampilan</h3><div class="temaopt"><button data-act="tema-set" data-t="terang" class="${c==='terang'?'on':''}"><div class="sw" style="background:linear-gradient(135deg,#fff,#dbe8ff)"></div><b>Terang</b><div class="small muted">Putih bersih dengan aksen biru dan gerakan halus</div></button><button data-act="tema-set" data-t="navy" class="${c==='navy'?'on':''}"><div class="sw" style="background:linear-gradient(135deg,#0a1b44,#13306b)"></div><b>Navy</b><div class="small muted">Menu dan header biru tua, tampilan klasik</div></button></div><div class="note" style="margin-top:8px">Pilihan ini berlaku di perangkat yang Anda pakai saja. Perangkat lain bisa memilih tema sendiri.</div></div>`}
 const _pgTema=PAGES.pengaturan;
 PAGES.pengaturan=()=>{const p=_pgTema();p.html=temaCard()+p.html;return p};
+/* ====== GERAK DATA: angka & grafik bergerak dari nilai lama ke nilai baru, sinkron saat data berubah ====== */
+function wKpi(){
+  const fin=finOK(),mo=curMonth(),m=met(mo),cp=perShift(),pm=cp?met(cp):null,R=wMonthRows(12);
+  const cu=wCust(ui.period),pcu=cp?wCust(cp):0;
+  const qty=sum(saleLines(ui.period),l=>l.qty),pqty=cp?sum(saleLines(cp),l=>l.qty):0;
+  const dm=(a,b)=>{if(!cp)return '<span class="muted">tanpa pembanding</span>';const d=(a-b)*100;return `<span class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${d>=0?'+':'-'}${Math.abs(d).toFixed(1).replace('.',',')} poin</span> <span class="muted">vs ${ui.cmp==='yoy'?'tahun lalu':perShort(cp)}</span>`};
+  const C=[['c1','bars','Total Omzet',rpS(m.omzet),deltaTxt(m.omzet,pm?pm.omzet:0,mo),R.map(r=>r.omzet),'#1763e0',m.omzet,'rp']];
+  if(fin)C.push(['c2','wallet','Laba Kotor',rpS(m.lk),deltaTxt(m.lk,pm?pm.lk:0,mo),R.map(r=>r.lk),'#17a673',m.lk,'rp']);
+  C.push(['c3','cart','Total Transaksi',num(m.nTrx),deltaTxt(m.nTrx,pm?pm.nTrx:0,mo),R.map(r=>r.n),'#8466d6',m.nTrx,'n']);
+  C.push(['c4','people','Total Pelanggan',num(cu),deltaTxt(cu,pcu,mo),R.map(r=>r.cust),'#f0a020',cu,'n']);
+  if(fin)C.push(['c5','pct','Margin Laba Kotor',pS(m.margin),dm(m.margin,pm?pm.margin:0),R.map(r=>r.mar),'#e0467c',m.margin,'p']);
+  else C.push(['c5','box','Unit Terjual',num(qty),deltaTxt(qty,pqty,mo),R.map(r=>r.n),'#e0467c',qty,'n']);
+  return `<div class="card wcard wkc"><div class="wkgrid">${C.map((c,i)=>`<div class="wk"><div class="wkt"><span class="wki ${c[0]}">${c[1]==='pct'?'<b>%</b>':ic(c[1])}</span><div><div class="l">${c[2]}</div><div class="v" data-k="${c[0]}" data-n="${c[7]}" data-f="${c[8]}">${c[3]}</div></div></div><div class="d">${c[4]}</div>${wSpark(c[5],c[6],'wsg'+i)}</div>`).join('')}</div></div>`;
+}
+
+const GER={kpi:{},geo:{},ctx:''};
+const gerFmt=(f,v)=>f==='rp'?rpS(v):f==='p'?pS(v):num(Math.round(v));
+const gerReduce=()=>{try{return window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
+function gerRec(){
+  try{
+    if(ui.page!=='dashboard')return;
+    document.querySelectorAll('#view .wg[data-wid]').forEach(c=>{
+      const els=[...c.querySelectorAll('path,circle,rect,text,[style*="width:"]')].map(e=>({t:e.tagName,d:e.getAttribute('d'),cx:e.getAttribute('cx'),cy:e.getAttribute('cy'),x:e.getAttribute('x'),y:e.getAttribute('y'),w:e.getAttribute('width'),h:e.getAttribute('height'),sw:e.style&&e.style.width||''}));
+      GER.geo[c.dataset.wid]={ts:Date.now(),els};
+    });
+  }catch(e){}
+}
+function gerPlay(){
+  try{
+    if(ui.page!=='dashboard'||gerReduce())return;
+    const ctx=ui.period+'|'+ui.cmp,same=GER.ctx===ctx;GER.ctx=ctx;const now=Date.now();
+    document.querySelectorAll('#view .wk .v[data-k]').forEach(el=>{
+      const k=el.closest('.wg')?el.closest('.wg').dataset.wid+':'+el.dataset.k:el.dataset.k,n=+el.dataset.n,f=el.dataset.f,old=GER.kpi[k];GER.kpi[k]={n,ts:now};
+      if(!old||now-old.ts>6e5||old.n===n||!isFinite(old.n)||!isFinite(n))return;
+      const fin=el.textContent,a=old.n,b=n,t0=performance.now(),dur=900;
+      if(same)el.classList.add(b>a?'gup':'gdn');
+      const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);el.textContent=p<1?gerFmt(f,a+(b-a)*e):fin;if(p<1)requestAnimationFrame(step);else setTimeout(()=>el.classList.remove('gup','gdn'),900)};
+      requestAnimationFrame(step);
+    });
+    document.querySelectorAll('#view .wg[data-wid]').forEach(c=>{
+      const old=GER.geo[c.dataset.wid];if(!old||now-old.ts>6e5)return;
+      const els=[...c.querySelectorAll('path,circle,rect,text,[style*="width:"]')];
+      if(els.length!==old.els.length)return;
+      const opt={duration:850,easing:'cubic-bezier(.2,.8,.2,1)'};
+      els.forEach((e,i)=>{
+        const o=old.els[i];if(o.t!==e.tagName)return;
+        try{
+          if(e.tagName==='path'){const d=e.getAttribute('d');if(o.d&&d&&o.d!==d&&e.animate)e.animate([{d:'path("'+o.d+'")'},{d:'path("'+d+'")'}],opt)}
+          else if(e.tagName==='circle'||e.tagName==='text'){
+            const ox=+(e.tagName==='circle'?o.cx:o.x),oy=+(e.tagName==='circle'?o.cy:o.y),nx=+(e.tagName==='circle'?e.getAttribute('cx'):e.getAttribute('x')),ny=+(e.tagName==='circle'?e.getAttribute('cy'):e.getAttribute('y'));
+            if(isFinite(ox)&&isFinite(nx)&&isFinite(oy)&&isFinite(ny)&&(ox!==nx||oy!==ny)&&e.animate)e.animate([{transform:`translate(${ox-nx}px,${oy-ny}px)`},{transform:'translate(0,0)'}],opt)}
+          else if(e.tagName==='rect'){
+            const ow=+o.w,nw=+e.getAttribute('width'),oh=+o.h,nh=+e.getAttribute('height'),oy=+o.y,ny=+e.getAttribute('y');
+            if(isFinite(ow)&&isFinite(nw)&&isFinite(oh)&&isFinite(nh)&&(ow!==nw||oh!==nh||oy!==ny)&&e.animate)e.animate([{width:ow+'px',height:oh+'px',y:oy+'px'},{width:nw+'px',height:nh+'px',y:ny+'px'}],opt)}
+          else if(o.sw&&e.style.width&&o.sw!==e.style.width&&e.animate)e.animate([{width:o.sw},{width:e.style.width}],opt);
+        }catch(_){}
+      });
+    });
+  }catch(e){}
+}
+const _render1=render;
+render=function(){gerRec();_render1();gerPlay()};
+
+/* ====== Widget "Laporan Hama" (dari catatan konsultasi pelanggan di Smart POS) ====== */
+const HAMA_RE=/ulat|wereng|hama|kutu|thrips|trips|lalat|penggerek|tikus|keong|belalang|walang|ngengat|tungau|kepik|aphid|semut|rayap|uret|orong/i;
+function hamaMinggu(){
+  const arr=new Array(8).fill(0),top={};const t0=new Date(todayISO()+'T00:00:00');
+  (S.konsultasi||[]).forEach(k=>{
+    const p=k.parsed||{};if(!(p.kat==='Insektisida'||HAMA_RE.test((p.masalah||'')+' '+(k.teks||''))))return;
+    const d=Math.floor((t0-new Date(k.tgl+'T00:00:00'))/864e5);if(d<0||d>=56)return;
+    const w=7-Math.floor(d/7);arr[w]++;if(d<28){const m=(p.masalah||'Hama lain').trim()||'Hama lain';top[m]=(top[m]||0)+1}
+  });
+  return {arr,top:Object.entries(top).sort((a,b)=>b[1]-a[1]).slice(0,3)};
+}
+function wHama(){
+  const H=hamaMinggu(),cur=H.arr[7],prev=H.arr[6],tot=H.arr.reduce((a,b)=>a+b,0);
+  if(!tot)return wCardT('Laporan Hama · 8 Minggu',`<div class="empty">Belum ada konsultasi hama tercatat. Data muncul otomatis dari menu Konsultasi di Smart POS.</div>`);
+  const d=cur-prev,ar=d>0?'▲':d<0?'▼':'•',cl=d>0?'dn':d<0?'up':'muted';
+  return wCardT('Laporan Hama · 8 Minggu',`<div class="wk" style="padding:0"><div class="wkt"><span class="wki c4">${ic('warn')}</span><div><div class="l">Pelanggan melapor minggu ini</div><div class="v" data-k="hm" data-n="${cur}" data-f="n">${num(cur)}</div></div></div><div class="d"><span class="${cl}">${ar} ${d>0?'+':''}${d}</span> <span class="muted">vs minggu lalu</span></div>${wSpark(H.arr,'#e0646b','wsgH')}</div>${H.top.length?`<div class="small" style="margin-top:6px"><b>Sering dilaporkan (4 minggu)</b>${H.top.map(x=>`<div class="row" style="justify-content:space-between"><span>${esc(x[0])}</span><b>${x[1]}</b></div>`).join('')}</div>`:''}<div class="note" style="margin-top:8px">Sumber: catatan konsultasi pelanggan toko Anda, bukan data resmi serangan hama wilayah. Naik berarti siapkan stok pestisida.</div>`);
+}
+if(!WREG.some(w=>w.id==='hama')){WREG.push({id:'hama',t:'Laporan Hama (Konsultasi)',sz:4,fin:0,def:0});try{WBY.hama=WREG[WREG.length-1]}catch(e){}}
+const _wBody0=wBody;
+wBody=function(id,B){return id==='hama'?wHama():_wBody0(id,B)};
 /* ====== MODE ONLINE: login + sinkronisasi Supabase (aktif hanya jika SB_CFG diisi saat build) ====== */
 const ONLINE=typeof SB_CFG!=='undefined'&&!!SB_CFG.url;
 const OL={sess:null,role:null,nama:'',versi:0,dirty:false,timer:null,busy:false,readonly:false,ok:'',poll:null};
