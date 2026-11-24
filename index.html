@@ -4176,7 +4176,8 @@ function wHama(){
   const d=cur-prev,ar=d>0?'▲':d<0?'▼':'•',cl=d>0?'dn':d<0?'up':'muted';
   return wCardT('Laporan Hama · 8 Minggu',`<div class="wk" style="padding:0"><div class="wkt"><span class="wki c4">${ic('warn')}</span><div><div class="l">Pelanggan melapor minggu ini</div><div class="v" data-k="hm" data-n="${cur}" data-f="n">${num(cur)}</div></div></div><div class="d"><span class="${cl}">${ar} ${d>0?'+':''}${d}</span> <span class="muted">vs minggu lalu</span></div>${wSpark(H.arr,'#e0646b','wsgH')}</div>${H.top.length?`<div class="small" style="margin-top:6px"><b>Sering dilaporkan (4 minggu)</b>${H.top.map(x=>`<div class="row" style="justify-content:space-between"><span>${esc(x[0])}</span><b>${x[1]}</b></div>`).join('')}</div>`:''}<div class="note" style="margin-top:8px">Sumber: catatan konsultasi pelanggan toko Anda, bukan data resmi serangan hama wilayah. Naik berarti siapkan stok pestisida.</div>`);
 }
-if(!WREG.some(w=>w.id==='hama')){WREG.push({id:'hama',t:'Laporan Hama (Konsultasi)',sz:4,fin:0,def:0});try{WBY.hama=WREG[WREG.length-1]}catch(e){}}
+if(!WREG.some(w=>w.id==='hama')){const hw={id:'hama',t:'Laporan Hama (Konsultasi)',sz:4,fin:0,def:1},ix=WREG.findIndex(w=>w.id==='menipis');if(ix>=0)WREG.splice(ix,0,hw);else WREG.push(hw);try{WBY.hama=hw}catch(e){}}
+(function(){try{if(localStorage.getItem('imagritama_hama_v1'))return;localStorage.setItem('imagritama_hama_v1','1');if(!WST.on.includes('hama')){const k=WST.on.indexOf('menipis');if(k>=0)WST.on.splice(k,0,'hama');else WST.on.push('hama');wSave()}}catch(e){}})();
 const _wBody0=wBody;
 wBody=function(id,B){return id==='hama'?wHama():_wBody0(id,B)};
 /* ====== PERIODE MODERN: satu tombol -> kalender (hari, minggu, bulan, tahun, rentang bebas) ====== */
