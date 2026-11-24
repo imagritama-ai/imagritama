@@ -547,6 +547,32 @@ body.tema-terang .nav{transition:background .15s,box-shadow .15s}
 .temaopt{display:flex;gap:12px;flex-wrap:wrap}.temaopt button{flex:1;min-width:150px;border:2px solid var(--line);background:#fff;border-radius:14px;padding:12px;cursor:pointer;text-align:left}
 .temaopt button.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}.temaopt .sw{height:46px;border-radius:9px;margin-bottom:8px;border:1px solid #d9e2f1}
 .wk .v{transition:color .4s ease}.wk .v.gup{color:#118c5e!important}.wk .v.gdn{color:#cf3a40!important}
+/* ---- Periode modern: tombol + kalender transparan ---- */
+.top{flex-wrap:wrap}.ttl{flex:1 1 230px;min-width:200px}.hr{flex:0 1 auto;min-width:0}
+.perbtn{display:flex;align-items:center;gap:8px;background:#fff;color:var(--ink);border:1px solid #dbe5f6;border-radius:10px;padding:5px 12px;cursor:pointer;max-width:100%;min-width:0;font:inherit;text-align:left;box-shadow:0 2px 8px rgba(23,99,224,.08)}
+.perbtn:hover{border-color:#9db8ec}
+.perbtn .pl{display:flex;flex-direction:column;line-height:1.15;min-width:0}.perbtn small{font-size:10.5px;color:var(--mut)}
+.perbtn b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px}
+.perbg{position:fixed;inset:0;z-index:998;background:rgba(15,30,60,.12)}
+.perpop{position:fixed;z-index:999;width:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;background:rgba(255,255,255,.80);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);border:1px solid rgba(255,255,255,.7);border-radius:14px;box-shadow:0 14px 40px rgba(15,40,90,.28);padding:12px;color:#0f1e3c}
+.perpop.sheet{left:8px;right:8px;bottom:8px;top:auto;width:auto}
+.pp-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.pp-x{border:0;background:rgba(15,30,60,.08);border-radius:8px;width:28px;height:28px;cursor:pointer}
+.pp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.pp-chips .chip{background:rgba(255,255,255,.75);font-size:12px}
+.pp-tabs{display:flex;gap:4px;background:rgba(15,30,60,.07);border-radius:10px;padding:3px;margin-bottom:10px}
+.pp-tabs button{flex:1;border:0;background:transparent;border-radius:8px;padding:6px 0;font-weight:700;font-size:13px;cursor:pointer;color:#33456b}
+.pp-tabs button.on{background:#fff;color:#1763e0;box-shadow:0 1px 4px rgba(15,40,90,.18)}
+.pp-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.pp-n{border:0;background:rgba(255,255,255,.8);border-radius:8px;width:32px;height:30px;font-size:18px;cursor:pointer}
+.pp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.pp-h{text-align:center;font-size:11px;font-weight:700;color:#5b6b8c;padding:3px 0}
+.pp-d{border:0;background:transparent;border-radius:8px;height:34px;font-size:13px;cursor:pointer;position:relative;color:#0f1e3c}
+.pp-d:hover,.pp-m:hover{background:rgba(23,99,224,.14)}
+.pp-d.in,.pp-m.in{background:rgba(23,99,224,.20)}.pp-d.on,.pp-m.on{background:#1763e0;color:#fff;font-weight:700}
+.pp-d.td{outline:1.5px solid #1763e0;outline-offset:-2px}
+.pp-d.has::after,.pp-leg .has{content:"";position:absolute;left:50%;bottom:3px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:#17a673}
+.pp-leg{font-size:11px;color:#5b6b8c;margin-top:4px}.pp-leg .has{position:static;display:inline-block;margin:0 4px 1px 0}
+.pp-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.pp-m{border:0;background:rgba(255,255,255,.7);border-radius:9px;height:40px;font-weight:700;cursor:pointer;color:#0f1e3c}
+.pp-hint{margin:8px 0 4px;font-size:12px}.pp-sel{margin:4px 0 8px;font-size:13px}.pp-cmp{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#33456b;margin-bottom:8px}
+.pp-cmp select{border:1px solid #cfdaf0;background:rgba(255,255,255,.85);border-radius:8px;padding:6px}
+.pp-foot{display:flex;justify-content:flex-end;gap:8px}.pp-foot .btn[disabled]{opacity:.5;cursor:not-allowed}
 </style>
 <div id="app"></div>
 <script>
@@ -4145,6 +4171,129 @@ function wHama(){
 if(!WREG.some(w=>w.id==='hama')){WREG.push({id:'hama',t:'Laporan Hama (Konsultasi)',sz:4,fin:0,def:0});try{WBY.hama=WREG[WREG.length-1]}catch(e){}}
 const _wBody0=wBody;
 wBody=function(id,B){return id==='hama'?wHama():_wBody0(id,B)};
+/* ====== PERIODE MODERN: satu tombol -> kalender (hari, minggu, bulan, tahun, rentang bebas) ====== */
+const PP={open:false,mode:'hari',a:null,b:null,vm:'',vy:0,vy0:0,cmp:'prev'};
+const PP_DOW=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+function ppDow(iso){return (new Date(iso+'T00:00:00').getDay()+6)%7}
+function ppMon(iso){return addDays(iso,-ppDow(iso))}
+function ppSun(iso){return addDays(iso,6-ppDow(iso))}
+function ppRange(){
+  const a=PP.a,b=PP.b||PP.a;if(!a)return null;const lo=a<b?a:b,hi=a<b?b:a;
+  if(PP.mode==='hari')return [lo,hi];
+  if(PP.mode==='minggu')return [ppMon(lo),ppSun(hi)];
+  if(PP.mode==='bulan')return [lo+'-01',monthEnd(hi)];
+  return [lo+'-01-01',hi+'-12-31'];
+}
+function ppValue(){
+  const r=ppRange();if(!r)return null;
+  if(PP.mode==='bulan'&&!PP.b)return PP.a;
+  if(PP.mode==='tahun'&&!PP.b)return PP.a;
+  return r[0]+'..'+r[1];
+}
+function ppLabel(){
+  const r=ppRange();if(!r)return 'Pilih tanggal di kalender';
+  const v=ppValue();return perLabel(v);
+}
+function ppInit(){
+  const k=perKind(),td=todayISO();PP.cmp=ui.cmp||'prev';
+  const f=perFrom()||td,t=perTo(),tt=t==='9999-12-31'?td:t;
+  PP.vm=f.slice(0,7);PP.vy=+f.slice(0,4);PP.vy0=+f.slice(0,4)-4;
+  if(k==='month'){PP.mode='bulan';PP.a=ui.period;PP.b=null}
+  else if(k==='year'){PP.mode='tahun';PP.a=ui.period;PP.b=null}
+  else if(k==='range'){PP.mode='hari';PP.a=f;PP.b=f===tt?null:tt}
+  else{PP.mode='hari';PP.a=null;PP.b=null}
+}
+function periodSel(){
+  const k=perKind(),sh=k==='all'?'Semua periode':perLabel();
+  return `<button class="perbtn" data-act="pp-toggle" aria-haspopup="dialog" aria-expanded="${PP.open}" title="Pilih periode: hari, minggu, bulan, tahun, atau rentang bebas">${ic('cal2','')}<span class="pl"><small>Periode</small><b>${esc(sh)}</b></span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`;
+}
+function ppDaysSet(){const s=new Set();for(const d of S.docs)if(d.jenis==='Jual')s.add(d.tgl);return s}
+function ppCal(){
+  const vm=PP.vm,[y,m]=vm.split('-').map(Number),first=vm+'-01',off=ppDow(first),n=+monthEnd(vm).slice(8),td=todayISO(),r=ppRange(),has=ppDaysSet();
+  let cells=PP_DOW.map(d=>`<div class="pp-h">${d}</div>`).join('');
+  for(let i=0;i<off;i++)cells+='<div></div>';
+  for(let d=1;d<=n;d++){
+    const iso=vm+'-'+p2(d),inr=r&&iso>=r[0]&&iso<=r[1],edge=r&&(iso===r[0]||iso===r[1]);
+    cells+=`<button class="pp-d${inr?' in':''}${edge?' on':''}${iso===td?' td':''}${has.has(iso)?' has':''}" data-act="pp-pick" data-v="${iso}" aria-label="${fmtTgl(iso)}">${d}</button>`;
+  }
+  return `<div class="pp-nav"><button class="pp-n" data-act="pp-nav" data-d="-1" aria-label="Bulan sebelumnya">‹</button><b>${BLN[m-1]} ${y}</b><button class="pp-n" data-act="pp-nav" data-d="1" aria-label="Bulan berikutnya">›</button></div><div class="pp-grid">${cells}</div><div class="pp-leg"><i class="has"></i> ada penjualan</div>`;
+}
+function ppMonths(){
+  const y=PP.vy,r=ppRange();let c='';
+  for(let i=1;i<=12;i++){const ym=y+'-'+p2(i),inr=r&&ym+'-01'>=r[0].slice(0,7)+'-01'&&ym<=r[1].slice(0,7);
+    const edge=r&&(ym===r[0].slice(0,7)||ym===r[1].slice(0,7));
+    c+=`<button class="pp-m${inr?' in':''}${edge?' on':''}" data-act="pp-pick" data-v="${ym}">${BLN3[i-1]}</button>`}
+  return `<div class="pp-nav"><button class="pp-n" data-act="pp-nav" data-d="-1" aria-label="Tahun sebelumnya">‹</button><b>${y}</b><button class="pp-n" data-act="pp-nav" data-d="1" aria-label="Tahun berikutnya">›</button></div><div class="pp-grid3">${c}</div>`;
+}
+function ppYears(){
+  const y0=PP.vy0,r=ppRange();let c='';
+  for(let y=y0;y<y0+12;y++){const inr=r&&y>=+r[0].slice(0,4)&&y<=+r[1].slice(0,4),edge=r&&(y===+r[0].slice(0,4)||y===+r[1].slice(0,4));
+    c+=`<button class="pp-m${inr?' in':''}${edge?' on':''}" data-act="pp-pick" data-v="${y}">${y}</button>`}
+  return `<div class="pp-nav"><button class="pp-n" data-act="pp-nav" data-d="-1" aria-label="Sebelumnya">‹</button><b>${y0} – ${y0+11}</b><button class="pp-n" data-act="pp-nav" data-d="1" aria-label="Berikutnya">›</button></div><div class="pp-grid3">${c}</div>`;
+}
+function ppHtml(){
+  const M=[['hari','Hari'],['minggu','Minggu'],['bulan','Bulan'],['tahun','Tahun']];
+  const body=PP.mode==='bulan'?ppMonths():PP.mode==='tahun'?ppYears():ppCal();
+  const hint=PP.mode==='hari'?'Klik satu tanggal untuk satu hari. Klik tanggal kedua untuk rentang bebas.':PP.mode==='minggu'?'Klik satu tanggal: dipilih seminggu penuh (Senin–Minggu). Klik lagi untuk beberapa minggu.':PP.mode==='bulan'?'Klik satu bulan. Klik bulan kedua untuk rentang bulan.':'Klik satu tahun. Klik tahun kedua untuk beberapa tahun sekaligus.';
+  const pre=perPresets().slice(0,6).map(p=>`<button class="chip" data-act="pp-preset" data-p="${esc(p[1])}">${esc(p[0])}</button>`).join('')+`<button class="chip" data-act="pp-preset" data-p="all">Semua periode</button>`;
+  const cmp=ui.page==='dashboard'?`<label class="pp-cmp"><span>Bandingkan dengan</span><select id="pp-cmp" data-chg="pp-cmp"><option value="prev" ${PP.cmp==='prev'?'selected':''}>Periode sebelumnya</option><option value="yoy" ${PP.cmp==='yoy'?'selected':''}>Tahun lalu</option><option value="none" ${PP.cmp==='none'?'selected':''}>Tanpa pembanding</option></select></label>`:'';
+  return `<div class="pp-top"><b>Pilih periode</b><button class="pp-x" data-act="pp-close" aria-label="Tutup">✕</button></div>
+  <div class="pp-chips">${pre}</div>
+  <div class="pp-tabs" role="tablist">${M.map(x=>`<button class="${PP.mode===x[0]?'on':''}" role="tab" data-act="pp-mode" data-m="${x[0]}">${x[1]}</button>`).join('')}</div>
+  <div class="pp-body">${body}</div>
+  <div class="small muted pp-hint">${hint}</div>
+  <div class="pp-sel"><span>Terpilih:</span> <b>${esc(ppLabel())}</b></div>
+  ${cmp}
+  <div class="pp-foot"><button class="btn" data-act="pp-close">Batal</button><button class="btn pri" data-act="pp-apply" ${PP.a?'':'disabled'}>Terapkan</button></div>`;
+}
+function ppPlace(){
+  const pop=document.getElementById('perpop'),btn=document.querySelector('.perbtn');if(!pop)return;
+  if(window.innerWidth<=640||!btn){pop.classList.add('sheet');pop.style.left=pop.style.top='';return}
+  pop.classList.remove('sheet');
+  const r=btn.getBoundingClientRect(),w=Math.min(360,window.innerWidth-16);
+  let l=Math.min(Math.max(8,r.right-w),window.innerWidth-w-8);
+  pop.style.width=w+'px';pop.style.left=l+'px';pop.style.top=Math.min(r.bottom+8,Math.max(8,window.innerHeight-pop.offsetHeight-8))+'px';
+}
+function ppDraw(){
+  let pop=document.getElementById('perpop');
+  if(!PP.open){if(pop)pop.remove();const bg=document.getElementById('perbg');if(bg)bg.remove();const b=document.querySelector('.perbtn');if(b)b.setAttribute('aria-expanded','false');return}
+  if(!pop){
+    const bg=document.createElement('div');bg.id='perbg';bg.className='perbg';bg.addEventListener('mousedown',()=>{PP.open=false;ppDraw()});document.body.appendChild(bg);
+    pop=document.createElement('div');pop.id='perpop';pop.className='perpop';pop.setAttribute('role','dialog');pop.setAttribute('aria-label','Pilih periode');document.body.appendChild(pop);
+  }
+  pop.innerHTML=ppHtml();ppPlace();const b=document.querySelector('.perbtn');if(b)b.setAttribute('aria-expanded','true');
+}
+ACT['pp-toggle']=()=>{if(PP.open){PP.open=false}else{ppInit();PP.open=true}ppDraw()};
+ACT['pp-close']=()=>{PP.open=false;ppDraw()};
+ACT['pp-mode']=t=>{
+  const m=t.dataset.m,r=ppRange();PP.mode=m;
+  if(r){PP.vm=r[0].slice(0,7);PP.vy=+r[0].slice(0,4);PP.vy0=+r[0].slice(0,4)-4;
+    if(m==='bulan'){PP.a=r[0].slice(0,7);PP.b=r[1].slice(0,7)===PP.a?null:r[1].slice(0,7)}
+    else if(m==='tahun'){PP.a=r[0].slice(0,4);PP.b=r[1].slice(0,4)===PP.a?null:r[1].slice(0,4)}
+    else{PP.a=r[0];PP.b=r[1]===r[0]?null:r[1]}}
+  else{PP.a=PP.b=null}
+  ppDraw();
+};
+ACT['pp-nav']=t=>{
+  const d=+t.dataset.d;
+  if(PP.mode==='bulan')PP.vy+=d;else if(PP.mode==='tahun')PP.vy0+=d*12;
+  else{let [y,m]=PP.vm.split('-').map(Number);m+=d;while(m<1){m+=12;y--}while(m>12){m-=12;y++}PP.vm=y+'-'+p2(m)}
+  ppDraw();
+};
+ACT['pp-pick']=t=>{
+  const v=t.dataset.v;
+  if(!PP.a||PP.b){PP.a=v;PP.b=null}
+  else{if(v<PP.a){PP.b=PP.a;PP.a=v}else if(v===PP.a)PP.b=null;else PP.b=v}
+  ppDraw();
+};
+ACT['pp-preset']=t=>{PP.open=false;ppDraw();perSet(t.dataset.p)};
+ACT['pp-cmp']=t=>{PP.cmp=t.value};
+ACT['pp-apply']=()=>{
+  const v=ppValue();if(!v)return toast('Pilih tanggal dulu',true);
+  ui.cmp=PP.cmp||ui.cmp;PP.open=false;ppDraw();perSet(v);
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&PP.open){PP.open=false;ppDraw()}});
+window.addEventListener('resize',()=>{if(PP.open)ppPlace()});
 /* ====== MODE ONLINE: login + sinkronisasi Supabase (aktif hanya jika SB_CFG diisi saat build) ====== */
 const ONLINE=typeof SB_CFG!=='undefined'&&!!SB_CFG.url;
 const OL={sess:null,role:null,nama:'',versi:0,dirty:false,timer:null,busy:false,readonly:false,ok:'',poll:null};
