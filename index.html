@@ -3910,6 +3910,42 @@ ACT['foto-q']=t=>{FOTO.q=t.value;FOTO.lim=40;const b=document.getElementById('mb
 ACT['foto-only']=t=>{FOTO.only=t.checked;FOTO.lim=40;fotoModalRefresh()};
 ACT['foto-more']=()=>{FOTO.lim+=40;fotoModalRefresh()};
 
+/* ====== LOT & KEDALUWARSA (opsional, tidak mengubah jurnal/stok; dicatat terpisah per SKU) ====== */
+function canLot(){return !(typeof OL!=='undefined'&&OL.sess&&!['admin','gudang','keuangan'].includes(OL.role))}
+function lotDays(exp){return Math.floor((new Date(exp+'T00:00:00')-new Date(todayISO()+'T00:00:00'))/864e5)}
+function lotAlloc(){
+  const by={};(S.lot||[]).forEach(l=>{(by[l.sku]=by[l.sku]||[]).push(l)});const out=[];
+  Object.keys(by).forEach(sku=>{
+    const L=by[sku].slice().sort((a,b)=>a.exp<b.exp?-1:a.exp>b.exp?1:0),tot=L.reduce((a,l)=>a+l.qty,0),inv=D.inv[sku]?D.inv[sku].qty:0;
+    let used=Math.max(0,tot-Math.max(0,inv));
+    L.forEach(l=>{const take=Math.min(used,l.qty);used-=take;const rem=l.qty-take;if(rem>0)out.push({id:l.id,sku,lot:l.lot,exp:l.exp,qty:l.qty,rem})});
+  });
+  return out.sort((a,b)=>a.exp<b.exp?-1:a.exp>b.exp?1:0);
+}
+function lotStat(exp){const d=lotDays(exp);return d<0?['err','Kedaluwarsa',d]:d<=90?['warn','≤ 90 hari',d]:d<=180?['info','≤ 180 hari',d]:['ok','Aman',d]}
+function lotCard(){
+  const A=lotAlloc(),ex=A.filter(x=>lotDays(x.exp)<0).length,nr=A.filter(x=>{const d=lotDays(x.exp);return d>=0&&d<=90}).length;
+  return `<div class="card" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Lot & Kedaluwarsa</b><span class="small muted">${A.length?A.length+' lot tercatat':'Belum ada lot tercatat (opsional)'}</span>${ex?badge('err',ex+' kedaluwarsa'):''}${nr?badge('warn',nr+' segera kedaluwarsa'):''}<button class="btn sm" style="margin-left:auto" data-act="lot-kelola">Kelola Lot</button></div>`;
+}
+const _stok0=PAGES.stok;
+PAGES.stok=()=>{const p=_stok0();p.html=lotCard()+p.html;return p};
+function lotBody(){
+  const A=lotAlloc(),can=canLot();
+  return `${can?`${skuDatalist()}<div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap"><div class="field" style="flex:2;min-width:200px"><label class="lbl" for="lt-sku">Produk (ketik nama atau SKU)</label><input class="in" id="lt-sku" list="skulist" placeholder="Ketik untuk mencari…"></div><div class="field" style="min-width:110px"><label class="lbl" for="lt-lot">No. lot</label><input class="in" id="lt-lot" placeholder="mis. A123"></div><div class="field" style="min-width:90px"><label class="lbl" for="lt-qty">Jumlah</label><input class="in" id="lt-qty" type="number" min="1" placeholder="0"></div><div class="field"><label class="lbl" for="lt-exp">Kedaluwarsa</label><input class="in" id="lt-exp" type="date"></div><button class="btn pri" data-act="lot-add">Tambah</button></div>`:'<div class="note">Peran ini hanya bisa melihat daftar lot.</div>'}
+  <div class="note" style="margin:10px 0">Pencatatan ini terpisah dari stok dan akuntansi, jadi tidak mengubah angka laporan. Sisa tiap lot dihitung otomatis: penjualan dianggap mengambil lot yang paling cepat kedaluwarsa lebih dulu.</div>
+  <div class="scroll" style="max-height:50vh"><table class="tbl"><thead><tr><th>Produk</th><th>Lot</th><th>Kedaluwarsa</th><th class="r">Sisa</th><th>Status</th><th></th></tr></thead><tbody>${A.map(x=>{const st=lotStat(x.exp),s=skuOf(x.sku);return `<tr><td>${esc(s?s.nama:x.sku)}<div class="small muted">${esc(x.sku)}</div></td><td>${esc(x.lot)}</td><td>${fmtTgl(x.exp)}</td><td class="r">${num(x.rem)}<span class="small muted"> / ${num(x.qty)}</span></td><td>${badge(st[0],st[1])}</td><td class="r">${can?`<button class="btn sm danger" data-act="lot-del" data-id="${esc(x.id)}" aria-label="Hapus lot">✕</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="6" class="empty">Belum ada lot dengan sisa stok.</td></tr>'}</tbody></table></div>`;
+}
+function lotRefresh(){const b=document.getElementById('mbody');if(b&&b.querySelector('#lt-sku')!==null||b&&b.querySelector('.tbl'))b.innerHTML=lotBody();refresh()}
+ACT['lot-kelola']=()=>openModal('Lot & Kedaluwarsa',lotBody(),'<button class="btn pri" data-act="close">Selesai</button>','lg');
+ACT['lot-add']=()=>{
+  if(!canLot())return toast('Peran ini tidak boleh mengubah lot',true);
+  const s=parseSku($('#lt-sku').value),lot=($('#lt-lot').value||'').trim(),qty=Math.floor(+$('#lt-qty').value),exp=$('#lt-exp').value;
+  if(!s)return toast('Pilih produk dari daftar',true);if(!lot)return toast('Isi nomor lot',true);if(!(qty>0))return toast('Jumlah harus lebih dari 0',true);if(!exp||isNaN(new Date(exp)))return toast('Isi tanggal kedaluwarsa',true);
+  S.lot=S.lot||[];if(S.lot.some(l=>l.sku===s.sku&&l.lot===lot&&l.exp===exp))return toast('Lot yang sama sudah tercatat',true);
+  S.lot.push({id:uid(),sku:s.sku,lot,exp,qty,tgl:todayISO()});AUD('Lot',s.sku+' lot '+lot+' exp '+exp+' × '+qty,s.sku);
+  if(commit()===false)return;toast('Lot dicatat');lotRefresh();
+};
+ACT['lot-del']=t=>{if(!canLot())return;const l=(S.lot||[]).find(x=>x.id===t.dataset.id);if(!l)return;S.lot=S.lot.filter(x=>x.id!==l.id);AUD('Hapus lot',l.sku+' lot '+l.lot,l.sku);if(commit()===false)return;toast('Lot dihapus');lotRefresh()};
 /* ====== MODE ONLINE: login + sinkronisasi Supabase (aktif hanya jika SB_CFG diisi saat build) ====== */
 const ONLINE=typeof SB_CFG!=='undefined'&&!!SB_CFG.url;
 const OL={sess:null,role:null,nama:'',versi:0,dirty:false,timer:null,busy:false,readonly:false,ok:'',poll:null};
