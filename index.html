@@ -573,6 +573,14 @@ body.tema-terang .nav{transition:background .15s,box-shadow .15s}
 .pp-hint{margin:8px 0 4px;font-size:12px}.pp-sel{margin:4px 0 8px;font-size:13px}.pp-cmp{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#33456b;margin-bottom:8px}
 .pp-cmp select{border:1px solid #cfdaf0;background:rgba(255,255,255,.85);border-radius:8px;padding:6px}
 .pp-foot{display:flex;justify-content:flex-end;gap:8px}.pp-foot .btn[disabled]{opacity:.5;cursor:not-allowed}
+/* ---- KPI: ukuran angka menyesuaikan lebar kartu (tidak tumpang tindih saat menu dibuka/dilebarkan) ---- */
+.wk{container-type:inline-size}
+.wkt>div{min-width:0;flex:1}
+.wkt .v{font-size:clamp(14px,calc((100cqw - 104px)/8.2),26px)!important;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.wkt .l{overflow-wrap:anywhere}
+@media (max-width:600px){.wkt .v{font-size:clamp(14px,calc((100cqw - 80px)/8.2),20px)!important}}
+.wact .wd .b{white-space:nowrap}
+@media (min-width:601px){.wact>div{grid-template-columns:minmax(98px,max-content) minmax(0,1fr) auto auto!important}}
 </style>
 <div id="app"></div>
 <script>
