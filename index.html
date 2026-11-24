@@ -513,6 +513,39 @@ main{padding-top:8px!important}
 .fnm{min-width:0;display:flex;flex-direction:column}.fnm b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fnm small{font-size:11px;color:var(--mut)}
 @media (max-width:520px){.fotorow{grid-template-columns:44px minmax(0,1fr) auto}.fotorow .btn:last-child:not(:nth-child(3)){grid-column:3}.fth{width:44px;height:44px}}
 
+/* ====== TEMA TERANG (pilihan; bawaan) ====== */
+body.tema-terang{--bg:#f6f9ff;--line:#e3ebf8}
+body.tema-terang{background:radial-gradient(900px 500px at 85% -10%,#dbe8ff 0%,transparent 60%),radial-gradient(700px 500px at -5% 105%,#e6f0ff 0%,transparent 55%),#f8fbff!important}
+body.tema-terang .top{background:rgba(255,255,255,.86)!important;color:var(--navy)!important;border-bottom:1px solid #e3ebf8;backdrop-filter:blur(10px)}
+body.tema-terang .brand{border-right:1px solid #e3ebf8!important}
+body.tema-terang .brand b{color:var(--navy)}
+body.tema-terang .brand small{color:var(--mut)}
+body.tema-terang .ttl h1{color:var(--navy)}
+body.tema-terang .ttl p{color:var(--mut)}
+body.tema-terang .per{border:1px solid #dbe5f6;box-shadow:0 2px 8px rgba(23,99,224,.08)}
+body.tema-terang .hstat{border:1px solid #dbe5f6!important;color:var(--ink)}
+body.tema-terang .top .btn,body.tema-terang .top button{color:var(--navy)}
+body.tema-terang .side{background:rgba(255,255,255,.78)!important;color:var(--ink)!important;border-right:1px solid #e3ebf8;backdrop-filter:blur(8px)}
+body.tema-terang .nav:hover{background:#eef4ff!important}
+body.tema-terang .nav.on{background:linear-gradient(135deg,#0f2a63,#1763e0)!important;color:#fff!important;box-shadow:0 6px 16px rgba(23,99,224,.28)}
+body.tema-terang .nav svg{color:#1763e0}
+body.tema-terang .nav.on svg{color:#fff}
+body.tema-terang .side hr{border-top:1px solid #e3ebf8!important}
+body.tema-terang .side h4{color:var(--navy)!important}
+body.tema-terang .qlink{color:#1763e0!important}
+body.tema-terang .sidefoot{color:var(--mut)}
+body.tema-terang .sidetg,body.tema-terang .side .sidetg{background:#eef4ff!important;color:#1763e0!important}
+body.tema-terang .card{border:1px solid #e6edf8!important;border-radius:18px!important;box-shadow:0 10px 30px rgba(23,99,224,.07)!important}
+body.tema-terang .btn.pri{background:linear-gradient(135deg,#0f2a63,#1763e0)!important;border:0!important;box-shadow:0 8px 18px rgba(23,99,224,.28)}
+body.tema-terang .tabs button.on,body.tema-terang .tabs .on{background:linear-gradient(135deg,#0f2a63,#1763e0)!important;color:#fff!important}
+body.tema-terang .card{transition:transform .2s ease,box-shadow .2s ease}
+@media (hover:hover){body.tema-terang .card:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(23,99,224,.12)!important}}
+@keyframes temaIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+body.tema-terang #view.pgin>*{animation:temaIn .38s ease both}
+body.tema-terang .nav{transition:background .15s,box-shadow .15s}
+@media (prefers-reduced-motion:reduce){body.tema-terang #view.pgin>*{animation:none}body.tema-terang .card{transition:none}}
+.temaopt{display:flex;gap:12px;flex-wrap:wrap}.temaopt button{flex:1;min-width:150px;border:2px solid var(--line);background:#fff;border-radius:14px;padding:12px;cursor:pointer;text-align:left}
+.temaopt button.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}.temaopt .sw{height:46px;border-radius:9px;margin-bottom:8px;border:1px solid #d9e2f1}
 </style>
 <div id="app"></div>
 <script>
@@ -4018,6 +4051,16 @@ ACT['mut-ok']=()=>{
   AUD('Impor mutasi bank',MUT.nama+' · '+n+' cocok, '+MUT.un.length+' tidak ditemukan','');
   if(commit()===false)return;closeModal();refresh();toast(n+' transaksi ditandai cocok');
 };
+/* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
+const TKEY='imagritama_tema_v1';
+function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
+function temaApply(){document.body.classList.toggle('tema-terang',temaGet()==='terang');const m=document.querySelector('meta[name=theme-color]');if(m)m.content=temaGet()==='terang'?'#ffffff':'#0a1b44'}
+temaApply();
+ACT['tema-set']=t=>{try{localStorage.setItem(TKEY,t.dataset.t)}catch(e){}temaApply();refresh();toast('Tema '+(t.dataset.t==='navy'?'Navy':'Terang')+' dipakai di perangkat ini')};
+window.addEventListener('hashchange',()=>{const v=document.getElementById('view');if(!v)return;v.classList.remove('pgin');void v.offsetWidth;v.classList.add('pgin');setTimeout(()=>v.classList.remove('pgin'),600)});
+function temaCard(){const c=temaGet();return `<div class="card" style="margin-bottom:12px"><h3 class="ch">${ic('gear')}Tema Tampilan</h3><div class="temaopt"><button data-act="tema-set" data-t="terang" class="${c==='terang'?'on':''}"><div class="sw" style="background:linear-gradient(135deg,#fff,#dbe8ff)"></div><b>Terang</b><div class="small muted">Putih bersih dengan aksen biru dan gerakan halus</div></button><button data-act="tema-set" data-t="navy" class="${c==='navy'?'on':''}"><div class="sw" style="background:linear-gradient(135deg,#0a1b44,#13306b)"></div><b>Navy</b><div class="small muted">Menu dan header biru tua, tampilan klasik</div></button></div><div class="note" style="margin-top:8px">Pilihan ini berlaku di perangkat yang Anda pakai saja. Perangkat lain bisa memilih tema sendiri.</div></div>`}
+const _pgTema=PAGES.pengaturan;
+PAGES.pengaturan=()=>{const p=_pgTema();p.html=temaCard()+p.html;return p};
 /* ====== MODE ONLINE: login + sinkronisasi Supabase (aktif hanya jika SB_CFG diisi saat build) ====== */
 const ONLINE=typeof SB_CFG!=='undefined'&&!!SB_CFG.url;
 const OL={sess:null,role:null,nama:'',versi:0,dirty:false,timer:null,busy:false,readonly:false,ok:'',poll:null};
