@@ -3288,6 +3288,26 @@ ACT['ar-prune-ok']=()=>{
   if(commit()===false)return;closeModal();refresh();toast(n+' catatan lama dihapus');
 };
 
+
+/* ---- Cadangan lengkap sekali klik + pengingat ---- */
+function cadHari(){const c=S.settings.cadangan;if(!c)return null;return Math.floor((Date.now()-new Date(c).getTime())/864e5)}
+function cadCard(){
+  if(!canArsip())return '';
+  const h=cadHari(),lama=h===null||h>=7;
+  return `<div class="card" style="margin-top:12px"><h3 class="ch">${ic('shield')}Cadangan Data Lengkap</h3>
+  <div class="small muted" style="margin-bottom:8px">Cadangan terakhir: <b>${h===null?'belum pernah':h===0?'hari ini':h+' hari lalu'}</b> ${lama?badge('warn','sebaiknya cadangkan lagi'):badge('ok','aman')}</div>
+  <button class="btn pri" data-act="ar-full">${ic('doc')}Unduh Cadangan Lengkap (JSON)</button>
+  <div class="note" style="margin-top:10px">Berisi seluruh data aplikasi (produk, SKU, mitra, transaksi, kas, pengaturan, foto produk). Data utama sudah tersimpan di server (Supabase). File ini adalah salinan tambahan milik Anda sendiri. Simpan di Google Drive atau flashdisk, dan ulangi sekitar seminggu sekali.</div></div>`;
+}
+const _ac0=arsipCard;
+arsipCard=function(){return cadCard()+_ac0()};
+ACT['ar-full']=()=>{
+  if(!canArsip())return toast('Hanya admin atau keuangan yang boleh mengunduh cadangan',true);
+  const txt=JSON.stringify(S);
+  XL.save(new Blob([txt],{type:'application/json'}),'Cadangan_IMAGRITAMA_'+todayISO()+'.json');
+  S.settings.cadangan=new Date().toISOString();AUD('Cadangan lengkap','unduh '+Math.round(txt.length/1024)+' KB','');
+  if(commit()===false)return;refresh();toast('Cadangan diunduh. Simpan di tempat aman.');
+};
 /* ====== PESANAN PEMBELIAN (PO) & PENJUALAN (SO) ====== */
 Object.assign(ui,{pso:{tab:'all'}});
 const POJ={PO:['Pesanan Pembelian','Beli'],SO:['Pesanan Penjualan','Jual']};
