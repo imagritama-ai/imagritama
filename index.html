@@ -3946,6 +3946,78 @@ ACT['lot-add']=()=>{
   if(commit()===false)return;toast('Lot dicatat');lotRefresh();
 };
 ACT['lot-del']=t=>{if(!canLot())return;const l=(S.lot||[]).find(x=>x.id===t.dataset.id);if(!l)return;S.lot=S.lot.filter(x=>x.id!==l.id);AUD('Hapus lot',l.sku+' lot '+l.lot,l.sku);if(commit()===false)return;toast('Lot dihapus');lotRefresh()};
+/* ====== IMPOR MUTASI BANK (CSV) → pencocokan otomatis ke Rekonsiliasi Bank ====== */
+const MUT={rows:[],match:[],un:[],nama:''};
+function mutAmt(s){
+  s=String(s==null?'':s).trim();if(!s)return null;let neg=false;
+  if(/^\(.*\)$/.test(s)){neg=true;s=s.slice(1,-1)}
+  if(/(\bDB\b|\bDR\b|\bD\b)\s*$/i.test(s)){neg=true;s=s.replace(/(DB|DR|D)\s*$/i,'')}else if(/(\bCR\b|\bK\b)\s*$/i.test(s))s=s.replace(/(CR|K)\s*$/i,'');
+  s=s.replace(/rp\.?/ig,'').replace(/[\s ]/g,'');if(s[0]==='-'){neg=!neg;s=s.slice(1)}if(s[0]==='+')s=s.slice(1);
+  if(!/^[\d.,]+$/.test(s)||!/\d/.test(s))return null;
+  const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');let dec=null;
+  if(lc>=0&&ld>=0)dec=lc>ld?',':'.';else if(lc>=0||ld>=0){const sep=lc>=0?',':'.',parts=s.split(sep);dec=(parts.length===2&&parts[1].length!==3)?sep:(parts.length>2?null:(parts[1].length===3?null:sep))}
+  let n;if(dec){const th=dec===','?'.':',';n=parseFloat(s.split(th).join('').replace(dec,'.'))}else n=parseFloat(s.replace(/[.,]/g,''));
+  if(isNaN(n))return null;return neg?-n:n;
+}
+function mutDate(s){
+  s=String(s==null?'':s).trim();let m;
+  if(m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){let y=m[3];if(y.length===2)y='20'+y;return y+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}
+  const B={jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,aug:8,ags:8,sep:9,okt:10,oct:10,nov:11,des:12,dec:12};
+  if(m=s.match(/^(\d{1,2})[\s\-]([A-Za-z]{3})[A-Za-z]*[\s\-,]+(\d{2,4})/)){const mo=B[m[2].toLowerCase()];if(mo){let y=m[3];if(y.length===2)y='20'+y;return y+'-'+String(mo).padStart(2,'0')+'-'+m[1].padStart(2,'0')}}
+  return null;
+}
+function mutParse(txt){
+  const lines=String(txt).replace(/^\ufeff/,'').split(/\r?\n/),li=lines.findIndex(l=>/tanggal|tgl|date/i.test(l)&&/[;,\t]/.test(l));
+  const R=csvParse(li>0?lines.slice(li).join('\n'):txt);if(R.length<2)return {err:'File kosong atau hanya satu baris.'};
+  let hi=R.findIndex(r=>r.some(c=>/tanggal|tgl|date/i.test(c))&&r.length>=3);if(hi<0)hi=0;
+  const h=R[hi].map(x=>String(x).toLowerCase().trim()),ix=re=>h.findIndex(x=>re.test(x));
+  const c={tgl:ix(/tanggal|tgl|date/),ket:ix(/keterangan|uraian|deskripsi|remark|description|berita|transaksi/),db:ix(/debit|keluar|withdraw|^db$/),kr:ix(/kredit|masuk|deposit|^cr$/),jm:ix(/jumlah|amount|mutasi|nominal/)};
+  if(c.tgl<0)return {err:'Kolom tanggal tidak ditemukan. Pastikan baris judul memuat kata "Tanggal".'};
+  if(c.db<0&&c.kr<0&&c.jm<0)return {err:'Kolom jumlah tidak ditemukan. Perlu kolom "Debit" dan "Kredit", atau satu kolom "Jumlah".'};
+  const rows=[];
+  R.slice(hi+1).forEach(r=>{
+    const tgl=mutDate(r[c.tgl]);if(!tgl)return;let v=null;
+    if(c.db>=0||c.kr>=0){const d=c.db>=0?mutAmt(r[c.db]):null,k=c.kr>=0?mutAmt(r[c.kr]):null;if(d||k)v=(k||0)-Math.abs(d||0)}
+    else v=mutAmt(r[c.jm]);
+    if(v==null||Math.abs(v)<0.5)return;
+    rows.push({tgl,nilai:Math.round(v),ket:c.ket>=0?String(r[c.ket]||'').trim():''});
+  });
+  if(!rows.length)return {err:'Tidak ada baris transaksi yang bisa dibaca.'};
+  return {rows};
+}
+function mutDiff(a,b){return Math.abs((new Date(a)-new Date(b))/864e5)}
+function mutMatch(rows){
+  const C=S.rekon.cleared,ev=cashEvents().filter(e=>e.akun==='bank'),used=new Set(),match=[],un=[];
+  rows.slice().sort((x,y)=>x.tgl<y.tgl?-1:1).forEach(r=>{
+    let best=null,bd=99;
+    ev.forEach((e,i)=>{if(used.has(i)||C[kasKey(e)])return;if(Math.round(e.nilai)!==r.nilai)return;const d=mutDiff(e.tgl,r.tgl);if(d<=3&&d<bd){bd=d;best=i}});
+    if(best==null)un.push(r);else{used.add(best);match.push({r,e:ev[best]})}
+  });
+  return {match,un};
+}
+function mutCard(){
+  const can=canKeuMut();
+  return `<div class="card" style="margin-bottom:12px"><div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><b>Impor Mutasi Bank</b><span class="small muted">Unggah file CSV dari internet banking untuk mencocokkan transaksi otomatis</span>${can?`<button class="btn pri" style="margin-left:auto" data-act="mut-pick">${ic('doc')}Pilih File CSV</button>`:''}</div></div>`;
+}
+function canKeuMut(){return !(typeof OL!=='undefined'&&OL.sess&&!['admin','keuangan'].includes(OL.role))}
+const _rek0=KEU_EXT.rek;KEU_EXT.rek=()=>mutCard()+_rek0();
+function mutInput(){let i=document.getElementById('mutin');if(!i){i=document.createElement('input');i.type='file';i.id='mutin';i.accept='.csv,.txt,text/csv';i.style.display='none';document.body.appendChild(i);
+  i.addEventListener('change',()=>{const f=i.files&&i.files[0];i.value='';if(!f)return;const fr=new FileReader();fr.onerror=()=>toast('Gagal membaca file',true);fr.onload=()=>mutProses(String(fr.result),f.name);fr.readAsText(f)})}return i}
+ACT['mut-pick']=()=>{if(!canKeuMut())return toast('Hanya admin atau keuangan',true);mutInput().click()};
+function mutProses(txt,nama){
+  const p=mutParse(txt);if(p.err)return openModal('Impor mutasi bank',`<div class="note" style="border-color:var(--amber)">${esc(p.err)}</div><div class="small muted" style="margin-top:8px">Contoh judul kolom yang dikenali: Tanggal, Keterangan, Debit, Kredit (atau Jumlah).</div>`,'<button class="btn pri" data-act="close">Tutup</button>','sm');
+  const m=mutMatch(p.rows);MUT.rows=p.rows;MUT.match=m.match;MUT.un=m.un;MUT.nama=nama;
+  openModal('Hasil pencocokan · '+nama,`<div class="grid g3" style="margin-bottom:10px">${kpi('blue','doc','Baris di file',num(p.rows.length))}${kpi('green','wallet','Cocok otomatis',num(m.match.length))}${kpi(m.un.length?'amber':'green','warn','Tidak ditemukan',num(m.un.length))}</div>
+  <div class="small muted" style="margin-bottom:6px">Dicocokkan bila nilai sama persis dan selisih tanggal paling lama 3 hari.</div>
+  ${m.un.length?`<h4 style="margin:8px 0 4px">Ada di bank, belum ada di pembukuan</h4><div class="scroll" style="max-height:30vh"><table class="tbl"><thead><tr><th>Tanggal</th><th>Keterangan</th><th class="r">Nilai</th></tr></thead><tbody>${m.un.map(r=>`<tr><td>${fmtTgl(r.tgl)}</td><td>${esc(r.ket)}</td><td class="r">${rp(r.nilai)}</td></tr>`).join('')}</tbody></table></div><div class="note" style="margin-top:6px">Biasanya biaya admin, bunga, atau transaksi yang belum dicatat. Catat manual di Kas & Bank bila perlu.</div>`:'<div class="note">Semua baris cocok dengan pembukuan.</div>'}`,
+  `<button class="btn" data-act="close">Batal</button>${m.match.length?`<button class="btn pri" data-act="mut-ok">Tandai ${m.match.length} transaksi cocok</button>`:''}`,'lg');
+}
+ACT['mut-ok']=()=>{
+  if(!canKeuMut())return;let n=0;MUT.match.forEach(x=>{S.rekon.cleared[kasKey(x.e)]=1;n++});
+  AUD('Impor mutasi bank',MUT.nama+' · '+n+' cocok, '+MUT.un.length+' tidak ditemukan','');
+  if(commit()===false)return;closeModal();refresh();toast(n+' transaksi ditandai cocok');
+};
 /* ====== MODE ONLINE: login + sinkronisasi Supabase (aktif hanya jika SB_CFG diisi saat build) ====== */
 const ONLINE=typeof SB_CFG!=='undefined'&&!!SB_CFG.url;
 const OL={sess:null,role:null,nama:'',versi:0,dirty:false,timer:null,busy:false,readonly:false,ok:'',poll:null};
