@@ -5149,6 +5149,22 @@ ACT['sim5']=t=>{
 };
 ACT['sim5-ok']=t=>{closeModal();setTimeout(()=>sim5Jalan(t.dataset.sk),50)};
 
+/* ====== Simulasi 5 tahun saat sedang login: otomatis masuk Mode Simulasi (data asli tidak disentuh) ====== */
+const _sim50=ACT['sim5'];
+ACT['sim5']=t=>{
+  const sk=t.dataset.sk,live=typeof isLive==='function'&&isLive();
+  if(!live)return _sim50(t);
+  closeModal();
+  if(typeof simOK==='function'&&!simOK())return toast('Mode Simulasi hanya untuk admin',true);
+  openModal('Jalankan simulasi 5 tahun?','<p>Aplikasi akan masuk ke <b>Mode Simulasi</b> dan memuat data simulasi (Des 2026 – Des 2031). <b>Data asli tidak berubah dan tidak ada yang dikirim ke server.</b> Untuk kembali, klik tombol di spanduk kuning atau muat ulang halaman.</p>',`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sim5-live" data-sk="${sk}">Ya, jalankan</button>`,'sm');
+};
+ACT['sim5-live']=t=>{
+  const sk=t.dataset.sk;closeModal();
+  setTimeout(()=>{try{simMulai('asli')}catch(e){return toast('Gagal masuk Mode Simulasi: '+e.message,true)}
+    if(!(typeof OL!=='undefined'&&OL.sim))return toast('Mode Simulasi tidak bisa dimulai',true);
+    sim5Jalan(sk)},50);
+};
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
