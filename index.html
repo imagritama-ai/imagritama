@@ -7530,7 +7530,7 @@ function bpHtml(){
   const t=T(D);
   const per=sups.map(s=>({s,...T(D.filter(x=>x.b.sup===s))}));
   const akun=akunBenefit()==='hpp'?'pengurang HPP':'Pendapatan lain';
-  return '<div class="note" style="margin-bottom:10px"><b>Tampilan baca saja.</b> Membuka atau menyaring daftar ini tidak mengubah pembukuan. Pencairan, pembatalan, dan status gugur dilakukan di <b>HPP dan Harga Minimum → Benefit belum cair</b>. Aturan pencatatan saat cair: <b>'+akun+'</b> (diatur di Pengaturan).</div>'
+  return '<div class="note" style="margin-bottom:10px"><b>Tampilan baca saja.</b> Membuka atau menyaring daftar ini tidak mengubah pembukuan. Pencairan, pembatalan, dan status gugur dilakukan di <b>Keuangan → Benefit Pemasok</b>. Aturan pencatatan saat cair: <b>'+akun+'</b> (diatur di Pengaturan).</div>'
    +'<div class="grid g4" style="margin-bottom:10px">'+kpi('amber','wallet','Menunggu cair',hjR(t.sisa))+kpi('green','check','Sudah cair',hjR(t.cair))+kpi('red','warn','Gugur',hjR(t.gugur))+kpi('blue','doc','Seluruh benefit',num(t.n)+' catatan')+'</div>'
    +'<div class="card" style="margin-bottom:10px"><h3 style="margin:0 0 6px">Ringkasan per pemasok</h3><div class="scroll"><table class="tbl"><thead><tr><th>Pemasok</th><th class="r">Jumlah</th><th class="r">Total nilai</th><th class="r">Sudah cair</th><th class="r">Menunggu</th><th class="r">Gugur</th></tr></thead><tbody>'
    +per.map(p=>'<tr><td>'+esc(mitraNama(p.s))+'</td><td class="r">'+num(p.n)+'</td><td class="r">'+rp(p.nilai)+'</td><td class="r">'+rp(p.cair)+'</td><td class="r"><b>'+rp(p.sisa)+'</b></td><td class="r">'+rp(p.gugur)+'</td></tr>').join('')
@@ -7549,6 +7549,32 @@ ACT['bp-sup']=el=>{BPS.sup=(el&&el.value)||'Semua';refresh()};
     const r=_p.apply(this,arguments),T=HBS,tabs=[['bandingkan','Bandingkan pemasok'],['daftar','Daftar harga ('+num(hbList().length)+')'],['riwayat','Riwayat harga'],['benefit','Benefit ('+num(hjBn().filter(b=>b.status==='Menunggu'||b.status==='Sebagian').length)+' menunggu)'],['excel','Edit lewat Excel']];
     const rest=r.html.slice(r.html.indexOf('</div>')+6);
     r.html='<div class="tabs" style="margin-bottom:12px">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="hb-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='benefit'?bpHtml():rest);
+    return r;
+  };
+}
+
+/* ====== Tombol aksi benefit (Cairkan / Batalkan / Gugur) dipindah ke Keuangan > Benefit Pemasok ======
+   Satu tempat saja untuk aksi. Harga Beli Pemasok dan HPP hanya menampilkan (baca saja). */
+function bkMenunggu(){return hjBn().filter(b=>b.status==='Menunggu'||b.status==='Sebagian').length}
+function bkHtml(){
+  const akun=akunBenefit()==='hpp'?'HPP berkurang':'Pendapatan lain bertambah';
+  return '<div class="note" style="margin-bottom:10px"><b>Tempat satu-satunya untuk mencairkan benefit.</b> Setiap pencairan membuat jurnal: Kas/Bank bertambah dan <b>'+akun+'</b>. Aturan pencatatan diatur di Pengaturan. Untuk sekadar memantau, pakai <b>Harga Beli Pemasok → Benefit</b> (baca saja).</div>'+hjBnHtml();
+}
+function bkTunjuk(){return '<div class="note" style="margin-bottom:10px">Pencairan, pembatalan, dan status gugur benefit kini ada di <b>Keuangan → Benefit Pemasok</b>. Di sini hanya tampilan baca saja. <button class="btn sm pri" data-act="bk-ke-keuangan">Buka Keuangan → Benefit Pemasok</button></div>'}
+ACT['bk-ke-keuangan']=()=>{ui.keu.tab='benefit';ui.keu.page=1;location.hash='#keuangan';refresh()};
+{
+  const _k=PAGES.keuangan;
+  PAGES.keuangan=function(){
+    const r=_k.apply(this,arguments),T=ui.keu;
+    const tabs=[['kas','Kas & Bank'],['benefit','Benefit Pemasok ('+num(bkMenunggu())+' menunggu)'],['lr','Laba Rugi & Posisi'],['bs','Neraca'],['neraca','Neraca Saldo'],['bb','Buku Besar'],['jurnal','Jurnal Umum'],['jm','Jurnal Manual & Transfer'],['aset','Aset Tetap'],['pinjaman','Pinjaman'],['rek','Rekonsiliasi Bank'],['ang','Anggaran'],['coa','Bagan Akun'],['tutup','Tutup Buku']];
+    const rest=r.html.slice(r.html.indexOf('</div>')+6);
+    r.html='<div class="tabs">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="keu-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='benefit'?bkHtml():rest);
+    return r;
+  };
+  const _h=PAGES.hpp;
+  PAGES.hpp=function(){
+    const r=_h.apply(this,arguments);
+    if(HJS.tab==='benefit'&&r&&r.html){const i=r.html.indexOf('</div>')+6;r.html=r.html.slice(0,i)+bkTunjuk()+bpHtml()}
     return r;
   };
 }
