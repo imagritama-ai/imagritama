@@ -6587,6 +6587,285 @@ const _stokPageMH=PAGES.stok;
 PAGES.stok=()=>{const p=_stokPageMH();p.right=(p.right||'')+'<button class="btn" data-act="mh-tab" data-t="excel">'+ic('doc')+'Edit lewat Excel &amp; riwayat</button>';return p};
 /* isian massal perusahaan dicatat sebagai "Isi massal" */
 ['pp-ok','prn-bulk'].forEach(k=>{const f=ACT[k];if(f)ACT[k]=function(){MHS.via=k==='pp-ok'?'Isi massal perusahaan':'Massal (Program)';try{return f.apply(this,arguments)}finally{MHS.via=''}}});
+/* ====== HARGA BELI PER PEMASOK (harga, diskon, bonus, tempo, minimum order) ======
+   Daftar harga acuan: tidak mengubah pembukuan. Pembukuan hanya berubah saat faktur pembelian dibuat.
+   Dipakai untuk: membandingkan pemasok, mengisi harga otomatis di faktur/pesanan pembelian, dan riwayat perubahan. */
+const HBS={tab:'bandingkan',sku:'',q:'',sup:'',page:1,imp:null,hasil:null,edit:null};
+const HB_F=[['harga','Harga beli'],['diskon','Diskon (%)'],['bonusBeli','Bonus: beli'],['bonusGratis','Bonus: gratis'],['tempo','Tempo (hari)'],['minQty','Minimum order'],['catatan','Catatan / benefit lain']];
+const hbList=()=>S.hbeli||(S.hbeli=[]);
+const hbFind=(sku,sup)=>hbList().find(h=>h.sku===sku&&h.sup===sup);
+/* harga per unit yang benar-benar diterima, setelah diskon dan bonus barang */
+function hbEfektif(h){
+  const p=(+h.harga||0)*(1-(+h.diskon||0)/100),b=+h.bonusBeli||0,g=+h.bonusGratis||0;
+  return b>0&&g>0?p*b/(b+g):p;
+}
+function hbBonusTxt(h){return (+h.bonusBeli>0&&+h.bonusGratis>0)?'beli '+(+h.bonusBeli)+' gratis '+(+h.bonusGratis):''}
+function hbTerakhir(){ /* harga beli terakhir di faktur per sku+pemasok (hanya info) */
+  const o={};
+  S.docs.filter(d=>d.jenis==='Beli'&&d.status!=='BATAL'&&d.mitra).sort((a,b)=>(a.tgl||'').localeCompare(b.tgl||'')).forEach(d=>(d.items||[]).forEach(i=>{if(+i.harga>0)o[i.sku+'|'+d.mitra]={harga:+i.harga,tgl:d.tgl,no:d.no}}));
+  return o;
+}
+const hbPemasok=()=>S.mitra.filter(m=>m.jenis==='Pemasok');
+
+/* ---------- ikut dicatat di riwayat perubahan ---------- */
+try{
+  MH_F.h={harga:['Harga beli'],diskon:['Diskon (%)'],bonusBeli:['Bonus: beli'],bonusGratis:['Bonus: gratis'],tempo:['Tempo (hari)'],minQty:['Minimum order'],catatan:['Catatan / benefit lain']};
+  MH_TIPE.h='Harga beli pemasok';
+  ['diskon','bonusBeli','bonusGratis','tempo','minQty'].forEach(k=>{if(!MH_NUM.includes(k))MH_NUM.push(k)});
+  const _snapHB=mhSnap;
+  mhSnap=function(){const o=_snapHB();hbList().forEach(h=>{o['h:'+h.id]=JSON.stringify(mhPick('h',h))});return o};
+  const _namaHB=mhNama;
+  mhNama=function(t,id,o){if(t==='h'){const h=hbList().find(x=>x.id===id);return h?((skuOf(h.sku)||{}).nama||h.sku)+' · '+mitraNama(h.sup):id}return _namaHB(t,id,o)};
+  const _showHB=mhShow;
+  mhShow=function(t,f,v,x){
+    if(t!=='h')return _showHB(t,f,v,x);
+    if(v==null||v==='')return '–';
+    if(f==='harga')return rp(v);
+    if(f==='diskon')return v+'%';
+    if(f==='tempo')return v+' hari';
+    return String(v);
+  };
+  const _revHB=ACT['mh-rev'];
+  ACT['mh-rev']=function(t){
+    const e=(S.riwayat||[]).find(x=>x.id===t.dataset.id);
+    if(!e||e.t!=='h')return _revHB.apply(this,arguments);
+    if(typeof OL!=='undefined'&&OL.readonly)return toast('Akun ini hanya bisa melihat data.',true);
+    const h=hbList().find(x=>x.id===e.ref);if(!h)return toast('Data sudah tidak ada',true);
+    const cur=h[e.f]==null||h[e.f]===''?null:h[e.f];
+    if(JSON.stringify(cur)!==JSON.stringify(e.br==null?null:e.br))return toast('Nilai sekarang sudah berbeda dari catatan ini. Ubah manual agar tidak tertimpa.',true);
+    if(e.f==='harga'&&!(+e.lr>0))return toast('Nilai lama tidak valid untuk harga beli',true);
+    MHS.via='Kembalikan';h[e.f]=e.lr==null?(e.f==='catatan'?'':null):e.lr;h.tgl=todayISO();
+    const ok=commit();MHS.via='';if(ok===false)return toast('Perubahan ditolak sistem',true);
+    refresh();toast('Dikembalikan ke '+e.lama+'. Pengembalian ini juga tercatat.');
+  };
+}catch(e){}
+
+/* ---------- membaca & menyimpan satu baris ---------- */
+function hbBaca(base){
+  const sku=base.sku||(parseSku($('#hb-sku').value)||{}).sku,sup=base.sup||$('#hb-sup').value;
+  if(!sku)return toast('Pilih barang dari daftar',true),null;
+  if(!sup)return toast('Pilih pemasok',true),null;
+  const harga=+$('#hb-harga').value,diskon=+($('#hb-diskon').value||0),bb=+($('#hb-bb').value||0),bg=+($('#hb-bg').value||0),tempo=$('#hb-tempo').value===''?null:+$('#hb-tempo').value,minQty=$('#hb-min').value===''?null:+$('#hb-min').value;
+  if(!(harga>0))return toast('Harga beli harus lebih dari 0',true),null;
+  if(!(diskon>=0&&diskon<100))return toast('Diskon harus antara 0 dan kurang dari 100 persen',true),null;
+  if(!(bb>=0&&bg>=0)||((bb>0)!==(bg>0)))return toast('Bonus: isi dua-duanya (beli dan gratis), atau kosongkan dua-duanya',true),null;
+  if(tempo!==null&&!(tempo>=0))return toast('Tempo tidak valid',true),null;
+  if(minQty!==null&&!(minQty>=0))return toast('Minimum order tidak valid',true),null;
+  return {sku,sup,harga,diskon:diskon||0,bonusBeli:bb||0,bonusGratis:bg||0,tempo,minQty,catatan:$('#hb-cat').value.trim()};
+}
+function hbForm(h,baru){
+  const lock=!baru;
+  return skuDatalist()+'<div class="row"><div class="field" style="min-width:100%"><label class="lbl" for="hb-sku">Barang</label><input class="in" id="hb-sku" list="skulist" '+(lock?'disabled':'')+' value="'+(h.sku?esc(h.sku+' — '+((skuOf(h.sku)||{}).nama||'')):'')+'" placeholder="Ketik untuk mencari…"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="hb-sup">Pemasok</label><select class="in" id="hb-sup" '+(lock?'disabled':'')+'><option value="">Pilih pemasok…</option>'+hbPemasok().map(m=>'<option value="'+esc(m.id)+'" '+(h.sup===m.id?'selected':'')+'>'+esc(m.nama)+'</option>').join('')+'</select></div>'
+   +'<div class="field"><label class="lbl" for="hb-harga">Harga beli per unit (Rp)</label><input class="in" id="hb-harga" type="number" min="0" value="'+(h.harga||'')+'"></div>'
+   +'<div class="field"><label class="lbl" for="hb-diskon">Diskon (%)</label><input class="in" id="hb-diskon" type="number" min="0" max="99" step="any" value="'+(h.diskon||'')+'"></div>'
+   +'<div class="field"><label class="lbl" for="hb-bb">Bonus: setiap beli (unit)</label><input class="in" id="hb-bb" type="number" min="0" value="'+(h.bonusBeli||'')+'" placeholder="mis. 10"></div>'
+   +'<div class="field"><label class="lbl" for="hb-bg">Dapat gratis (unit)</label><input class="in" id="hb-bg" type="number" min="0" value="'+(h.bonusGratis||'')+'" placeholder="mis. 1"></div>'
+   +'<div class="field"><label class="lbl" for="hb-tempo">Tempo bayar (hari)</label><input class="in" id="hb-tempo" type="number" min="0" value="'+(h.tempo==null?'':h.tempo)+'"></div>'
+   +'<div class="field"><label class="lbl" for="hb-min">Minimum order (unit)</label><input class="in" id="hb-min" type="number" min="0" value="'+(h.minQty==null?'':h.minQty)+'"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="hb-cat">Catatan / benefit lain</label><input class="in" id="hb-cat" value="'+esc(h.catatan||'')+'" placeholder="mis. cashback, hadiah wisata, gratis ongkir"></div></div>'
+   +'<div class="note">Harga efektif dihitung otomatis dari diskon dan bonus. Daftar ini tidak mengubah pembukuan.</div>';
+}
+
+/* ---------- halaman ---------- */
+function hbCmpHtml(){
+  const T=HBS,tk=hbTerakhir();
+  const ada=[...new Set(hbList().map(h=>h.sku))];
+  if(!T.sku||!skuOf(T.sku))T.sku=ada[0]||(S.sku[0]||{}).sku||'';
+  const s=skuOf(T.sku);
+  const L=hbList().filter(h=>h.sku===T.sku).map(h=>({h,e:hbEfektif(h)})).sort((a,b)=>a.e-b.e);
+  const best=L.length?L[0].e:0;
+  let h='<div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:flex-end">'+skuDatalist()
+   +'<div class="field" style="flex:2;min-width:240px"><label class="lbl" for="hb-pick">Pilih barang</label><input class="in" id="hb-pick" list="skulist" value="'+(s?esc(s.sku+' — '+s.nama):'')+'" data-chg="hb-pick" placeholder="Ketik nama atau SKU"></div>'
+   +(finOK()&&!(typeof OL!=='undefined'&&OL.readonly)?'<button class="btn pri" data-act="hb-new" data-sku="'+esc(T.sku)+'">'+ic('plus')+'Tambah harga pemasok</button>':'')+'</div>';
+  if(s){
+    const inv=D.inv[s.sku]||{avg:0,qty:0};
+    h+='<div class="small muted" style="margin:8px 0">Harga jual '+rp(s.harga)+' · HPP rata-rata '+rp(inv.avg)+' · stok '+num(inv.qty)+'</div>';
+    if(!L.length)h+='<div class="empty">Belum ada harga pemasok untuk barang ini. Klik Tambah harga pemasok.</div>';
+    else h+='<div class="scroll"><table class="tbl"><thead><tr><th>Pemasok</th><th class="r">Harga beli</th><th class="r">Diskon</th><th>Bonus</th><th class="r">Harga efektif</th><th class="r">Perkiraan margin</th><th>Tempo</th><th class="r">Min. order</th><th>Faktur terakhir</th><th>Catatan</th><th></th></tr></thead><tbody>'
+     +L.map(({h:x,e},i)=>{const t=tk[x.sku+'|'+x.sup],mg=s.harga?(s.harga-e)/s.harga:0;return '<tr><td><b>'+esc(mitraNama(x.sup))+'</b>'+(i===0&&L.length>1?' '+badge('ok','Termurah'):'')+'</td><td class="r">'+rp(x.harga)+'</td><td class="r">'+(x.diskon?x.diskon+'%':'–')+'</td><td>'+(hbBonusTxt(x)||'–')+'</td><td class="r"><b>'+rp(Math.round(e))+'</b>'+(i>0&&best>0?'<div class="small muted">+'+(Math.round((e/best-1)*1000)/10)+'%</div>':'')+'</td><td class="r">'+pct(mg)+'</td><td>'+(x.tempo!=null?x.tempo+' hari':'–')+'</td><td class="r">'+(x.minQty!=null?num(x.minQty):'–')+'</td><td class="small">'+(t?rp(t.harga)+'<div class="muted">'+fmtTgl(t.tgl)+'</div>':'–')+'</td><td class="small">'+esc(x.catatan||'')+'<div class="muted">diperbarui '+fmtTgl(x.tgl||'')+'</div></td><td style="white-space:nowrap">'+(finOK()&&!(typeof OL!=='undefined'&&OL.readonly)?'<button class="btn sm ghost" data-act="hb-edit" data-id="'+esc(x.id)+'">Ubah</button><button class="btn sm ghost" data-act="hb-del" data-id="'+esc(x.id)+'">Hapus</button>':'')+'</td></tr>'}).join('')+'</tbody></table></div>'
+     +'<div class="note" style="margin-top:8px"><b>Harga efektif</b> = harga setelah diskon, dibagi dengan bonus barang. Contoh: Rp58.000, bonus beli 10 gratis 1, berarti per unit yang diterima Rp52.727. Bandingkan pemasok dengan angka ini, bukan harga di daftar saja. Benefit lain (cashback, hadiah) belum dihitung dan hanya dicatat di kolom Catatan.</div>';
+  }
+  return h+'</div>';
+}
+function hbDaftarHtml(){
+  const T=HBS,q=T.q.trim().toLowerCase(),per=15;
+  let l=hbList().filter(h=>(!T.sup||h.sup===T.sup)&&(!q||(((skuOf(h.sku)||{}).nama||'')+' '+h.sku+' '+mitraNama(h.sup)+' '+(h.catatan||'')).toLowerCase().includes(q)));
+  l=l.slice().sort((a,b)=>((skuOf(a.sku)||{}).nama||'').localeCompare((skuOf(b.sku)||{}).nama||'')||hbEfektif(a)-hbEfektif(b));
+  const pages=Math.max(1,Math.ceil(l.length/per));T.page=clamp(T.page,1,pages);
+  const rows=l.slice((T.page-1)*per,T.page*per);
+  return '<div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><div class="field" style="flex:2;min-width:200px"><label class="lbl" for="hb-q">Cari</label><input class="in" id="hb-q" value="'+esc(T.q)+'" data-inp="hb-q" placeholder="Barang, SKU, pemasok"></div>'
+   +'<div class="field"><label class="lbl" for="hb-fs">Pemasok</label><select class="in" id="hb-fs" data-chg="hb-fs"><option value="">Semua</option>'+hbPemasok().map(m=>'<option value="'+esc(m.id)+'" '+(T.sup===m.id?'selected':'')+'>'+esc(m.nama)+'</option>').join('')+'</select></div></div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>SKU</th><th>Barang</th><th>Pemasok</th><th class="r">Harga beli</th><th>Bonus</th><th class="r">Harga efektif</th><th>Tempo</th><th></th></tr></thead><tbody>'
+   +(rows.map(h=>'<tr><td class="small">'+esc(h.sku)+'</td><td>'+esc((skuOf(h.sku)||{}).nama||'')+'</td><td>'+esc(mitraNama(h.sup))+'</td><td class="r">'+rp(h.harga)+(h.diskon?'<div class="small muted">diskon '+h.diskon+'%</div>':'')+'</td><td>'+(hbBonusTxt(h)||'–')+'</td><td class="r"><b>'+rp(Math.round(hbEfektif(h)))+'</b></td><td>'+(h.tempo!=null?h.tempo+' hari':'–')+'</td><td style="white-space:nowrap"><button class="btn sm ghost" data-act="hb-lihat" data-sku="'+esc(h.sku)+'">Bandingkan</button>'+(finOK()&&!(typeof OL!=='undefined'&&OL.readonly)?'<button class="btn sm ghost" data-act="hb-edit" data-id="'+esc(h.id)+'">Ubah</button>':'')+'</td></tr>').join('')||'<tr><td colspan="8" class="empty">Belum ada harga pemasok. Tambahkan lewat tab Bandingkan atau Excel.</td></tr>')
+   +'</tbody></table></div>'+pager(l.length,per,T.page,'hb-page')+'</div>';
+}
+/* ---------- Excel ---------- */
+const HB_COL=[['sku','SKU',['sku']],['sup','Pemasok (ID atau nama)',['pemasok id atau nama','pemasok','supplier','id pemasok']],['harga','Harga beli',['harga beli','harga']],['diskon','Diskon %',['diskon','diskon']],['bb','Bonus: beli',['bonus beli','bonus setiap beli','beli']],['bg','Bonus: gratis',['bonus gratis','gratis']],['tempo','Tempo (hari)',['tempo hari','tempo']],['minQty','Minimum order',['minimum order','min order','minimum']],['catatan','Catatan / benefit lain',['catatan benefit lain','catatan','benefit lain','catatan']]];
+function hbTemplate(){
+  const tk=hbTerakhir(),rows=[['SKU','Pemasok (ID atau nama)','Harga beli','Diskon %','Bonus: beli','Bonus: gratis','Tempo (hari)','Minimum order','Catatan / benefit lain','Nama barang (info)','Harga efektif (info)','Status (info)']];
+  const used=new Set();
+  hbList().slice().sort((a,b)=>a.sku.localeCompare(b.sku)).forEach(h=>{used.add(h.sku+'|'+h.sup);rows.push([h.sku,h.sup,h.harga,h.diskon||'',h.bonusBeli||'',h.bonusGratis||'',h.tempo==null?'':h.tempo,h.minQty==null?'':h.minQty,h.catatan||'',(skuOf(h.sku)||{}).nama||'',Math.round(hbEfektif(h)),'Tersimpan'])});
+  Object.keys(tk).sort().forEach(k=>{if(used.has(k))return;const [sku,sup]=k.split('|');if(!skuOf(sku))return;rows.push([sku,sup,tk[k].harga,'','','','','','',(skuOf(sku)||{}).nama||'',tk[k].harga,'Dari faktur terakhir, belum tersimpan'])});
+  const ref=[['ID pemasok','Nama pemasok']].concat(hbPemasok().map(m=>[m.id,m.nama]));
+  const pet=[['PETUNJUK HARGA BELI PER PEMASOK'],[''],
+   ['1. Satu baris = satu barang dari satu pemasok. Ubah harga, diskon, bonus, tempo, minimum order, atau catatan.'],
+   ['2. Kolom Pemasok boleh diisi ID (misalnya SUP-0001) atau nama pemasok persis seperti di daftar (lihat lembar Pemasok).'],
+   ['3. Baris berstatus "Dari faktur terakhir" diambil dari faktur pembelian Anda. Hapus baris yang tidak ingin disimpan, atau biarkan untuk disimpan sebagai harga acuan.'],
+   ['4. Bonus: isi dua kolom, misalnya beli 10 gratis 1. Kosongkan dua-duanya bila tidak ada bonus.'],
+   ['5. Sel kosong = tidak diubah. Tulis tanda minus - untuk menghapus isian (diskon, bonus, tempo, minimum order, catatan).'],
+   ['6. Harga beli wajib untuk baris baru. Baris yang tidak ada di file tidak dihapus. Menghapus harga pemasok dilakukan di aplikasi.'],
+   ['7. Setelah disimpan, unggah di menu Harga Beli Pemasok tab Excel. Anda akan melihat pratinjau dulu sebelum Terapkan. Pembukuan tidak berubah.']];
+  return XL.build([{name:'Harga Beli',rows},{name:'Pemasok',rows:ref},{name:'Petunjuk',rows:pet}]);
+}
+function hbAnalisa(rows,file){
+  const out={file,baris:0,ubah:[],baru:[],err:[],sama:0};
+  let hi=-1;for(let i=0;i<Math.min(rows.length,15);i++){const j=rows[i].map(x=>PP_NORM(x));if(j.includes('sku')&&j.some(x=>x.startsWith('pemasok'))&&j.includes('harga beli')){hi=i;break}}
+  if(hi<0){out.err.push({r:0,m:'Judul kolom tidak ditemukan. Pakai file hasil Unduh Excel dan jangan ubah baris judul.'});return out}
+  const hn=rows[hi].map(x=>PP_NORM(x)),ix={};
+  HB_COL.forEach(c=>{const k=hn.findIndex(h=>c[2].some(a=>PP_NORM(a)===h));if(k>=0)ix[c[0]]=k});
+  const get=(r,k)=>ix[k]==null?undefined:String(r[ix[k]]==null?'':r[ix[k]]).trim();
+  const sups=hbPemasok(),seen=new Set(),cl=v=>v==='-';
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i],no=i+1;if(!r||r.every(x=>String(x==null?'':x).trim()===''))continue;
+    out.baris++;const err=m=>out.err.push({r:no,m});
+    const sku=get(r,'sku'),supIn=get(r,'sup');
+    const s=sku?skuOf(sku):null;if(!s){err('SKU "'+(sku||'')+'" tidak dikenal');continue}
+    const sp=sups.find(m=>m.id.toLowerCase()===(supIn||'').toLowerCase())||sups.find(m=>PP_NORM(m.nama)===PP_NORM(supIn||''));
+    if(!sp){err('Pemasok "'+(supIn||'')+'" tidak dikenal (lihat lembar Pemasok)');continue}
+    const key=s.sku+'|'+sp.id;if(seen.has(key)){err('Barang dan pemasok yang sama muncul dua kali');continue}seen.add(key);
+    const ex=hbFind(s.sku,sp.id),bad=[];
+    const hS=get(r,'harga'),dS=get(r,'diskon'),bbS=get(r,'bb'),bgS=get(r,'bg'),tS=get(r,'tempo'),mS=get(r,'minQty'),cS=get(r,'catatan');
+    const v={};
+    if(hS){v.harga=mhNum(hS);if(!(v.harga>0))bad.push('Harga beli harus angka lebih dari 0')}
+    if(dS){if(cl(dS))v.diskon=0;else{v.diskon=mhNum(dS);if(!(v.diskon>=0&&v.diskon<100))bad.push('Diskon harus 0 sampai kurang dari 100')}}
+    if(bbS){if(cl(bbS))v.bonusBeli=0;else{v.bonusBeli=mhNum(bbS);if(!(v.bonusBeli>=0))bad.push('Bonus beli harus angka 0 atau lebih')}}
+    if(bgS){if(cl(bgS))v.bonusGratis=0;else{v.bonusGratis=mhNum(bgS);if(!(v.bonusGratis>=0))bad.push('Bonus gratis harus angka 0 atau lebih')}}
+    if(tS){if(cl(tS))v.tempo=null;else{v.tempo=mhNum(tS);if(!(v.tempo>=0))bad.push('Tempo harus angka 0 atau lebih')}}
+    if(mS){if(cl(mS))v.minQty=null;else{v.minQty=mhNum(mS);if(!(v.minQty>=0))bad.push('Minimum order harus angka 0 atau lebih')}}
+    if(cS)v.catatan=cl(cS)?'':cS;
+    if(bad.length){bad.forEach(err);continue}
+    if(!ex){
+      if(!(v.harga>0)){err('Baris baru: Harga beli wajib diisi');continue}
+      const n={sku:s.sku,sup:sp.id,harga:v.harga,diskon:v.diskon||0,bonusBeli:v.bonusBeli||0,bonusGratis:v.bonusGratis||0,tempo:v.tempo==null?null:v.tempo,minQty:v.minQty==null?null:v.minQty,catatan:v.catatan||''};
+      if((n.bonusBeli>0)!==(n.bonusGratis>0)){err('Bonus: isi dua kolom (beli dan gratis) atau kosongkan keduanya');continue}
+      out.baru.push({r:no,v:n});continue;
+    }
+    const m=Object.assign({},ex,v);
+    if((+m.bonusBeli>0)!==(+m.bonusGratis>0)){err('Bonus: isi dua kolom (beli dan gratis) atau kosongkan keduanya');continue}
+    const ch=[];HB_F.forEach(([f])=>{if(!(f in v))return;if(JSON.stringify(mhNorm(f,ex[f]))!==JSON.stringify(mhNorm(f,v[f])))ch.push({f,lama:ex[f],baru:v[f]})});
+    if(ch.length)out.ubah.push({r:no,id:ex.id,sku:s.sku,sup:sp.id,ch});else out.sama++;
+  }
+  return out;
+}
+function hbExcelHtml(){
+  const im=HBS.imp,h=HBS.hasil;
+  let b='<div class="card"><h3 style="margin:0 0 6px">Ubah harga beli pemasok lewat Excel</h3><ol class="small" style="margin:0 0 10px 18px;padding:0"><li>Klik <b>Unduh Excel</b>. Isinya harga yang tersimpan, ditambah harga dari faktur pembelian terakhir sebagai titik awal.</li><li>Ubah harga, diskon, bonus, tempo, atau tambah baris baru.</li><li>Klik <b>Pilih file Excel</b>. Anda melihat <b>pratinjau</b> dulu, belum ada yang berubah.</li><li>Klik <b>Terapkan</b> bila sudah benar. Pembukuan tidak berubah, hanya daftar harga acuan.</li></ol>'
+   +'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="hb-dl">'+ic('doc')+'Unduh Excel</button><label class="btn" style="cursor:pointer">'+ic('doc')+'Pilih file Excel<input type="file" id="hb-file" accept=".xlsx" data-chg="hb-file" style="display:none"></label></div></div>';
+  if(h)b+='<div class="note" style="margin-top:10px;border-color:var(--green)"><b>Berhasil diterapkan</b> dari '+esc(h.file||'file')+': '+h.ubah+' harga diubah, '+h.baru+' harga baru. Lihat Riwayat di menu Data Barang.</div>';
+  if(im){
+    b+='<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">Pratinjau: '+esc(im.file||'')+'</h3><div class="grid g4" style="margin-bottom:10px">'+kpi('blue','doc','Baris terbaca',num(im.baris))+kpi('green','check','Harga diubah',num(im.ubah.length))+kpi('amber','plus','Harga baru',num(im.baru.length))+kpi('red','warn','Baris bermasalah',num(im.err.length))+'</div>';
+    if(im.ubah.length)b+='<h4 style="margin:8px 0 4px">Perubahan</h4><div class="scroll" style="max-height:34vh"><table class="tbl"><thead><tr><th>Barang</th><th>Pemasok</th><th>Yang diubah</th><th>Dari</th><th>Menjadi</th></tr></thead><tbody>'+im.ubah.slice(0,200).map(u=>u.ch.map((c,i)=>'<tr><td>'+(i?'':esc(((skuOf(u.sku)||{}).nama||u.sku)))+'</td><td>'+(i?'':esc(mitraNama(u.sup)))+'</td><td>'+esc(HB_F.find(x=>x[0]===c.f)[1])+'</td><td>'+esc(mhShow('h',c.f,c.lama))+'</td><td><b>'+esc(mhShow('h',c.f,c.baru))+'</b></td></tr>').join('')).join('')+'</tbody></table></div>';
+    if(im.baru.length)b+='<h4 style="margin:10px 0 4px">Harga baru</h4><div class="scroll" style="max-height:30vh"><table class="tbl"><thead><tr><th>Barang</th><th>Pemasok</th><th class="r">Harga</th><th>Bonus</th><th class="r">Harga efektif</th></tr></thead><tbody>'+im.baru.slice(0,150).map(x=>'<tr><td>'+esc((skuOf(x.v.sku)||{}).nama||x.v.sku)+'</td><td>'+esc(mitraNama(x.v.sup))+'</td><td class="r">'+rp(x.v.harga)+(x.v.diskon?'<div class="small muted">diskon '+x.v.diskon+'%</div>':'')+'</td><td>'+(hbBonusTxt(x.v)||'–')+'</td><td class="r"><b>'+rp(Math.round(hbEfektif(x.v)))+'</b></td></tr>').join('')+'</tbody></table></div>'+(im.baru.length>150?'<div class="small muted">... dan '+(im.baru.length-150)+' lainnya</div>':'');
+    if(im.err.length)b+='<h4 style="margin:10px 0 4px;color:var(--red)">Baris bermasalah (dilewati)</h4><div class="small" style="max-height:20vh;overflow:auto">'+im.err.slice(0,80).map(e=>'Baris '+esc(String(e.r))+': '+esc(e.m)).join('<br>')+(im.err.length>80?'<br>... dan '+(im.err.length-80)+' lainnya':'')+'</div>';
+    const tot=im.ubah.length+im.baru.length;
+    b+='<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" data-act="hb-apply" '+(tot?'':'disabled')+'>Terapkan '+(tot?tot+' perubahan':'')+(im.err.length?' (baris bermasalah dilewati)':'')+'</button><button class="btn" data-act="hb-batal">Batal</button></div>'+(tot?'':'<div class="small muted" style="margin-top:6px">Tidak ada perubahan di file ini'+(im.sama?' ('+im.sama+' baris sama dengan data tersimpan)':'')+'.</div>')+'</div>';
+  }
+  return b;
+}
+PAGES.hargabeli=()=>{
+  const T=HBS,tabs=[['bandingkan','Bandingkan pemasok'],['daftar','Daftar harga ('+num(hbList().length)+')'],['excel','Edit lewat Excel']];
+  return {title:'Harga Beli Pemasok',sub:'Harga, diskon, bonus, dan tempo tiap pemasok. Bandingkan harga efektif sebelum membeli',right:'',
+    html:'<div class="tabs" style="margin-bottom:12px">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="hb-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='daftar'?hbDaftarHtml():T.tab==='excel'?hbExcelHtml():hbCmpHtml())};
+};
+try{const i=NAV.findIndex(n=>n[0]==='masterdata');NAV.splice(i>=0?i+1:NAV.length,0,['hargabeli','Harga Beli Pemasok','wallet'])}catch(e){}
+try{if(typeof ROLE_PAGES!=='undefined'&&ROLE_PAGES.keuangan&&!ROLE_PAGES.keuangan.includes('hargabeli'))ROLE_PAGES.keuangan.push('hargabeli')}catch(e){}
+
+ACT['hb-tab']=t=>{HBS.tab=t.dataset.t;HBS.page=1;if(location.hash!=='#hargabeli')location.hash='#hargabeli';else refresh()};
+ACT['hb-pick']=t=>{const s=parseSku(t.value);if(!s)return toast('Barang tidak ditemukan',true);HBS.sku=s.sku;refresh()};
+ACT['hb-lihat']=t=>{HBS.sku=t.dataset.sku;HBS.tab='bandingkan';refresh()};
+ACT['hb-fs']=t=>{HBS.sup=t.value;HBS.page=1;refresh()};
+ACT['hb-q']=t=>{HBS.q=t.value;HBS.page=1;refresh();const i=$('#hb-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}};
+ACT['hb-page']=t=>{HBS.page=+t.dataset.p;refresh()};
+const hbBolehUbah=()=>{if(typeof OL!=='undefined'&&OL.readonly){toast('Akun ini hanya bisa melihat data.',true);return false}if(!finOK()){toast('Peran ini tidak boleh mengubah harga beli.',true);return false}return true};
+ACT['hb-new']=t=>{if(!hbBolehUbah())return;openModal('Harga Beli Pemasok Baru',hbForm({sku:t.dataset.sku||'',sup:''},true),'<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hb-save" data-id="">Simpan</button>','md')};
+ACT['hb-edit']=t=>{if(!hbBolehUbah())return;const h=hbList().find(x=>x.id===t.dataset.id);if(!h)return;openModal('Ubah Harga Beli · '+mitraNama(h.sup),hbForm(h,false),'<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hb-save" data-id="'+esc(h.id)+'">Simpan</button>','md')};
+ACT['hb-save']=t=>{
+  if(!hbBolehUbah())return;
+  const id=t.dataset.id,ex=id?hbList().find(x=>x.id===id):null;
+  const v=hbBaca(ex?{sku:ex.sku,sup:ex.sup}:{});if(!v)return;
+  if(!ex&&hbFind(v.sku,v.sup))return toast('Harga untuk barang dan pemasok ini sudah ada. Gunakan Ubah.',true);
+  if(ex)Object.assign(ex,v,{tgl:todayISO()});
+  else{let n=hbList().length+1,nid;do{nid='HB-'+String(n++).padStart(4,'0')}while(hbList().some(x=>x.id===nid));hbList().push(Object.assign({id:nid,tgl:todayISO()},v))}
+  const ok=commit();if(ok===false)return toast('Perubahan ditolak sistem',true);
+  HBS.sku=v.sku;closeModal();refresh();toast('Harga beli pemasok disimpan');
+};
+ACT['hb-del']=t=>{
+  if(!hbBolehUbah())return;const h=hbList().find(x=>x.id===t.dataset.id);if(!h)return;
+  openModal('Hapus harga pemasok','<p>Hapus harga <b>'+esc((skuOf(h.sku)||{}).nama||h.sku)+'</b> dari <b>'+esc(mitraNama(h.sup))+'</b> ('+rp(h.harga)+')?</p><div class="note">Ini hanya menghapus daftar harga acuan. Faktur dan pembukuan tidak berubah. Penghapusan tercatat di riwayat.</div>','<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hb-del-ok" data-id="'+esc(h.id)+'">Ya, hapus</button>','md')};
+ACT['hb-del-ok']=t=>{
+  if(!hbBolehUbah())return;const i=hbList().findIndex(x=>x.id===t.dataset.id);if(i<0)return;
+  hbList().splice(i,1);const ok=commit();if(ok===false)return toast('Perubahan ditolak sistem',true);closeModal();refresh();toast('Harga pemasok dihapus')};
+ACT['hb-dl']=()=>{try{XL.save(hbTemplate(),'IMAGRITAMA_Harga_Beli_Pemasok_'+stamp()+'.xlsx');toast('Excel diunduh. Cek folder Unduhan.')}catch(e){toast('Gagal: '+e.message,true)}};
+ACT['hb-file']=async t=>{
+  const f=t.files&&t.files[0];if(!f)return;
+  if(!/\.xlsx$/i.test(f.name)){t.value='';return toast('Gunakan file .xlsx (hasil Unduh Excel).',true)}
+  try{const rows=await XL.read(await f.arrayBuffer());HBS.hasil=null;HBS.imp=hbAnalisa(rows,f.name);t.value='';refresh()}
+  catch(e){t.value='';toast('File tidak bisa dibaca: '+e.message,true)}
+};
+ACT['hb-batal']=()=>{HBS.imp=null;refresh()};
+ACT['hb-apply']=()=>{
+  if(!hbBolehUbah())return;const im=HBS.imp;if(!im)return;
+  if(!im.ubah.length&&!im.baru.length)return toast('Tidak ada perubahan untuk diterapkan',true);
+  const bak=JSON.stringify(S);
+  try{
+    MHS.via='Excel: '+(im.file||'file');
+    im.ubah.forEach(u=>{const h=hbList().find(x=>x.id===u.id);if(!h)return;u.ch.forEach(c=>{h[c.f]=c.baru});h.tgl=todayISO()});
+    im.baru.forEach(x=>{let n=hbList().length+1,nid;do{nid='HB-'+String(n++).padStart(4,'0')}while(hbList().some(y=>y.id===nid));hbList().push(Object.assign({id:nid,tgl:todayISO()},x.v))});
+    AUD('Harga beli pemasok diterapkan dari Excel',(im.file||'file')+': '+im.ubah.length+' diubah, '+im.baru.length+' baru','');
+    const ok=commit();MHS.via='';
+    if(ok===false){toast('Perubahan ditolak oleh sistem. Tidak ada yang berubah.',true);return}
+    HBS.hasil={ubah:im.ubah.length,baru:im.baru.length,file:im.file};HBS.imp=null;refresh();toast('Harga beli pemasok diterapkan. Riwayat tercatat.');
+  }catch(e){MHS.via='';try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal menerapkan: '+e.message+'. Data dikembalikan.',true)}
+};
+
+/* ---------- isi harga otomatis di faktur & pesanan pembelian ---------- */
+function hbInfoBlok(items,sup){
+  if(!sup)return '';
+  const L=items.filter(i=>i.sku).map(i=>({i,h:hbFind(i.sku,sup)})).filter(x=>x.h);
+  if(!L.length)return '';
+  return '<div class="note" style="margin-top:8px"><b>Daftar harga '+esc(mitraNama(sup))+'</b><br>'+L.map(({i,h})=>{
+    const lain=hbList().filter(x=>x.sku===h.sku&&x.sup!==sup&&hbEfektif(x)<hbEfektif(h)-0.5).sort((a,b)=>hbEfektif(a)-hbEfektif(b))[0];
+    return esc((skuOf(h.sku)||{}).nama||h.sku)+': '+rp(h.harga)+(h.diskon?' diskon '+h.diskon+'%':'')+(hbBonusTxt(h)?', bonus '+hbBonusTxt(h):'')+' → efektif '+rp(Math.round(hbEfektif(h)))+(h.tempo!=null?', tempo '+h.tempo+' hari':'')+(h.minQty?', min '+num(h.minQty):'')+(lain?'<br><span style="color:var(--amber)">Lebih murah di '+esc(mitraNama(lain.sup))+': efektif '+rp(Math.round(hbEfektif(lain)))+'</span>':'')}).join('<br>')+'<div class="small muted" style="margin-top:4px">Harga otomatis terisi memakai harga efektif per unit yang diterima. Jika ada bonus barang, isi jumlah sebagai total yang diterima (termasuk bonus), lalu samakan dengan total di faktur pemasok.</div></div>';
+}
+const hbSupNow=sel=>{const e=document.querySelector(sel);return e?e.value:''};
+if(typeof nfItemsHTML==='function'){const _nfH=nfItemsHTML;nfItemsHTML=function(){let h=_nfH();try{if(NF&&!NF.jual)h+=hbInfoBlok(NF.items,hbSupNow('#nf-mitra'))}catch(e){}return h}}
+if(typeof poLines==='function'){const _poL=poLines;poLines=function(){let h=_poL();try{if(POF&&POF.jenis==='PO')h+=hbInfoBlok(POF.items,hbSupNow('#po-mitra'))}catch(e){}return h}}
+{
+  const _nfSku=ACT['nf-sku'];
+  ACT['nf-sku']=function(t){
+    const r=_nfSku.apply(this,arguments);
+    try{if(NF&&!NF.jual){const i=+t.dataset.i,it=NF.items[i],h=it&&it.sku?hbFind(it.sku,hbSupNow('#nf-mitra')):null;if(h){it.harga=Math.round(hbEfektif(h));nfR()}}}catch(e){}
+    return r;
+  };
+  const _poF=ACT['po-f'];
+  ACT['po-f']=function(t){
+    const f=t.dataset.f,r=_poF.apply(this,arguments);
+    try{if(f==='sku'&&POF&&POF.jenis==='PO'){const x=POF.items[+t.dataset.i],h=x&&x.sku?hbFind(x.sku,hbSupNow('#po-mitra')):null;if(h){x.harga=Math.round(hbEfektif(h));poRedraw()}}}catch(e){}
+    return r;
+  };
+  /* ganti pemasok: harga ikut diperbarui bila tersedia, dan info diperbarui */
+  document.addEventListener('change',e=>{
+    const t=e.target;if(!t||!t.id)return;
+    try{
+      if(t.id==='nf-mitra'&&NF&&!NF.jual){NF.items.forEach(it=>{if(!it.sku)return;const h=hbFind(it.sku,t.value);if(h)it.harga=Math.round(hbEfektif(h))});nfR()}
+      if(t.id==='po-mitra'&&POF&&POF.jenis==='PO'){POF.items.forEach(x=>{if(!x.sku)return;const h=hbFind(x.sku,t.value);if(h)x.harga=Math.round(hbEfektif(h))});poRedraw()}
+    }catch(_){}
+  });
+}
+/* tombol pintasan di halaman Data Barang */
+{const _mdH=PAGES.masterdata;PAGES.masterdata=()=>{const p=_mdH();p.right=(p.right||'')+'<button class="btn" data-act="hb-tab" data-t="bandingkan">'+ic('wallet')+'Harga beli pemasok</button>';return p}}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
