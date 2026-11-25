@@ -7512,6 +7512,47 @@ function hbRiwHtml(){
   ACT['set-benefitakun']=el=>{const v=(el&&el.value)||(document.getElementById('bn-akun')||{}).value;S.settings.benefitAkun=v==='pendLain'?'pendLain':'hpp';commit();toast('Pencatatan benefit: '+(S.settings.benefitAkun==='hpp'?'pengurang HPP':'Pendapatan lain'))};
 }
 
+/* ====== Harga Beli Pemasok > tab Benefit: PEMANTAUAN SAJA (tidak mengubah pembukuan) ====== */
+const BPS={sup:'Semua',st:'Semua'};
+function bpData(){
+  const L=hjBn().slice().sort((a,b)=>b.id.localeCompare(a.id));
+  return L.map(b=>{const cair=b.jenis==='Hadiah'?(b.status==='Cair'?+b.nilaiCair||0:0):bnSum(b);
+    const sisa=b.status==='Gugur'?0:(b.jenis==='Hadiah'?(b.status==='Cair'?0:+b.nilai||0):bnSisa(b));
+    const jm=b.jenis==='Hadiah'?(b.jm?[b.jm]:[]):bnAktif(b).map(c=>c.jm).filter(Boolean);
+    return {b,cair,sisa,jm,gugur:b.status==='Gugur'?(+b.nilai||0):0}});
+}
+function bpHtml(){
+  const D=bpData(),sups=[...new Set(D.map(x=>x.b.sup))];
+  if(!D.length)return '<div class="card"><div class="empty">Belum ada benefit. Benefit tercatat otomatis dari faktur beli yang memenuhi syarat pemasok, atau manual di menu HPP dan Harga Minimum.</div></div>';
+  if(BPS.sup!=='Semua'&&!sups.includes(BPS.sup))BPS.sup='Semua';
+  const F=D.filter(x=>(BPS.sup==='Semua'||x.b.sup===BPS.sup)&&(BPS.st==='Semua'||(BPS.st==='Menunggu'?(x.b.status==='Menunggu'||x.b.status==='Sebagian'):x.b.status===BPS.st)));
+  const T=a=>({n:a.length,nilai:sum(a,x=>+x.b.nilai||0),cair:sum(a,x=>x.cair),sisa:sum(a,x=>x.sisa),gugur:sum(a,x=>x.gugur)});
+  const t=T(D);
+  const per=sups.map(s=>({s,...T(D.filter(x=>x.b.sup===s))}));
+  const akun=akunBenefit()==='hpp'?'pengurang HPP':'Pendapatan lain';
+  return '<div class="note" style="margin-bottom:10px"><b>Tampilan baca saja.</b> Membuka atau menyaring daftar ini tidak mengubah pembukuan. Pencairan, pembatalan, dan status gugur dilakukan di <b>HPP dan Harga Minimum → Benefit belum cair</b>. Aturan pencatatan saat cair: <b>'+akun+'</b> (diatur di Pengaturan).</div>'
+   +'<div class="grid g4" style="margin-bottom:10px">'+kpi('amber','wallet','Menunggu cair',hjR(t.sisa))+kpi('green','check','Sudah cair',hjR(t.cair))+kpi('red','warn','Gugur',hjR(t.gugur))+kpi('blue','doc','Seluruh benefit',num(t.n)+' catatan')+'</div>'
+   +'<div class="card" style="margin-bottom:10px"><h3 style="margin:0 0 6px">Ringkasan per pemasok</h3><div class="scroll"><table class="tbl"><thead><tr><th>Pemasok</th><th class="r">Jumlah</th><th class="r">Total nilai</th><th class="r">Sudah cair</th><th class="r">Menunggu</th><th class="r">Gugur</th></tr></thead><tbody>'
+   +per.map(p=>'<tr><td>'+esc(mitraNama(p.s))+'</td><td class="r">'+num(p.n)+'</td><td class="r">'+rp(p.nilai)+'</td><td class="r">'+rp(p.cair)+'</td><td class="r"><b>'+rp(p.sisa)+'</b></td><td class="r">'+rp(p.gugur)+'</td></tr>').join('')
+   +'</tbody><tfoot><tr><th>Total</th><th class="r">'+num(t.n)+'</th><th class="r">'+rp(t.nilai)+'</th><th class="r">'+rp(t.cair)+'</th><th class="r">'+rp(t.sisa)+'</th><th class="r">'+rp(t.gugur)+'</th></tr></tfoot></table></div></div>'
+   +'<div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><select class="in" style="max-width:260px" data-chg="bp-sup" aria-label="Pemasok"><option value="Semua">Semua pemasok</option>'+sups.map(s=>'<option value="'+esc(s)+'"'+(BPS.sup===s?' selected':'')+'>'+esc(mitraNama(s))+'</option>').join('')+'</select>'
+   +['Menunggu','Cair','Gugur','Semua'].map(s=>'<button class="btn sm '+(BPS.st===s?'pri':'ghost')+'" data-act="bp-st" data-s="'+s+'">'+s+'</button>').join('')+'</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>ID</th><th>Tanggal</th><th>Pemasok / barang</th><th>Benefit</th><th class="r">Nilai</th><th class="r">Sudah cair</th><th class="r">Sisa</th><th>Status</th><th>Jurnal</th></tr></thead><tbody>'
+   +(F.map(x=>{const b=x.b;return '<tr><td class="small">'+esc(b.id)+'</td><td class="small">'+fmtTgl(b.tgl)+(b.doc?'<div class="muted">'+esc(b.doc)+'</div>':'')+'</td><td>'+esc(mitraNama(b.sup))+'<div class="small muted">'+esc((skuOf(b.sku)||{}).nama||b.sku||'')+'</div></td><td>'+esc(b.jenis)+'<div class="small muted">'+esc(b.nama||'')+'</div></td><td class="r">'+rp(b.nilai)+'</td><td class="r">'+rp(x.cair)+'</td><td class="r">'+(x.sisa>0.5?'<b>'+rp(x.sisa)+'</b>':'–')+'</td><td>'+badge(b.status==='Cair'?'ok':b.status==='Gugur'?'bad':'warn',b.status)+(b.tglCair?'<div class="small muted">'+fmtTgl(b.tglCair)+'</div>':'')+'</td><td class="small">'+(x.jm.length?x.jm.map(esc).join('<br>'):'<span class="muted">–</span>')+'</td></tr>'}).join('')||'<tr><td colspan="9" class="empty">Tidak ada benefit pada penyaringan ini.</td></tr>')
+   +'</tbody></table></div></div>';
+}
+ACT['bp-st']=t=>{BPS.st=t.dataset.s||'Semua';refresh()};
+ACT['bp-sup']=el=>{BPS.sup=(el&&el.value)||'Semua';refresh()};
+{
+  const _p=PAGES.hargabeli;
+  PAGES.hargabeli=function(){
+    const r=_p.apply(this,arguments),T=HBS,tabs=[['bandingkan','Bandingkan pemasok'],['daftar','Daftar harga ('+num(hbList().length)+')'],['riwayat','Riwayat harga'],['benefit','Benefit ('+num(hjBn().filter(b=>b.status==='Menunggu'||b.status==='Sebagian').length)+' menunggu)'],['excel','Edit lewat Excel']];
+    const rest=r.html.slice(r.html.indexOf('</div>')+6);
+    r.html='<div class="tabs" style="margin-bottom:12px">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="hb-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='benefit'?bpHtml():rest);
+    return r;
+  };
+}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
