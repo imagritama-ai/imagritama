@@ -5814,6 +5814,28 @@ function kepDetailHtml(r){
 }
 ACT['kep-salin']=t=>{const r=kepPemasok(t.dataset.id),o=kepOpsi(r),tx=kepKasus(r,o);try{navigator.clipboard.writeText(tx);toast('Ringkasan disalin')}catch(e){toast(tx)}};
 
+/* ====== PERBAIKAN: kelebihan bayar (mis. pelanggan sudah lunas lalu ada retur) tercatat sebagai saldo terpisah ====== */
+const _deriveKB=derive;
+derive=function(){
+  _deriveKB();
+  let pl=0,ul=0;
+  for(const d of S.docs){
+    if(d.status==='BATAL'||(d.jenis!=='Jual'&&d.jenis!=='Beli'))continue;
+    const r=D.doc[d.no];if(!r)continue;
+    const lb=(+r.paid||0)+(+r.retur||0)-(+r.total||0);
+    if(lb>0.5){r.lebih=lb;if(d.jenis==='Jual')pl+=lb;else ul+=lb}else r.lebih=0;
+  }
+  D.piutangLebih=pl;D.utangLebih=ul;
+};
+const _checksKB=checks;
+checks=function(){
+  const base=_checksKB(),t=trial(null,null),pl=D.piutangLebih||0,ul=D.utangLebih||0;
+  const fix=(nama,ok,val)=>{const i=base.findIndex(c=>c[0]===nama);if(i>=0)base[i]=[nama,ok,val]};
+  fix('Piutang jurnal = saldo faktur',Math.abs(t.piutang.saldo-(D.piutang-pl))<1,rp(t.piutang.saldo-(D.piutang-pl)));
+  fix('Utang jurnal = saldo faktur',Math.abs(-t.utang.saldo-(D.utang-ul))<1,rp(-t.utang.saldo-(D.utang-ul)));
+  base.push(['Kelebihan bayar pelanggan/pemasok sudah diselesaikan',pl+ul<1,pl+ul<1?'tidak ada':'Pelanggan '+rp(pl)+' · Pemasok '+rp(ul)+' (kembalikan uang atau buat nota kredit)']);
+  return base;
+};
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
