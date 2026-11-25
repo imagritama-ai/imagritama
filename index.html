@@ -7426,6 +7426,48 @@ ACT['hb-pilih']=t=>{HBS.sku=t.dataset.sku;HBS.pq='';refresh()};
 ACT['hb-fq']=t=>{const l=$('#hb-flist');if(l)l.innerHTML=hbListHtml(t.value.split(' — ')[0],'hb-fpilih','')};
 ACT['hb-fpilih']=t=>{const s=skuOf(t.dataset.sku);if(!s)return;const i=$('#hb-sku');if(i)i.value=s.sku+' — '+s.nama;const l=$('#hb-flist');if(l)l.innerHTML=hbListHtml('','hb-fpilih',s.sku);toast('Dipilih: '+s.nama)};
 
+/* ====== Riwayat harga pemasok: perubahan harga per barang dari waktu ke waktu (faktur + daftar harga) ====== */
+function hbRiwData(sku){
+  const ev=[];
+  S.docs.forEach(d=>{if(d.jenis==='Beli'&&d.status!=='BATAL'&&d.mitra)(d.items||[]).forEach(i=>{if(i.sku===sku&&+i.harga>0)ev.push({t:d.tgl||'',sup:d.mitra,harga:+i.harga,kat:'F',src:'Faktur '+d.no,qty:+i.qty})})});
+  const last={};
+  (S.riwayat||[]).slice().reverse().forEach(e=>{if(e.t!=='h'||e.f!=='harga')return;const h=hbList().find(x=>x.id===e.ref);if(!h||h.sku!==sku||!(+e.br>0))return;ev.push({t:(e.ts||'').slice(0,10),sup:h.sup,harga:+e.br,kat:'D',src:'Daftar harga · '+(e.user||'')+(e.via&&e.via!=='Layar'?' · '+e.via:'')});last[h.sup]=+e.br});
+  hbList().filter(h=>h.sku===sku).forEach(h=>{if(last[h.sup]!==+h.harga)ev.push({t:h.tgl||'',sup:h.sup,harga:+h.harga,kat:'D',src:'Daftar harga (saat ini)'})});
+  ev.sort((a,b)=>a.t.localeCompare(b.t));
+  const prev={};ev.forEach(e=>{const k=e.sup+'|'+e.kat;e.d=prev[k]!=null?e.harga-prev[k]:null;prev[k]=e.harga});
+  return ev;
+}
+function hbRiwGrafik(ev){
+  const sups=[...new Set(ev.map(e=>e.sup))];if(ev.length<2)return '';
+  const W=640,H=180,P=36,min=Math.min(...ev.map(e=>e.harga)),max=Math.max(...ev.map(e=>e.harga)),span=(max-min)||1,ts=ev.map(e=>new Date(e.t).getTime()||0),t0=Math.min(...ts),t1=Math.max(...ts),ds=(t1-t0)||1;
+  const col=['#2563eb','#d97706','#16a34a','#9333ea','#dc2626','#0891b2'];
+  const X=e=>P+((new Date(e.t).getTime()||0)-t0)/ds*(W-P-10),Y=e=>H-20-(e.harga-min)/span*(H-40);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:220px" role="img" aria-label="Grafik harga beli per pemasok"><line x1="'+P+'" y1="'+(H-20)+'" x2="'+(W-10)+'" y2="'+(H-20)+'" stroke="#cbd5e1"/>'
+   +'<text x="2" y="'+(H-20)+'" font-size="10" fill="#64748b">'+hjR(min)+'</text><text x="2" y="14" font-size="10" fill="#64748b">'+hjR(max)+'</text>';
+  sups.forEach((u,i)=>{const pts=ev.filter(e=>e.sup===u);const c=col[i%col.length];
+    s+='<polyline fill="none" stroke="'+c+'" stroke-width="2" points="'+pts.map(e=>X(e).toFixed(1)+','+Y(e).toFixed(1)).join(' ')+'"/>'+pts.map(e=>'<circle cx="'+X(e).toFixed(1)+'" cy="'+Y(e).toFixed(1)+'" r="3" fill="'+c+'"><title>'+esc(mitraNama(u)+' · '+e.t+' · '+rp(e.harga))+'</title></circle>').join('')});
+  s+='</svg><div class="small" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">'+sups.map((u,i)=>'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+col[i%col.length]+';margin-right:4px"></span>'+esc(mitraNama(u))+'</span>').join('')+'</div>';
+  return s;
+}
+function hbRiwHtml(){
+  const s=skuOf(HBS.sku)||S.sku[0];if(!s)return '<div class="card"><div class="empty">Belum ada barang.</div></div>';HBS.sku=s.sku;
+  const ev=hbRiwData(s.sku),L=ev.slice().reverse().slice(0,150);
+  return '<div class="card"><div class="field" style="min-width:240px;max-width:560px">'+hbPickerHtml()+'</div></div><div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">Riwayat harga beli · '+esc(s.nama)+'</h3>'
+   +(ev.length?hbRiwGrafik(ev)+'<div class="scroll" style="margin-top:10px"><table class="tbl"><thead><tr><th>Tanggal</th><th>Pemasok</th><th class="r">Harga</th><th class="r">Naik / turun</th><th>Sumber</th></tr></thead><tbody>'
+     +L.map(e=>'<tr><td class="small">'+fmtTgl(e.t)+'</td><td>'+esc(mitraNama(e.sup))+'</td><td class="r"><b>'+rp(e.harga)+'</b>'+(e.qty?'<div class="small muted">'+num(e.qty)+' unit</div>':'')+'</td><td class="r">'+(e.d==null?'<span class="muted">–</span>':e.d===0?'<span class="muted">tetap</span>':'<span style="color:var(--'+(e.d>0?'red':'green')+')">'+(e.d>0?'+':'−')+rp(Math.abs(e.d))+'</span>')+'</td><td class="small">'+esc(e.src)+'</td></tr>').join('')+'</tbody></table></div>'
+     :'<div class="empty">Belum ada riwayat harga untuk barang ini. Riwayat terisi dari faktur pembelian dan dari perubahan daftar harga pemasok.</div>')
+   +'<div class="note" style="margin-top:8px">Sumber "Faktur" = harga yang benar-benar dibayar. Sumber "Daftar harga" = harga acuan yang Anda isi. Perubahan daftar harga sebelum fitur riwayat aktif tidak tercatat.</div></div>';
+}
+{
+  const _p=PAGES.hargabeli;
+  PAGES.hargabeli=function(){
+    const r=_p.apply(this,arguments),T=HBS,tabs=[['bandingkan','Bandingkan pemasok'],['daftar','Daftar harga ('+num(hbList().length)+')'],['riwayat','Riwayat harga'],['excel','Edit lewat Excel']];
+    const rest=r.html.slice(r.html.indexOf('</div>')+6);
+    r.html='<div class="tabs" style="margin-bottom:12px">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="hb-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='riwayat'?hbRiwHtml():rest);
+    return r;
+  };
+}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
