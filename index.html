@@ -7468,6 +7468,28 @@ function hbRiwHtml(){
   };
 }
 
+/* ====== Tutup kebocoran info laba/margin/HPP untuk peran kasir & gudang ====== */
+{
+  const _m=ACT['trx-margin'];
+  ACT['trx-margin']=function(){if(!finOK()){toast('Analisis margin hanya untuk pemilik dan keuangan');return}return _m.apply(this,arguments)};
+  const _g=PAGES.gudang;
+  PAGES.gudang=function(){
+    const r=_g.apply(this,arguments);
+    if(!finOK()&&r&&r.html){const k='<section class="card" style="margin-top:14px"><h3 class="ch">',i=r.html.lastIndexOf(k);
+      if(i>=0&&r.html.indexOf('Penjualan per Lokasi',i)>0&&r.html.indexOf('Penjualan per Lokasi',i)<i+400)r.html=r.html.slice(0,i)+(r.html.slice(i).split('</section>').slice(1).join('</section>'))}
+    return r};
+  const _v=PAGES.velocity;
+  PAGES.velocity=function(){
+    const r=_v.apply(this,arguments);
+    if(!finOK()&&r&&r.html)r.html=r.html.replace(/ ?Total saran beli bernilai Rp[\d.]+ dengan HPP saat ini\.?/,'');
+    return r};
+  const _t=PAGES.transaksi;
+  PAGES.transaksi=function(){
+    const r=_t.apply(this,arguments);
+    if(!finOK()&&r&&r.html){const t=document.createElement('template');t.innerHTML=r.html;t.content.querySelectorAll('[data-act="trx-margin"]').forEach(e=>e.remove());r.html=t.innerHTML}
+    return r};
+}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
