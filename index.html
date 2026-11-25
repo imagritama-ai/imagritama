@@ -6275,6 +6275,318 @@ ACT['pp-ok']=()=>{
   commit();closeModal();refresh();toast(n+' produk diperbarui, '+h.baru.length+' perusahaan baru');
 };
 (function(){try{const s=document.createElement('style');s.id='pp-css';s.textContent='#phr{flex-wrap:wrap;max-width:100%}@media(max-width:520px){#phr{justify-content:flex-start;width:100%}#phr .btn{white-space:normal}}';document.head.appendChild(s)}catch(e){}})();
+/* ====== DATA BARANG: edit lewat Excel + RIWAYAT PERUBAHAN (apa, kapan, siapa) ======
+   Riwayat dicatat otomatis setiap kali data barang berubah, dari layar mana pun (Ubah, Excel, isian massal).
+   Caranya: setiap commit dibandingkan dengan foto data barang sebelumnya (S.mh); selisihnya disimpan di S.riwayat. */
+const MH_MAX=4000;
+const MH_UNIT=['','ml','l','g','kg','btr','m'];
+const MHS={via:'',tab:'excel',q:'',tipe:'',user:'',dari:'',sampai:'',page:1,imp:null,hasil:null};
+const MH_F={
+  s:{nama:['Nama'],kategori:['Kategori'],kemasan:['Satuan stok'],ukuran:['Isi kemasan'],harga:['Harga jual'],hpp0:['HPP awal'],min:['Stok minimum'],barcode:['Barcode'],pid:['Produk induk']},
+  p:{nama:['Nama produk induk'],kategori:['Kategori produk induk'],registrasi:['Nomor registrasi'],prin:['Perusahaan (principal)']},
+  r:{nama:['Nama perusahaan'],kontak:['Kontak perusahaan']}
+};
+const MH_TIPE={s:'Barang (SKU)',p:'Produk induk',r:'Perusahaan'};
+function mhUser(){try{return OL.sess?(OL.nama||OL.sess.email.split('@')[0])+' ('+OL.role+')':(S.settings.kasir||'Kasir')}catch(e){return (S.settings&&S.settings.kasir)||'Kasir'}}
+const MH_NUM=['harga','hpp0','min'];
+function mhNorm(f,v){
+  if(v===undefined||v===''||v===null)return null;
+  if(f==='ukuran')return v&&v.q?{q:+v.q,u:String(v.u)}:null;
+  if(MH_NUM.includes(f)){const n=Number(v);return isFinite(n)?n:null}
+  return String(v);
+}
+function mhPick(t,x){const r={};Object.keys(MH_F[t]).forEach(k=>{r[k]=mhNorm(k,x[k])});return r}
+function mhSnap(){
+  const o={};
+  S.sku.forEach(s=>{o['s:'+s.sku]=JSON.stringify(mhPick('s',s))});
+  S.produk.forEach(p=>{o['p:'+p.id]=JSON.stringify(mhPick('p',p))});
+  (S.principal||[]).forEach(r=>{o['r:'+r.id]=JSON.stringify(mhPick('r',r))});
+  return o;
+}
+function mhShow(t,f,v,prinNameOf){
+  if(v==null||v==='')return '–';
+  if(f==='ukuran')return v.q+' '+v.u;
+  if(f==='harga'||f==='hpp0')return rp(v);
+  if(f==='prin')return (S.principal.find(x=>x.id===v)||{}).nama||String(v);
+  if(f==='pid'){const p=produkOf(v);return p?p.id+' · '+p.nama:String(v)}
+  if(f==='min')return String(v);
+  return String(v);
+}
+function mhNama(t,id,o){
+  if(t==='s')return (skuOf(id)||o||{}).nama||id;
+  if(t==='p')return (produkOf(id)||o||{}).nama||id;
+  return ((S.principal||[]).find(x=>x.id===id)||o||{}).nama||id;
+}
+function mhRecord(){
+  if(!S.mh){S.mh=mhSnap();return}
+  const cur=mhSnap(),old=S.mh,ts=new Date().toISOString(),user=mhUser(),grp=uid(),via=MHS.via||'Layar',dev=(()=>{try{return OL.sess?OL.devLabel:''}catch(e){return ''}})();
+  const out=[],mk=(t,id,nm,f,fl,aksi,lama,baru,lr,br)=>out.push({id:uid(),ts,user,dev,grp,via,t,ref:id,nm,f,fl,aksi,lama,baru,lr,br});
+  const baruSku=new Set(),baruPid=new Set();
+  Object.keys(cur).forEach(k=>{if(!(k in old)&&k[0]==='s'){baruSku.add(k.slice(2));const s=skuOf(k.slice(2));if(s)baruPid.add(s.pid)}});
+  Object.keys(cur).forEach(k=>{
+    const t=k[0],id=k.slice(2),b=JSON.parse(cur[k]);
+    if(!(k in old)){
+      if(t==='p'&&baruPid.has(id))return;
+      const nm=mhNama(t,id,b);
+      mk(t,id,nm,'','(data baru)','Dibuat','–',t==='s'?(b.nama+' · '+rp(b.harga||0)):nm,null,null);return;
+    }
+    if(old[k]===cur[k])return;
+    const a=JSON.parse(old[k]),nm=mhNama(t,id,b);
+    Object.keys(MH_F[t]).forEach(f=>{
+      if(JSON.stringify(a[f])===JSON.stringify(b[f]))return;
+      mk(t,id,nm,f,MH_F[t][f][0],'Ubah',mhShow(t,f,a[f]),mhShow(t,f,b[f]),a[f],b[f]);
+    });
+  });
+  Object.keys(old).forEach(k=>{if(!(k in cur)){const a=JSON.parse(old[k]);mk(k[0],k.slice(2),a.nama||k.slice(2),'','(data dihapus)','Dihapus',a.nama||'–','–',null,null)}});
+  if(out.length)S.riwayat=out.concat(S.riwayat||[]).slice(0,MH_MAX);
+  S.mh=cur;
+}
+const _commitMH=commit;
+commit=function(){try{mhRecord()}catch(e){}return _commitMH()};
+/* foto awal dibuat sekali saat data dimuat (sebelum ada perubahan) */
+const _deriveMH=derive;
+derive=function(){const r=_deriveMH.apply(this,arguments);try{if(!S.mh)S.mh=mhSnap()}catch(e){}return r};
+try{if(!S.mh)S.mh=mhSnap()}catch(e){}
+
+/* ---------- membaca angka dari Excel ---------- */
+function mhNum(s){
+  if(typeof s==='number')return s;
+  let t=String(s==null?'':s).trim();if(t==='')return NaN;
+  t=t.replace(/^Rp\s*/i,'').replace(/\s/g,'');
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t))t=t.replace(/\./g,'').replace(',','.');
+  else if(/^\d+,\d+$/.test(t))t=t.replace(',','.');
+  else if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t))t=t.replace(/,/g,'');
+  const x=Number(t);return isFinite(x)?x:NaN;
+}
+const MH_COL=[
+  ['sku','SKU',['sku','kode sku']],['pid','Product_ID',['product id','productid','produk induk','id produk']],['nama','Nama',['nama','nama produk','nama barang']],
+  ['kategori','Kategori',['kategori']],['uq','Isi kemasan',['isi kemasan','isi']],['uu','Unit isi',['unit isi','unit','satuan isi']],
+  ['kemasan','Satuan stok',['satuan stok','kemasan','satuan']],['harga','Harga jual',['harga jual','harga']],['hpp0','HPP awal',['hpp awal','hpp','harga pokok awal']],
+  ['min','Stok minimum',['stok minimum','minimum','min']],['barcode','Barcode',['barcode']],['prin','Perusahaan (principal)',['perusahaan principal','perusahaan','principal'] ]
+];
+function mhCats(){return [...new Set(S.sku.map(x=>x.kategori).concat(['Insektisida','Fungisida','Herbisida Umum','Herbisida Selektif','Pupuk','Benih Hortikultura','Benih Jagung','Benih Padi','Plant Health','Alsintan','Lainnya']))]}
+function mhTemplate(){
+  const head=MH_COL.map(c=>c[1]).concat(['Stok sekarang (info, tidak dibaca)']);
+  const rows=[head];
+  S.sku.slice().sort((a,b)=>a.sku.localeCompare(b.sku)).forEach(s=>{
+    const p=produkOf(s.pid),u=s.ukuran||{};
+    rows.push([s.sku,s.pid||'',s.nama,s.kategori||'',u.q||'',u.u||'',s.kemasan||'',s.harga||0,s.hpp0||0,s.min==null?'':s.min,s.barcode||'',ppPrinNama(p),(D.inv[s.sku]||{}).qty||0]);
+  });
+  const pet=[['PETUNJUK MENGUBAH DATA BARANG LEWAT EXCEL'],[''],
+    ['1. Ubah isi sel di lembar "Barang". Jangan ubah kolom SKU dan Product_ID untuk barang yang sudah ada (ID bersifat permanen).'],
+    ['2. Sel yang dikosongkan = tidak diubah. Untuk MENGHAPUS isi (barcode, stok minimum, isi kemasan, perusahaan), tulis tanda minus: -'],
+    ['3. Barang BARU: tambahkan baris baru, kosongkan kolom SKU. Wajib isi Nama, Kategori, dan Harga jual. Kode SKU dibuat otomatis oleh sistem.'],
+    ['4. Product_ID kosong pada barang baru = sistem membuat produk induk baru. Isi Product_ID yang sudah ada untuk menambah kemasan baru pada produk yang sama.'],
+    ['5. Barang yang tidak ada di file tidak dihapus dan tidak diubah. Menghapus barang tidak bisa lewat Excel.'],
+    ['6. Stok tidak bisa diubah lewat Excel. Stok berubah lewat pembelian, penjualan, atau stok opname agar jurnal tetap benar.'],
+    ['7. Satuan isi yang dikenal: ml, l, g, kg, btr, m. Kategori harus salah satu kategori yang sudah ada.'],
+    ['8. Setelah disimpan, unggah file di menu Data Barang. Anda akan melihat pratinjau perubahan dulu. Baru setelah klik Terapkan, data berubah.']];
+  return XL.build([{name:'Barang',rows},{name:'Petunjuk',rows:pet}]);
+}
+/* ---------- memeriksa file yang diunggah ---------- */
+function mhAnalisa(rows,fileName){
+  const out={file:fileName,baris:0,ubah:[],baru:[],prin:[],err:[],dilewati:0,butuhPid:0};
+  let hi=-1;for(let i=0;i<Math.min(rows.length,15);i++){const j=rows[i].map(x=>PP_NORM(x));if(j.includes('sku')&&(j.includes('nama')||j.includes('nama produk')||j.includes('nama barang'))){hi=i;break}}
+  if(hi<0){out.err.push({r:0,m:'Judul kolom tidak ditemukan. Pakai file hasil Unduh Excel dan jangan ubah baris judul.'});return out}
+  const hn=rows[hi].map(x=>PP_NORM(x)),ix={};
+  MH_COL.forEach(c=>{const k=hn.findIndex(h=>c[2].some(a=>PP_NORM(a)===h));if(k>=0)ix[c[0]]=k});
+  const cats=mhCats().map(x=>x.toLowerCase()),seenSku=new Set(),bcFile={};
+  S.sku.forEach(s=>{if(s.barcode)bcFile[s.barcode]=s.sku});
+  const prinWant={}; /* pid -> {nama,rows} */
+  const get=(r,k)=>ix[k]==null?undefined:String(r[ix[k]]==null?'':r[ix[k]]).trim();
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i],no=i+1;if(!r||r.every(x=>String(x==null?'':x).trim()===''))continue;
+    out.baris++;
+    const err=m=>out.err.push({r:no,m});
+    const sku=get(r,'sku')||'';
+    const existing=sku?skuOf(sku):null;
+    if(sku&&!existing){err('SKU "'+sku+'" tidak dikenal. Untuk barang baru, kosongkan kolom SKU.');continue}
+    if(sku){if(seenSku.has(sku)){err('SKU '+sku+' muncul dua kali di file.');continue}seenSku.add(sku)}
+    const cleared=v=>v==='-';
+    const nama=get(r,'nama'),kat=get(r,'kategori'),kem=get(r,'kemasan'),bc=get(r,'barcode'),pidIn=get(r,'pid'),prin=get(r,'prin');
+    const hargaS=get(r,'harga'),hppS=get(r,'hpp0'),minS=get(r,'min'),uqS=get(r,'uq'),uuS=get(r,'uu');
+    const bad=[];
+    let harga,hpp0,mn,uq,uu;
+    if(hargaS){harga=mhNum(hargaS);if(!(harga>0))bad.push('Harga jual harus angka lebih dari 0')}
+    if(hppS){hpp0=mhNum(hppS);if(!(hpp0>=0))bad.push('HPP awal harus angka 0 atau lebih')}
+    if(minS&&!cleared(minS)){mn=mhNum(minS);if(!(mn>=0))bad.push('Stok minimum harus angka 0 atau lebih')}
+    if(uqS&&!cleared(uqS)){uq=mhNum(uqS);if(!(uq>0))bad.push('Isi kemasan harus angka lebih dari 0')}
+    if(uuS&&!cleared(uuS)){uu=uuS.toLowerCase();if(!MH_UNIT.includes(uu)||!uu)bad.push('Unit isi "'+uuS+'" tidak dikenal (pakai ml, l, g, kg, btr, m)')}
+    if(kat&&!cats.includes(kat.toLowerCase()))bad.push('Kategori "'+kat+'" belum ada. Pilih kategori yang sudah ada');
+    let pidFix=null;
+    if(pidIn){const pp=S.produk.find(p=>p.id.toLowerCase()===pidIn.toLowerCase());if(!pp)bad.push('Product_ID "'+pidIn+'" tidak ada');else pidFix=pp.id}
+    if(bc&&!cleared(bc)){const own=bcFile[bc];if(own&&own!==sku)bad.push('Barcode '+bc+' sudah dipakai '+own)}
+    if(bad.length){bad.forEach(err);continue}
+    const katFix=kat?mhCats().find(c=>c.toLowerCase()===kat.toLowerCase()):undefined;
+    if(!existing){
+      if(!nama){err('Barang baru: Nama wajib diisi');continue}
+      if(!katFix){err('Barang baru: Kategori wajib diisi');continue}
+      if(!(harga>0)){err('Barang baru: Harga jual wajib diisi (lebih dari 0)');continue}
+      if((uq&&!uu)||(!uq&&uu)){err('Barang baru: isi kemasan dan unit isi harus diisi berpasangan');continue}
+      const v={nama,kategori:katFix,pid:pidFix||'',kemasan:cleared(kem)?'':(kem||''),harga,hpp0:hpp0||0,min:(mn==null||cleared(minS))?null:mn,barcode:(bc&&!cleared(bc))?bc:'',ukuran:uq&&uu?{q:uq,u:uu}:null};
+      if(v.barcode)bcFile[v.barcode]='(baris '+no+')';
+      out.baru.push({r:no,v,prin:cleared(prin)?'':(prin||'')});
+      if(prin&&!cleared(prin)&&pidFix){(prinWant[pidFix]||(prinWant[pidFix]={nama:prin,rows:[]})).rows.push(no)}
+      continue;
+    }
+    /* barang lama: bandingkan hanya yang diisi */
+    const ch=[],setf=(f,baru)=>{if(JSON.stringify(mhNorm(f,existing[f]))!==JSON.stringify(mhNorm(f,baru)))ch.push({sku,f,baru})};
+    if(nama)setf('nama',nama);
+    if(katFix)setf('kategori',katFix);
+    if(kem)setf('kemasan',cleared(kem)?'':kem);
+    if(hargaS)setf('harga',harga);
+    if(hppS)setf('hpp0',hpp0);
+    if(minS)setf('min',cleared(minS)?null:mn);
+    if(bc)setf('barcode',cleared(bc)?'':bc);
+    if(bc&&!cleared(bc))bcFile[bc]=sku;
+    if(uqS||uuS){
+      const cu=existing.ukuran||{};
+      const nq=cleared(uqS)||cleared(uuS)?null:(uqS?uq:cu.q),nu=cleared(uqS)||cleared(uuS)?null:(uuS?uu:cu.u);
+      if((nq&&!nu)||(!nq&&nu)){err('Isi kemasan dan unit isi harus berpasangan');continue}
+      setf('ukuran',nq&&nu?{q:nq,u:nu}:null);
+    }
+    if(pidFix)setf('pid',pidFix);
+    if(prin){const pid=pidFix||existing.pid;(prinWant[pid]||(prinWant[pid]={nama:prin,rows:[]})).rows.push(no);if(prinWant[pid].nama!==prin){prinWant[pid].konflik=true}}
+    if(ch.length)out.ubah.push({r:no,sku,nm:existing.nama,ch});else if(!prin)out.dilewati++;
+  }
+  Object.keys(prinWant).forEach(pid=>{
+    const w=prinWant[pid];
+    if(w.konflik){out.err.push({r:w.rows.join(', '),m:'Perusahaan berbeda untuk produk induk yang sama ('+pid+'). Samakan dulu.'});return}
+    const p=produkOf(pid);if(!p)return;
+    if(w.nama==='-'){if(p.prin)out.prin.push({pid,nama:'-',nm:p.nama})}
+    else{const ex=S.principal.find(x=>PP_NORM(x.nama)===PP_NORM(w.nama));if(!ex||p.prin!==ex.id)out.prin.push({pid,nama:ex?ex.nama:w.nama,nm:p.nama,baru:!ex})}
+  });
+  /* baris barang baru yang minta perusahaan, tanpa produk induk: ikut baris baru */
+  return out;
+}
+function mhShowVal(f,v){return mhShow('s',f,v)}
+function mhTerapkanImport(){
+  const im=MHS.imp;if(!im)return;
+  const adaUbah=im.ubah.length+im.baru.length+im.prin.length;if(!adaUbah)return toast('Tidak ada perubahan untuk diterapkan',true);
+  const bakS=JSON.stringify(S);
+  try{
+    MHS.via='Excel: '+(im.file||'file');
+    im.ubah.forEach(u=>{const s=skuOf(u.sku);u.ch.forEach(c=>{if(c.f==='ukuran')s.ukuran=c.baru;else if(c.f==='min')s.min=c.baru;else s[c.f]=c.baru})});
+    const kode=[];
+    im.baru.forEach(b=>{
+      const v=Object.assign({},b.v);if(!v.pid)v.pid=newProduk(v);
+      let n=S.sku.length+1,code;do{code='SKU-'+String(n++).padStart(4,'0')}while(skuOf(code));
+      S.sku.push(Object.assign({sku:code},v));kode.push(code);
+      if(b.prin&&b.prin!=='-'){const pr=produkOf(v.pid);if(pr&&!pr.prin){im.prin.push({pid:v.pid,nama:b.prin,nm:pr.nama})}}
+    });
+    const idOf=nama=>{let x=S.principal.find(y=>PP_NORM(y.nama)===PP_NORM(nama));if(!x){let k=1;while(S.principal.some(y=>y.id==='PRN-'+k))k++;x={id:'PRN-'+k,nama,kontak:''};S.principal.push(x)}return x.id};
+    im.prin.forEach(w=>{const p=produkOf(w.pid);if(!p)return;if(w.nama==='-')p.prin=undefined;else p.prin=idOf(w.nama)});
+    AUD('Data barang diterapkan dari Excel',(im.file||'file')+': '+im.ubah.length+' diubah, '+im.baru.length+' baru, '+im.prin.length+' perusahaan','');
+    const ok=commit();
+    MHS.via='';
+    if(ok===false){toast('Perubahan ditolak oleh sistem (periode terkunci atau akun hanya-lihat). Tidak ada yang berubah.',true);return}
+    MHS.hasil={ubah:im.ubah.length,baru:im.baru.length,prin:im.prin.length,kode,file:im.file};
+    MHS.imp=null;refresh();toast('Perubahan diterapkan. Riwayat tercatat.');
+  }catch(e){
+    MHS.via='';try{S=JSON.parse(bakS);derive()}catch(_){}
+    toast('Gagal menerapkan: '+e.message+'. Data dikembalikan seperti semula.',true);
+  }
+}
+
+/* ---------- tampilan halaman ---------- */
+const mhTs=iso=>{try{return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace(/\./g,':').replace(',','')}catch(e){return iso}};
+function mhFilter(){
+  const T=MHS,q=T.q.trim().toLowerCase();
+  return (S.riwayat||[]).filter(e=>(!T.tipe||e.t===T.tipe)&&(!T.user||e.user===T.user)&&(!T.dari||e.ts.slice(0,10)>=T.dari)&&(!T.sampai||e.ts.slice(0,10)<=T.sampai)&&(!q||(e.nm+' '+e.ref+' '+e.fl+' '+e.lama+' '+e.baru+' '+e.user+' '+e.via).toLowerCase().includes(q)));
+}
+function mhRow(e,aksi){
+  const rev=aksi&&e.aksi==='Ubah'&&e.f&&!(e.t==='s'&&e.f==='pid')&&finOK()&&!(typeof OL!=='undefined'&&OL.readonly);
+  return '<tr><td style="white-space:nowrap">'+esc(mhTs(e.ts))+'</td><td>'+esc(e.user)+'</td><td><b>'+esc(e.nm)+'</b><div class="small muted">'+esc(MH_TIPE[e.t]||'')+' · '+esc(e.ref)+'</div></td><td>'+esc(e.fl)+(e.aksi!=='Ubah'?' <span class="small muted">('+esc(e.aksi)+')</span>':'')+'</td><td>'+esc(e.lama)+'</td><td><b>'+esc(e.baru)+'</b></td><td class="small">'+esc(e.via)+'</td><td>'+(rev?'<button class="btn sm ghost" data-act="mh-rev" data-id="'+esc(e.id)+'">Kembalikan</button>':'')+'</td></tr>';
+}
+function mhTabel(list,aksi){
+  return '<div class="scroll"><table class="tbl"><thead><tr><th>Waktu</th><th>Siapa</th><th>Barang</th><th>Yang diubah</th><th>Dari</th><th>Menjadi</th><th>Lewat</th><th></th></tr></thead><tbody>'+(list.map(e=>mhRow(e,aksi)).join('')||'<tr><td colspan="8" class="empty">Belum ada perubahan tercatat.</td></tr>')+'</tbody></table></div>';
+}
+function mhRiwayatHtml(){
+  const T=MHS,l=mhFilter(),per=25,pages=Math.max(1,Math.ceil(l.length/per));T.page=clamp(T.page,1,pages);
+  const users=[...new Set((S.riwayat||[]).map(e=>e.user))].sort();
+  return '<div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+   +'<div class="field" style="flex:2;min-width:180px"><label class="lbl" for="mh-q">Cari</label><input class="in" id="mh-q" value="'+esc(T.q)+'" data-inp="mh-q" placeholder="Nama barang, SKU, isi perubahan"></div>'
+   +'<div class="field"><label class="lbl" for="mh-t">Jenis data</label><select class="in" id="mh-t" data-chg="mh-f" data-k="tipe"><option value="">Semua</option>'+Object.keys(MH_TIPE).map(k=>'<option value="'+k+'" '+(T.tipe===k?'selected':'')+'>'+MH_TIPE[k]+'</option>').join('')+'</select></div>'
+   +'<div class="field"><label class="lbl" for="mh-u">Siapa</label><select class="in" id="mh-u" data-chg="mh-f" data-k="user"><option value="">Semua</option>'+users.map(u=>'<option '+(T.user===u?'selected':'')+'>'+esc(u)+'</option>').join('')+'</select></div>'
+   +'<div class="field"><label class="lbl" for="mh-d1">Dari tanggal</label><input class="in" id="mh-d1" type="date" value="'+esc(T.dari)+'" data-chg="mh-f" data-k="dari"></div>'
+   +'<div class="field"><label class="lbl" for="mh-d2">Sampai</label><input class="in" id="mh-d2" type="date" value="'+esc(T.sampai)+'" data-chg="mh-f" data-k="sampai"></div>'
+   +'<button class="btn" style="align-self:flex-end" data-act="mh-dl-riw">Unduh Excel riwayat</button></div>'
+   +mhTabel(l.slice((T.page-1)*per,T.page*per),true)+pager(l.length,per,T.page,'mh-page')
+   +'<div class="note">Riwayat mencatat siapa, kapan, dan apa yang berubah (nilai lama dan baru). Jika dipakai tanpa login online, nama pencatat diambil dari Pengaturan (nama kasir). Dengan login online, yang tercatat adalah akun masing-masing. Riwayat disimpan sampai '+num(MH_MAX)+' catatan terbaru.</div></div>';
+}
+function mhExcelHtml(){
+  const im=MHS.imp,h=MHS.hasil;
+  let body='<div class="card"><h3 style="margin:0 0 6px">Ubah data barang lewat Excel</h3><ol class="small" style="margin:0 0 10px 18px;padding:0"><li>Klik <b>Unduh Excel</b>. Isinya semua barang ('+num(S.sku.length)+' SKU), lengkap dengan petunjuk.</li><li>Ubah di Excel (harga, nama, kategori, barcode, stok minimum, perusahaan, atau tambah barang baru).</li><li>Klik <b>Pilih file Excel</b> untuk mengunggah. Anda akan melihat <b>pratinjau</b> dulu, belum ada yang berubah.</li><li>Jika sudah benar, klik <b>Terapkan</b>. Semua perubahan tercatat di tab Riwayat.</li></ol>'
+   +'<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="mh-dl">'+ic('doc')+'Unduh Excel</button><label class="btn" style="cursor:pointer">'+ic('doc')+'Pilih file Excel<input type="file" id="mh-file" accept=".xlsx" data-chg="mh-file" style="display:none"></label></div></div>';
+  if(h)body+='<div class="note" style="margin-top:10px;border-color:var(--green)"><b>Berhasil diterapkan</b> dari '+esc(h.file||'file')+': '+h.ubah+' barang diubah, '+h.baru+' barang baru'+(h.kode.length?' ('+h.kode.map(esc).join(', ')+')':'')+', '+h.prin+' perusahaan produk diatur. Lihat tab Riwayat.</div>';
+  if(im){
+    const nCh=im.ubah.reduce((a,u)=>a+u.ch.length,0);
+    body+='<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">Pratinjau: '+esc(im.file||'')+'</h3><div class="grid g4" style="margin-bottom:10px">'+kpi('blue','doc','Baris terbaca',num(im.baris))+kpi('green','check','Barang diubah',num(im.ubah.length)+' ('+nCh+' isian)')+kpi('amber','plus','Barang baru',num(im.baru.length))+kpi('red','warn','Baris bermasalah',num(im.err.length))+'</div>';
+    if(im.ubah.length)body+='<h4 style="margin:8px 0 4px">Perubahan pada barang yang ada</h4><div class="scroll" style="max-height:34vh"><table class="tbl"><thead><tr><th>SKU</th><th>Barang</th><th>Yang diubah</th><th>Dari</th><th>Menjadi</th></tr></thead><tbody>'+im.ubah.slice(0,200).map(u=>u.ch.map((c,i)=>{const s=skuOf(u.sku),fl=MH_F.s[c.f][0];return '<tr><td class="small">'+(i?'':esc(u.sku))+'</td><td>'+(i?'':esc(u.nm))+'</td><td>'+esc(fl)+'</td><td>'+esc(mhShow('s',c.f,s[c.f]))+'</td><td><b>'+esc(mhShow('s',c.f,c.baru))+'</b></td></tr>'}).join('')).join('')+'</tbody></table></div>'+(im.ubah.length>200?'<div class="small muted">... dan '+(im.ubah.length-200)+' barang lainnya</div>':'');
+    if(im.baru.length)body+='<h4 style="margin:10px 0 4px">Barang baru</h4><div class="scroll" style="max-height:24vh"><table class="tbl"><thead><tr><th>Baris</th><th>Nama</th><th>Kategori</th><th class="r">Harga jual</th><th>Produk induk</th></tr></thead><tbody>'+im.baru.slice(0,100).map(b=>'<tr><td>'+b.r+'</td><td>'+esc(b.v.nama)+'</td><td>'+esc(b.v.kategori)+'</td><td class="r">'+rp(b.v.harga)+'</td><td class="small">'+(b.v.pid?esc(b.v.pid):'dibuat baru')+'</td></tr>').join('')+'</tbody></table></div>';
+    if(im.prin.length)body+='<h4 style="margin:10px 0 4px">Perusahaan (principal) produk</h4><div class="small">'+im.prin.length+' produk akan diatur, termasuk '+im.prin.filter(w=>w.baru).length+' perusahaan baru.</div>';
+    if(im.err.length)body+='<h4 style="margin:10px 0 4px;color:var(--red)">Baris bermasalah (dilewati, perbaiki di Excel lalu unggah ulang)</h4><div class="small" style="max-height:20vh;overflow:auto">'+im.err.slice(0,80).map(e=>'Baris '+esc(String(e.r))+': '+esc(e.m)).join('<br>')+(im.err.length>80?'<br>... dan '+(im.err.length-80)+' lainnya':'')+'</div>';
+    const tot=im.ubah.length+im.baru.length+im.prin.length;
+    body+='<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn pri" data-act="mh-apply" '+(tot?'':'disabled')+'>Terapkan '+(tot?tot+' perubahan':'')+(im.err.length?' (baris bermasalah dilewati)':'')+'</button><button class="btn" data-act="mh-batal">Batal</button></div>'+(tot?'':'<div class="small muted" style="margin-top:6px">Tidak ada perubahan yang ditemukan di file ini.</div>')+'</div>';
+  }
+  const lastN=(S.riwayat||[]).slice(0,8);
+  body+='<div class="card" style="margin-top:10px"><h3 style="margin:0 0 6px">Perubahan terbaru</h3>'+mhTabel(lastN,false)+'<div style="margin-top:8px"><button class="btn" data-act="mh-tab" data-t="riwayat">Lihat semua riwayat</button></div></div>';
+  return body;
+}
+PAGES.masterdata=()=>{
+  const T=MHS,tabs=[['excel','Edit lewat Excel'],['riwayat','Riwayat perubahan ('+num((S.riwayat||[]).length)+')']];
+  return {title:'Data Barang',sub:'Ubah barang lewat Excel, lengkap dengan riwayat: apa, kapan, dan siapa yang mengubah',right:'<button class="btn" data-act="mh-ke-stok">'+ic('box')+'Ubah satu per satu di Stok</button>',
+    html:'<div class="tabs" style="margin-bottom:12px">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="mh-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='riwayat'?mhRiwayatHtml():mhExcelHtml())};
+};
+try{const i=NAV.findIndex(n=>n[0]==='stok');NAV.splice(i>=0?i+1:NAV.length,0,['masterdata','Data Barang & Riwayat','box'])}catch(e){}
+try{if(typeof ROLE_PAGES!=='undefined'&&ROLE_PAGES.keuangan&&!ROLE_PAGES.keuangan.includes('masterdata'))ROLE_PAGES.keuangan.push('masterdata')}catch(e){}
+
+ACT['mh-tab']=t=>{MHS.tab=t.dataset.t;MHS.page=1;if(location.hash!=='#masterdata')location.hash='#masterdata';else refresh()};
+ACT['mh-ke-stok']=()=>{location.hash='#stok'};
+ACT['mh-dl']=()=>{try{XL.save(mhTemplate(),'IMAGRITAMA_Data_Barang_'+stamp()+'.xlsx');toast('Excel diunduh. Cek folder Unduhan.')}catch(e){toast('Gagal: '+e.message,true)}};
+ACT['mh-file']=async t=>{
+  const f=t.files&&t.files[0];if(!f)return;
+  if(!/\.xlsx$/i.test(f.name)){t.value='';return toast('Gunakan file .xlsx (hasil Unduh Excel).',true)}
+  try{const rows=await XL.read(await f.arrayBuffer());MHS.hasil=null;MHS.imp=mhAnalisa(rows,f.name);t.value='';refresh()}
+  catch(e){t.value='';toast('File tidak bisa dibaca: '+e.message,true)}
+};
+ACT['mh-apply']=()=>{if(typeof OL!=='undefined'&&OL.readonly)return toast('Akun ini hanya bisa melihat data.',true);if(!finOK())return toast('Peran ini tidak boleh mengubah data barang.',true);mhTerapkanImport()};
+ACT['mh-batal']=()=>{MHS.imp=null;refresh()};
+ACT['mh-f']=t=>{MHS[t.dataset.k]=t.value;MHS.page=1;refresh()};
+ACT['mh-q']=t=>{MHS.q=t.value;MHS.page=1;refresh();const i=$('#mh-q');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}};
+ACT['mh-page']=t=>{MHS.page=+t.dataset.p;refresh()};
+ACT['mh-dl-riw']=()=>{
+  const l=mhFilter();const rows=[['Waktu','Siapa','Jenis data','Kode','Nama','Yang diubah','Aksi','Dari','Menjadi','Lewat']].concat(l.map(e=>[mhTs(e.ts),e.user,MH_TIPE[e.t]||'',e.ref,e.nm,e.fl,e.aksi,e.lama,e.baru,e.via]));
+  try{XL.save(XL.build([{name:'Riwayat',rows}]),'IMAGRITAMA_Riwayat_Data_Barang_'+stamp()+'.xlsx');toast('Riwayat diunduh ('+l.length+' catatan)')}catch(e){toast('Gagal: '+e.message,true)}
+};
+ACT['mh-item']=t=>{
+  const s=skuOf(t.dataset.sku);if(!s)return;
+  const l=(S.riwayat||[]).filter(e=>(e.t==='s'&&e.ref===s.sku)||(e.t==='p'&&e.ref===s.pid)||(e.t==='r'&&produkOf(s.pid)&&e.ref===(produkOf(s.pid).prin||'')));
+  openModal('Riwayat · '+s.nama,'<div class="small muted" style="margin-bottom:8px">'+esc(s.sku)+' · '+esc(s.pid||'')+' · '+l.length+' catatan</div>'+mhTabel(l.slice(0,100),false),'<button class="btn pri" data-act="close">Tutup</button>','lp');
+};
+ACT['mh-rev']=t=>{
+  const e=(S.riwayat||[]).find(x=>x.id===t.dataset.id);if(!e)return;
+  if(typeof OL!=='undefined'&&OL.readonly)return toast('Akun ini hanya bisa melihat data.',true);
+  const o=e.t==='s'?skuOf(e.ref):e.t==='p'?produkOf(e.ref):(S.principal||[]).find(x=>x.id===e.ref);
+  if(!o)return toast('Data sudah tidak ada',true);
+  const cur=o[e.f]==null||o[e.f]===''?null:o[e.f];
+  if(JSON.stringify(cur)!==JSON.stringify(e.br==null?null:e.br))return toast('Nilai sekarang sudah berbeda dari catatan ini ('+mhShow(e.t,e.f,cur)+'). Ubah manual agar tidak tertimpa.',true);
+  if((e.f==='harga')&&!(+e.lr>0))return toast('Nilai lama tidak valid untuk harga jual',true);
+  MHS.via='Kembalikan';
+  if(e.f==='min')o.min=e.lr==null?null:e.lr;else if(e.f==='prin')o.prin=e.lr==null?undefined:e.lr;else o[e.f]=e.lr==null?(e.f==='ukuran'?null:''):e.lr;
+  const ok=commit();MHS.via='';
+  if(ok===false)return toast('Perubahan ditolak sistem',true);
+  refresh();toast('Dikembalikan ke '+e.lama+'. Pengembalian ini juga tercatat.');
+};
+/* ---------- sambungan ke halaman Stok ---------- */
+const _stokTableMH=stokTable;
+stokTable=function(){
+  return _stokTableMH().replace(/(<button class="btn sm ghost" data-act="stok-edit" data-sku="([^"]*)">Ubah<\/button>)/g,(a,b,sku)=>b+' <button class="btn sm ghost" data-act="mh-item" data-sku="'+sku+'">Riwayat</button>');
+};
+const _stokPageMH=PAGES.stok;
+PAGES.stok=()=>{const p=_stokPageMH();p.right=(p.right||'')+'<button class="btn" data-act="mh-tab" data-t="excel">'+ic('doc')+'Edit lewat Excel &amp; riwayat</button>';return p};
+/* isian massal perusahaan dicatat sebagai "Isi massal" */
+['pp-ok','prn-bulk'].forEach(k=>{const f=ACT[k];if(f)ACT[k]=function(){MHS.via=k==='pp-ok'?'Isi massal perusahaan':'Massal (Program)';try{return f.apply(this,arguments)}finally{MHS.via=''}}});
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
