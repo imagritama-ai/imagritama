@@ -6137,6 +6137,144 @@ async function lpKirim(kind){
 }
 ACT['lp-wa']=()=>{lpKirim('wa')};
 ACT['lp-em']=()=>{lpKirim('em')};
+/* ====== PERUSAHAAN PER PRODUK ======
+   Menampilkan nama perusahaan (principal / pemilik merek) dan pemasok utama di setiap produk.
+   Principal diisi manual atau massal dari Excel. Pemasok utama dihitung otomatis dari riwayat pembelian. */
+const PP_NORM=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+function ppPrinNama(p){const x=p&&p.prin?S.principal.find(y=>y.id===p.prin):null;return x?x.nama:''}
+/* pemasok utama = pemasok dengan nilai pembelian terbesar untuk produk itu (pembelian tidak batal) */
+function ppSupMap(){
+  const tot={};
+  S.docs.forEach(d=>{
+    if(d.jenis!=='Beli'||d.status==='BATAL'||!d.mitra)return;
+    (d.items||[]).forEach(i=>{
+      const s=skuOf(i.sku);if(!s||!s.pid)return;
+      const v=(+i.qty||0)*(+i.harga||0);
+      const t=tot[s.pid]||(tot[s.pid]={});t[d.mitra]=(t[d.mitra]||0)+v;
+    });
+  });
+  const out={};
+  Object.keys(tot).forEach(pid=>{
+    const e=Object.entries(tot[pid]).sort((a,b)=>b[1]-a[1]);
+    if(e.length)out[pid]={id:e[0][0],nama:mitraNama(e[0][0]),n:e.length};
+  });
+  return out;
+}
+function ppAllName(){ /* peta nama -> daftar Product_ID (nama produk, alias, dan nama SKU) */
+  const m={};const add=(k,pid)=>{k=PP_NORM(k);if(!k)return;(m[k]||(m[k]=new Set())).add(pid)};
+  S.produk.forEach(p=>{add(p.nama,p.id);(p.aliases||[]).forEach(a=>add(a,p.id))});
+  S.sku.forEach(s=>{if(s.pid){add(s.nama,s.pid);add(s.sku,s.pid)}});
+  return m;
+}
+
+/* ---------- kolom Perusahaan di Stok ---------- */
+const _stokTablePP=stokTable;
+stokTable=function(){
+  let h=_stokTablePP();
+  const sm=ppSupMap();
+  h=h.replace('<th>Kategori</th>','<th>Kategori</th><th>Perusahaan</th>');
+  h=h.replace(/(<tr><td class="small">)([^<]*)(<\/td><td><b>[^<]*<\/b><\/td><td>[^<]*<\/td>)/g,(all,a,sku,b)=>{
+    const s=skuOf(sku.replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"'));
+    const p=s?produkOf(s.pid):null,pn=ppPrinNama(p),su=p&&sm[p.id];
+    const cell='<td>'+(pn?'<b>'+esc(pn)+'</b>':'<span class="muted small">belum diisi</span>')+(su?'<div class="small muted">Pemasok: '+esc(su.nama)+'</div>':'')+'</td>';
+    return a+sku+b+cell;
+  });
+  return h.replace('colspan="11"','colspan="12"');
+};
+/* cari di Stok juga menemukan nama perusahaan / pemasok */
+const _stokListPP=stokList;
+stokList=function(){
+  const T=ui.stok,q=T.q.trim().toLowerCase();
+  const base=_stokListPP();
+  if(!q)return base;
+  const have=new Set(base.map(s=>s.sku)),sm=ppSupMap(),extra=[];
+  S.sku.forEach(s=>{
+    if(have.has(s.sku)||(T.kat&&s.kategori!==T.kat)||(T.status&&stockStatus(s).t!==T.status))return;
+    const p=produkOf(s.pid),txt=(ppPrinNama(p)+' '+((p&&sm[p.id])||{}).nama).toLowerCase();
+    if(txt.includes(q))extra.push(s);
+  });
+  return extra.length?base.concat(extra):base;
+};
+const _stokPagePP=PAGES.stok;
+PAGES.stok=()=>{
+  const p=_stokPagePP();
+  const kosong=S.produk.filter(x=>!x.prin).length;
+  p.right=(p.right||'')+'<button class="btn" data-act="pp-open" title="Isi nama perusahaan (principal) tiap produk">'+ic('doc')+'Perusahaan produk'+(kosong?' ('+kosong+' kosong)':'')+'</button>';
+  return p;
+};
+
+/* ---------- isian massal dari Excel / teks ---------- */
+const PPS={teks:'',hasil:null};
+function ppUnduhTemplate(){
+  const sm=ppSupMap();
+  const rows=[['Product_ID','Produk','Kategori','Perusahaan (principal)','Pemasok utama (otomatis, tidak perlu diisi)']];
+  S.produk.slice().sort((a,b)=>(a.kategori||'').localeCompare(b.kategori||'')||a.nama.localeCompare(b.nama)).forEach(p=>rows.push([p.id,p.nama,p.kategori||'',ppPrinNama(p),(sm[p.id]||{}).nama||'']));
+  XL.save(XL.build([{name:'Perusahaan produk',rows}]),'IMAGRITAMA_Perusahaan_Produk_'+stamp()+'.xlsx');
+}
+function ppParse(teks){
+  const map=ppAllName(),byId={};S.produk.forEach(p=>byId[p.id.toLowerCase()]=p.id);
+  const res={ok:[],gagal:[],ganda:[],baru:[],lewat:0};
+  String(teks||'').split(/\r?\n/).forEach(raw=>{
+    const line=raw.replace(/\r$/,'');if(!line.trim())return;
+    let c=line.indexOf('\t')>=0?line.split('\t'):line.split(/\s*[;|]\s*|\s*=>\s*|\s*->\s*/);
+    c=c.map(x=>x.trim());
+    if(c.length<2){res.gagal.push({line:line.trim(),why:'tidak ada pemisah (tab, titik koma, atau |) antara produk dan perusahaan'});return}
+    if(/^(product_?id|produk|nama produk|id)$/i.test(c[0])&&/perusahaan|principal|pabrik/i.test(c.join(' '))){res.lewat++;return}
+    let pids=null;
+    const k0=c[0].toLowerCase();
+    if(byId[k0])pids=[byId[k0]];
+    else{const hit=map[PP_NORM(c[0])];if(hit)pids=[...hit]}
+    if(!pids){res.gagal.push({line:line.trim(),why:'produk tidak ditemukan'});return}
+    if(pids.length>1){res.ganda.push({line:line.trim(),n:pids.length});return}
+    const p0=produkOf(pids[0])||{},sp=ppSupMap()[pids[0]];
+    const own=new Set([PP_NORM(p0.nama),PP_NORM(p0.kategori),PP_NORM(p0.id),PP_NORM((sp||{}).nama)]);
+    let perus='';
+    if(byId[k0]&&c.length>=4)perus=c[3];
+    else perus=c.slice(1).filter(x=>x&&!own.has(PP_NORM(x))).pop()||'';
+    perus=perus.replace(/\s+/g,' ').trim();
+    if(!perus){if(byId[k0]&&c.length>=3){res.lewat++;return}res.gagal.push({line:line.trim(),why:'nama perusahaan kosong'});return}
+    const ex=S.principal.find(x=>PP_NORM(x.nama)===PP_NORM(perus));
+    if(!ex&&!res.baru.some(x=>PP_NORM(x)===PP_NORM(perus)))res.baru.push(perus);
+    res.ok.push({pid:pids[0],perus:ex?ex.nama:perus,baru:!ex});
+  });
+  /* satu produk disebut dua kali dengan perusahaan berbeda -> pakai yang terakhir */
+  const last={};res.ok.forEach(o=>last[o.pid]=o);res.ok=Object.values(last);
+  return res;
+}
+function ppHasil(h){
+  if(!h)return '';
+  const e=esc,pn=pid=>(produkOf(pid)||{}).nama||pid;
+  return '<div class="note" style="margin-top:8px"><b>'+h.ok.length+'</b> produk cocok'+(h.baru.length?', <b>'+h.baru.length+'</b> perusahaan baru akan dibuat ('+h.baru.map(e).join(', ')+')':'')+(h.ganda.length?'. <b>'+h.ganda.length+'</b> baris dilewati karena namanya dipakai lebih dari satu produk':'')+(h.gagal.length?'. <b>'+h.gagal.length+'</b> baris tidak bisa dibaca':'')+'.</div>'
+  +(h.ok.length?'<div class="scroll" style="max-height:26vh;margin-top:6px"><table class="tbl"><thead><tr><th>Product_ID</th><th>Produk</th><th>Perusahaan</th></tr></thead><tbody>'+h.ok.slice(0,60).map(o=>'<tr><td class="small">'+e(o.pid)+'</td><td>'+e(pn(o.pid))+'</td><td>'+e(o.perus)+(o.baru?' <span class="small muted">(baru)</span>':'')+'</td></tr>').join('')+(h.ok.length>60?'<tr><td colspan="3" class="small muted">... dan '+(h.ok.length-60)+' lainnya</td></tr>':'')+'</tbody></table></div>':'')
+  +((h.gagal.length||h.ganda.length)?'<details style="margin-top:6px"><summary class="small">Baris yang dilewati</summary><div class="small muted" style="max-height:18vh;overflow:auto">'+h.gagal.slice(0,40).map(g=>e(g.line)+' — '+e(g.why)).join('<br>')+(h.ganda.length?'<br>'+h.ganda.slice(0,20).map(g=>e(g.line)+' — nama dipakai '+g.n+' produk, pakai Product_ID').join('<br>'):'')+'</div></details>':'');
+}
+ACT['pp-open']=()=>{
+  PPS.hasil=null;
+  const sm=ppSupMap(),n=S.produk.length,isi=S.produk.filter(p=>p.prin).length,pm=S.produk.filter(p=>sm[p.id]).length;
+  openModal('Perusahaan tiap produk',
+    '<div class="small muted">Terisi: <b>'+isi+'</b> dari '+n+' produk punya perusahaan (principal). Pemasok utama otomatis terbaca untuk <b>'+pm+'</b> produk dari riwayat pembelian.</div>'
+    +'<ol class="small" style="margin:8px 0 0 18px;padding:0"><li>Klik <b>Unduh templat Excel</b>.</li><li>Isi kolom <b>Perusahaan (principal)</b>.</li><li>Salin tiga kolom pertama beserta kolom perusahaan, tempel di kotak bawah, klik <b>Periksa</b>, lalu <b>Terapkan</b>.</li></ol>'
+    +'<div class="row" style="gap:8px;margin-top:8px"><button class="btn" data-act="pp-tpl">Unduh templat Excel</button></div>'
+    +'<div class="field" style="margin-top:8px"><label class="lbl" for="pp-teks">Tempel di sini (satu produk per baris: Product_ID atau nama produk, lalu perusahaan)</label><textarea class="in" id="pp-teks" rows="7" placeholder="IMT-INS-0001&#9;Syngenta&#10;Nama produk&#9;FMC"></textarea></div>'
+    +'<div class="row" style="gap:8px;margin-top:8px"><button class="btn" data-act="pp-cek">Periksa</button></div><div id="pp-out"></div>',
+    '<button class="btn" data-act="close">Tutup</button><button class="btn pri" data-act="pp-ok">Terapkan</button>','lp');
+};
+ACT['pp-tpl']=()=>{try{ppUnduhTemplate();toast('Templat diunduh. Cek folder Unduhan.')}catch(e){toast('Gagal: '+e.message,true)}};
+ACT['pp-cek']=()=>{const t=$('#pp-teks');if(!t)return;PPS.teks=t.value;PPS.hasil=ppParse(t.value);const o=$('#pp-out');if(o)o.innerHTML=ppHasil(PPS.hasil)};
+ACT['pp-ok']=()=>{
+  const t=$('#pp-teks');if(t&&(!PPS.hasil||PPS.teks!==t.value)){PPS.teks=t.value;PPS.hasil=ppParse(t.value)}
+  const h=PPS.hasil;if(!h||!h.ok.length)return toast('Belum ada baris yang cocok. Klik Periksa dulu.',true);
+  const idOf=nama=>{
+    let x=S.principal.find(y=>PP_NORM(y.nama)===PP_NORM(nama));
+    if(!x){let k=1;while(S.principal.some(y=>y.id==='PRN-'+k))k++;x={id:'PRN-'+k,nama,kontak:''};S.principal.push(x);AUD('Principal dibuat',nama,x.id)}
+    return x.id;
+  };
+  let n=0;
+  h.ok.forEach(o=>{const p=produkOf(o.pid);if(!p)return;const id=idOf(o.perus);if(p.prin!==id){p.prin=id;n++}});
+  AUD('Perusahaan produk massal',n+' produk diperbarui','');
+  commit();closeModal();refresh();toast(n+' produk diperbarui, '+h.baru.length+' perusahaan baru');
+};
+(function(){try{const s=document.createElement('style');s.id='pp-css';s.textContent='#phr{flex-wrap:wrap;max-width:100%}@media(max-width:520px){#phr{justify-content:flex-start;width:100%}#phr .btn{white-space:normal}}';document.head.appendChild(s)}catch(e){}})();
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
