@@ -7390,6 +7390,42 @@ function hjBnHtml(){
    +'</tbody></table></div><div class="note" style="margin-top:8px">Benefit masuk pembukuan hanya saat dicairkan, sebagai Pendapatan lain. Pencairan boleh bertahap. Selama masih Menunggu, benefit tidak mengurangi HPP dan tidak dihitung sebagai laba.</div></div>';
 }
 
+/* ====== Pemilih barang yang bisa diklik (daftar + pencarian) untuk Harga Beli Pemasok ====== */
+HBS.pq='';
+function hbCari(q){
+  const t=(q||'').toLowerCase().split(/\s+/).filter(Boolean),n={};hbList().forEach(h=>{n[h.sku]=(n[h.sku]||0)+1});
+  return S.sku.filter(s=>{const x=(s.nama+' '+s.sku+' '+(s.kategori||'')).toLowerCase();return t.every(w=>x.includes(w))})
+    .sort((a,b)=>(n[b.sku]||0)-(n[a.sku]||0)||a.nama.localeCompare(b.nama)).slice(0,60).map(s=>({s,n:n[s.sku]||0}));
+}
+function hbItemHtml(x,act,sel){
+  return '<button type="button" class="btn ghost" data-act="'+act+'" data-sku="'+esc(x.s.sku)+'" style="display:flex;width:100%;justify-content:space-between;gap:8px;text-align:left;border-radius:0;border:0;border-bottom:1px solid var(--line,#e2e8f0);padding:8px 10px;'+(sel?'background:var(--blue-s,#e8f0fe);font-weight:600':'')+'"><span>'+esc(x.s.nama)+'<span class="small muted"> · '+esc(x.s.sku)+'</span></span><span class="small muted" style="white-space:nowrap">'+(x.n?x.n+' pemasok':'belum ada harga')+'</span></button>';
+}
+function hbListHtml(q,act,selSku){
+  const L=hbCari(q);
+  return L.length?L.map(x=>hbItemHtml(x,act,x.s.sku===selSku)).join(''):'<div class="empty" style="padding:10px">Tidak ada barang yang cocok.</div>';
+}
+function hbPickerHtml(){
+  const s=skuOf(HBS.sku);
+  return '<label class="lbl" for="hb-pq">Pilih barang'+(s?' · terpilih: <b>'+esc(s.nama)+'</b>':'')+'</label><input class="in" id="hb-pq" value="'+esc(HBS.pq)+'" data-inp="hb-pq" placeholder="Cari nama atau SKU, lalu klik barangnya" autocomplete="off">'
+   +'<div id="hb-plist" style="max-height:230px;overflow:auto;border:1px solid var(--line,#e2e8f0);border-radius:8px;margin-top:6px">'+hbListHtml(HBS.pq,'hb-pilih',HBS.sku)+'</div>';
+}
+{
+  const _c=hbCmpHtml;
+  hbCmpHtml=function(){
+    const h=_c();
+    return h.replace(/<label class="lbl" for="hb-pick">Pilih barang<\/label><input class="in" id="hb-pick"[^>]*>/,hbPickerHtml());
+  };
+  const _f=hbForm;
+  hbForm=function(h,baru){
+    const o=_f(h,baru);if(!baru)return o;
+    return o.replace(/<input class="in" id="hb-sku" list="skulist"[^>]*>/,'<input class="in" id="hb-sku" value="'+(h.sku?esc(h.sku+' — '+((skuOf(h.sku)||{}).nama||'')):'')+'" data-inp="hb-fq" placeholder="Cari nama atau SKU, lalu klik barangnya" autocomplete="off"><div id="hb-flist" style="max-height:170px;overflow:auto;border:1px solid var(--line,#e2e8f0);border-radius:8px;margin-top:6px">'+hbListHtml(h.sku?'':'','hb-fpilih',h.sku)+'</div>');
+  };
+}
+ACT['hb-pq']=t=>{HBS.pq=t.value;const l=$('#hb-plist');if(l)l.innerHTML=hbListHtml(HBS.pq,'hb-pilih',HBS.sku)};
+ACT['hb-pilih']=t=>{HBS.sku=t.dataset.sku;HBS.pq='';refresh()};
+ACT['hb-fq']=t=>{const l=$('#hb-flist');if(l)l.innerHTML=hbListHtml(t.value.split(' — ')[0],'hb-fpilih','')};
+ACT['hb-fpilih']=t=>{const s=skuOf(t.dataset.sku);if(!s)return;const i=$('#hb-sku');if(i)i.value=s.sku+' — '+s.nama;const l=$('#hb-flist');if(l)l.innerHTML=hbListHtml('','hb-fpilih',s.sku);toast('Dipilih: '+s.nama)};
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
