@@ -5687,6 +5687,133 @@ portalRender=function(snap,nama){
   if(m&&(snap.jenis==='pemasok'||(snap.strategi&&snap.strategi.length))){const d=document.createElement('div');d.innerHTML=strPortalHtml(snap);if(p)m.insertBefore(d,p);else m.appendChild(d)}
 };
 function strPrevHtml(sn){const el=document.getElementById('strprev');if(!el)return;el.innerHTML=`<div style="background:#f1f4fa;padding:12px;border-radius:10px"><style>#strprev table{width:100%;border-collapse:collapse;font-size:13px}#strprev th,#strprev td{padding:6px;border-bottom:1px solid #e8ecf3;text-align:left}#strprev .r{text-align:right}#strprev .pc{background:#fff;border-radius:10px;padding:12px;margin-bottom:10px;overflow-x:auto}#strprev h3{margin:0 0 8px;font-size:14px}#strprev .kp{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}#strprev .kp div{background:#fff;padding:8px 12px;border-radius:8px}#strprev .kp small{display:block;color:#5a6a87}</style>${strPortalHtml(sn)||'<div class="muted">Tidak ada data yang dibagikan.</div>'}${sn.jenis==='principal'?`<div class="small muted">Bagian penjualan, stok, program, dan klaim untuk principal tampil di portal mereka sesuai pengaturan akses (menu Program, tombol Portal).</div>`:''}</div>`}
+/* ====== PUSAT KEPUTUSAN: menilai penawaran pabrik, mencocokkan stok dengan pembayaran pemasok, opsi penyelesaian ======
+   Mesin analisis berbasis aturan dari data toko (stok, kecepatan jual, harga, utang, musim). Angkanya bisa dicek;
+   asumsi ditampilkan. Penjelasan AI berbahasa bebas menyusul setelah kunci API dipasang. */
+ui.kep={tab:'tawar',sup:'',f:{sku:'',qty:'',harga:'',bonus:'',tempo:'30',horizon:'90',modal:'12'},res:null};
+const KEP_MUSIM_BOBOT=(kat,mo)=>{try{const s=MUSIM(mo);return (s.top||[]).some(t=>String(kat||'').toLowerCase().includes(String(t).toLowerCase()))?1.25:0.85}catch(e){return 1}};
+const kepRp=n=>rp(Math.round(n));
+
+/* ---------- 1. Evaluasi penawaran ---------- */
+function kepTawar(f){
+  const s=skuOf(f.sku);if(!s)return {err:'Pilih produk dari daftar.'};
+  const qty=+f.qty||0,harga=+f.harga||0,bonus=+f.bonus||0,tempo=+f.tempo||0,H=Math.max(14,+f.horizon||90),modal=(+f.modal||12)/100;
+  if(qty<=0||harga<=0)return {err:'Isi jumlah dan harga beli per unit.'};
+  const v30=velData(30,'').find(r=>r.s.sku===s.sku),v90=velData(90,'').find(r=>r.s.sku===s.sku);
+  const d30=(v30?v30.sold:0)/30,d90=(v90?v90.sold:0)/90,laju=d30*0.6+d90*0.4;
+  const mo=new Date().getMonth()+1,kat=s.kategori||(produkOf(s.pid)||{}).kategori||'',fm=KEP_MUSIM_BOBOT(kat,mo),lajuEff=laju*fm;
+  const stok=Math.max(0,D.inv[s.sku].qty),avg=D.inv[s.sku].avg||s.hpp0||0,mn=minOf(s);
+  const total=stok+qty+bonus,nilai=qty*harga,effCost=nilai/(qty+bonus),demand=lajuEff*H;
+  const idealQty=Math.max(0,Math.ceil(demand+mn-stok)),cover=lajuEff>0?total/lajuEff:Infinity,unsold=Math.max(0,total-demand);
+  const marginNow=s.harga>0?(s.harga-avg)/s.harga:0,marginNew=s.harga>0?(s.harga-effCost)/s.harga:0;
+  const biayaModal=unsold*effCost*modal*(H/365),kasTertahan=unsold*effCost;
+  let rek,warna,alasan=[];
+  alasan.push('Stok sekarang '+dec(stok,0)+' unit; terjual rata-rata '+dec(laju,1)+' unit/hari'+(lajuEff!==laju?' (disesuaikan musim: '+dec(lajuEff,1)+')':'')+'.');
+  alasan.push('Kebutuhan '+H+' hari ke depan ±'+dec(demand,0)+' unit. Jumlah ideal dibeli ±'+dec(idealQty,0)+' unit (sudah termasuk stok minimum).');
+  if(fm>1)alasan.push('Kategori '+(kat||'produk ini')+' sedang masuk musim yang ramai (pola umum, bukan prakiraan cuaca harian).');
+  else if(fm<1)alasan.push('Kategori '+(kat||'produk ini')+' di luar musim ramai saat ini, jadi permintaan diperkirakan lebih rendah.');
+  alasan.push('Harga efektif per unit '+kepRp(effCost)+(bonus?' (sudah memperhitungkan bonus '+dec(bonus,0)+' unit)':'')+' vs rata-rata beli sekarang '+kepRp(avg)+'. Margin '+dec(marginNew*100,1)+'% (sekarang '+dec(marginNow*100,1)+'%).');
+  if(lajuEff===0){rek='Tunda';warna='bad';alasan.push('Produk ini belum ada penjualan 90 hari terakhir, risiko stok mengendap tinggi.')}
+  else if(qty<=idealQty*1.15&&marginNew>=marginNow-0.02){rek='Ambil';warna='ok'}
+  else if(qty<=idealQty*2&&cover<=180){rek='Ambil sebagian';warna='warn'}
+  else{rek='Tunda atau nego';warna='bad'}
+  if(unsold>0)alasan.push('Pada akhir '+H+' hari diperkirakan masih tersisa ±'+dec(unsold,0)+' unit senilai '+kepRp(kasTertahan)+' (biaya modal ±'+kepRp(biayaModal)+' dengan asumsi '+dec(modal*100,0)+'%/tahun).');
+  if(marginNew<marginNow-0.02)alasan.push('Margin baru lebih rendah dari sekarang. Minta harga atau bonus yang lebih baik.');
+  if(tempo>0)alasan.push('Tempo bayar '+tempo+' hari memberi ruang kas, tapi hitung dari tanggal faktur, bukan dari tanggal barang laku.');
+  const saran=[];
+  if(rek==='Ambil sebagian'||rek==='Tunda atau nego'){saran.push('Balas penawaran: ambil ±'+dec(idealQty,0)+' unit lebih dulu dengan harga/bonus yang sama untuk jumlah besar.');saran.push('Minta kesempatan pesan susulan dengan harga program yang sama di bulan berikutnya.')}
+  if(tempo<45)saran.push('Minta tempo bayar lebih panjang (45–60 hari) agar sejalan dengan perputaran stok.');
+  if(rek==='Ambil')saran.push('Penawaran sesuai kebutuhan. Pastikan syarat program (target/rebate) tidak memaksa beli di atas jumlah ideal.');
+  return {s,qty,harga,bonus,stok,laju,lajuEff,fm,demand,idealQty,cover,unsold,kasTertahan,biayaModal,effCost,avg,marginNow,marginNew,nilai,rek,warna,alasan,saran,H};
+}
+
+/* ---------- 2. Rekonsiliasi pemasok ---------- */
+function kepPemasok(id){
+  const docs=S.docs.filter(d=>d.jenis==='Beli'&&d.status!=='BATAL'&&d.mitra===id),td=todayISO();
+  let P=0,paid=0,sisa=0,late=0,next='';const supQ={},supV={},allQ={};
+  S.docs.forEach(d=>{if(d.jenis==='Beli'&&d.status!=='BATAL')(d.items||[]).forEach(i=>{allQ[i.sku]=(allQ[i.sku]||0)+(+i.qty||0)})});
+  docs.forEach(d=>{const r=D.doc[d.no];if(!r)return;P+=r.total-(r.retur||0);paid+=r.paid;sisa+=r.sisa;
+    if(r.sisa>0&&d.jt){if(d.jt<td)late+=r.sisa;else if(!next||d.jt<next)next=d.jt}
+    (d.items||[]).forEach(i=>{supQ[i.sku]=(supQ[i.sku]||0)+(+i.qty||0);supV[i.sku]=(supV[i.sku]||0)+(+i.qty||0)*(+i.harga||0)})});
+  const v30=velData(30,''),mv={};v30.forEach(r=>mv[r.s.sku]=r);
+  const rows=Object.keys(supQ).map(sku=>{const s=skuOf(sku),inv=D.inv[sku],sh=allQ[sku]>0?Math.min(1,supQ[sku]/allQ[sku]):1,r=mv[sku];
+    const hb=supQ[sku]>0?supV[sku]/supQ[sku]:0,val=Math.min(supV[sku],Math.max(0,inv?inv.qty:0)*sh*hb);
+    return {sku,nama:s?s.nama:sku,dibeli:supQ[sku],nilaiBeli:supV[sku],stok:Math.max(0,inv?inv.qty:0)*sh,nilaiStok:val,laju:r?r.v:0,doi:r&&r.v>0?Math.max(0,r.stok)/r.v:(val>0?Infinity:0),status:r?r.status:'normal',harga:s?s.harga:0,avg:inv?inv.avg:0}});
+  const stokVal=sum(rows,r=>r.nilaiStok),terjual=Math.max(0,P-stokVal),wajib=Math.min(sisa,Math.max(0,terjual-paid)),tertahan=Math.max(0,sisa-wajib);
+  return {id,nama:(mitraOf(id)||{}).nama||id,P,paid,sisa,late,next,stokVal,terjual,wajib,tertahan,rows,nDok:docs.length};
+}
+function kepOpsi(r){
+  const slow=r.rows.filter(x=>x.nilaiStok>0&&(x.status==='lambat'||x.status==='mati'||x.doi>120)),slowVal=sum(slow,x=>x.nilaiStok);
+  const avgDays=r.stokVal>0?Math.min(365,sum(r.rows.filter(x=>x.nilaiStok>0),x=>(x.doi===Infinity?365:Math.min(365,x.doi))*x.nilaiStok)/r.stokVal):0;
+  const modal=(+((S.settings||{}).biayaModal)||12)/100,td=todayISO(),O=[];
+  if(r.wajib>0)O.push({t:'Bayar bagian yang barangnya sudah laku',d:'Bayar '+kepRp(r.wajib)+' sekarang. Ini nilai barang pemasok yang sudah terjual dikurangi pembayaran yang sudah Anda lakukan.'+(r.late>0?' Ada tagihan lewat jatuh tempo '+kepRp(r.late)+', prioritaskan.':'')});
+  if(r.tertahan>0){
+    O.push({t:'Minta tempo untuk sisa yang masih berupa stok',d:'Sisa '+kepRp(r.tertahan)+' masih ada barangnya di toko. Perkiraan stok itu laku dalam ±'+dec(avgDays,0)+' hari ('+fmtTgl(addDays(td,Math.round(avgDays)))+'). Minta jatuh tempo mengikuti perkiraan itu.'});
+    const pot=r.tertahan*modal/365*avgDays;
+    O.push({t:'Bila pemasok minta lunas, minta potongan pelunasan',d:'Melunasi '+kepRp(r.tertahan)+' lebih awal sama dengan menahan uang ±'+dec(avgDays,0)+' hari. Potongan yang wajar ±'+kepRp(pot)+' ('+dec(r.tertahan>0?pot/r.tertahan*100:0,1)+'%) dengan asumsi biaya modal '+dec(modal*100,0)+'%/tahun.'});
+    const wk=sum(r.rows,x=>x.laju*7*(x.avg||0));if(wk>0)O.push({t:'Bayar bertahap mengikuti penjualan',d:'Barang pemasok ini terjual ±'+kepRp(wk)+' (nilai modal) per minggu. Usulkan cicilan mingguan sebesar itu sampai sisa lunas.'});
+  }
+  if(slowVal>0){
+    const mx=Math.min.apply(null,slow.map(x=>x.harga>0?(x.harga-x.avg)/x.harga:0)),dsk=Math.max(0,Math.min(15,Math.floor(mx*100*0.5)));
+    const kas=sum(slow,x=>x.stok*x.harga)*(1-dsk/100);
+    O.push({t:'Program promosi untuk stok yang lambat',d:slow.length+' produk berputar lambat/tidak laku, nilai stok '+kepRp(slowVal)+'. Diskon aman maksimal ±'+dec(mx*100,0)+'% sebelum rugi; usulan ±'+dsk+'% atau bundling. Estimasi uang kembali bila habis ±'+kepRp(kas)+'. Minta pemasok/sales pabrik ikut menanggung sebagian diskon (program subsidi).'});
+    O.push({t:'Retur atau tukar barang',d:'Untuk produk yang tidak bergerak ('+slow.slice(0,3).map(x=>x.nama).join(', ')+(slow.length>3?', dll':'')+'), tanyakan retur/tukar dengan produk yang lebih cepat laku sesuai musim.'});
+  }
+  let ringkas;
+  if(r.sisa<=0)ringkas='Tidak ada utang ke pemasok ini.';
+  else if(r.late>0)ringkas='Ada tagihan lewat jatuh tempo '+kepRp(r.late)+'. Bayar dulu bagian yang barangnya sudah laku ('+kepRp(r.wajib)+'), lalu nego sisanya.';
+  else if(r.wajib>0)ringkas='Keputusan: bayar '+kepRp(r.wajib)+' sekarang (barangnya sudah laku). Sisa '+kepRp(r.tertahan)+' masih berupa stok, bisa dinegosiasikan.';
+  else ringkas='Pembayaran Anda sudah menutup barang yang laku. Sisa utang '+kepRp(r.sisa)+' sepadan dengan stok yang masih ada.';
+  return {O,slow,slowVal,avgDays,ringkas};
+}
+function kepKasus(r,o){return 'Pemasok: '+r.nama+'. Total tagihan '+kepRp(r.P)+', dibayar '+kepRp(r.paid)+', sisa utang '+kepRp(r.sisa)+'. Nilai stok masih ada '+kepRp(r.stokVal)+'. Nilai barang laku '+kepRp(r.terjual)+'. Wajib bayar '+kepRp(r.wajib)+'. Tertahan di stok '+kepRp(r.tertahan)+'. '+o.ringkas}
+
+/* ---------- halaman ---------- */
+PAGES.keputusan=()=>{
+  const K=ui.kep,tabs=[['tawar','Menilai Penawaran Pabrik'],['pem','Stok vs Pembayaran Pemasok']];
+  return {title:'Pusat Keputusan',sub:'Bantuan memutuskan dari data toko: stok, kecepatan jual, musim, dan utang. Asumsi ditampilkan agar bisa Anda koreksi.',right:'',
+  html:`<div class="tabs" style="margin-bottom:12px">${tabs.map(t=>`<button class="tab ${K.tab===t[0]?'on':''}" data-act="kep-tab" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>${K.tab==='tawar'?kepTawarHtml():kepPemHtml()}
+  <div class="note" style="margin-top:12px">Ini analisis berbasis aturan dari data toko, bukan jaminan. Penjelasan AI dengan bahasa bebas akan aktif setelah kunci API dipasang. Keputusan akhir tetap di tangan Anda.</div>`};
+};
+try{const i=NAV.findIndex(n=>n[0]==='strategi');NAV.splice(i>=0?i+1:NAV.length,0,['keputusan','Pusat Keputusan','bot'])}catch(e){}
+try{ROLE_PAGES.keuangan.push('keputusan')}catch(e){}
+ACT['kep-tab']=t=>{ui.kep.tab=t.dataset.t;refresh()};
+function kepTawarHtml(){
+  const f=ui.kep.f,r=ui.kep.res;
+  const inp=(id,lb,v,ph,type)=>`<div class="field" style="flex:1;min-width:130px"><label class="lbl" for="${id}">${lb}</label><input class="in" id="${id}" ${type||'type="number" min="0" step="any"'} value="${esc(v)}" placeholder="${ph||''}"></div>`;
+  let out='';
+  if(r&&r.err)out=`<div class="note" style="margin-top:12px">${esc(r.err)}</div>`;
+  else if(r)out=`<div class="grid g4" style="margin:12px 0">${kpi(r.warna==='ok'?'green':r.warna==='warn'?'amber':'red','shield','Saran',r.rek)}${kpi('blue','box','Jumlah ideal',dec(r.idealQty,0)+' unit')}${kpi('amber','cal','Cakupan stok',r.cover>365?'> 1 tahun':dec(r.cover,0)+' hari')}${kpi('blue','wallet','Nilai pembelian',kepRp(r.nilai))}</div>
+  <div class="card"><h3 class="ch">${ic('bot')}Alasan</h3><ul style="padding-left:20px;line-height:1.7;margin:0">${r.alasan.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>
+  ${r.saran.length?`<div class="card" style="margin-top:12px"><h3 class="ch">${ic('doc')}Bahan untuk berunding dengan petugas pabrik</h3><ul style="padding-left:20px;line-height:1.7;margin:0">${r.saran.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}`;
+  return `<div class="card">${skuDatalist()}<h3 class="ch">${ic('cart')}Penawaran dari petugas pabrik</h3><div class="small muted" style="margin-bottom:8px">Isi sesuai penawaran. Aplikasi membandingkannya dengan stok, kecepatan jual, dan musim.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><div class="field" style="flex:2;min-width:220px"><label class="lbl" for="kp-sku">Produk</label><input class="in" id="kp-sku" list="skulist" value="${esc(f.sku?f.sku+' — '+((skuOf(f.sku)||{}).nama||''):'')}" placeholder="Ketik nama atau kode"></div>${inp('kp-qty','Jumlah ditawarkan (unit)',f.qty)}${inp('kp-harga','Harga beli per unit (Rp)',f.harga)}${inp('kp-bonus','Bonus barang (unit)',f.bonus)}</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap">${inp('kp-tempo','Tempo bayar (hari)',f.tempo)}${inp('kp-hor','Lihat ke depan (hari)',f.horizon)}${inp('kp-mod','Biaya modal (%/tahun)',f.modal)}<div style="align-self:flex-end"><button class="btn pri" data-act="kep-hitung">${ic('bot')}Nilai penawaran</button></div></div></div>${out}`;
+}
+ACT['kep-hitung']=()=>{
+  const k=($('#kp-sku').value.split(' — ')[0]||'').trim(),f=ui.kep.f;
+  Object.assign(f,{sku:skuOf(k)?k:'',qty:$('#kp-qty').value,harga:$('#kp-harga').value,bonus:$('#kp-bonus').value,tempo:$('#kp-tempo').value,horizon:$('#kp-hor').value,modal:$('#kp-mod').value});
+  ui.kep.res=kepTawar(f);refresh();
+};
+function kepPemHtml(){
+  const sup=S.mitra.filter(m=>m.jenis==='Pemasok'),R=sup.map(m=>kepPemasok(m.id)).filter(r=>r.nDok>0).sort((a,b)=>b.sisa-a.sisa);
+  const tot={s:sum(R,r=>r.sisa),w:sum(R,r=>r.wajib),t:sum(R,r=>r.tertahan),l:sum(R,r=>r.late)};
+  const sel=ui.kep.sup&&R.find(r=>r.id===ui.kep.sup);
+  return `<div class="grid g4" style="margin-bottom:12px">${kpi('blue','wallet','Total utang ke pemasok',kepRp(tot.s))}${kpi('red','cal','Wajib dibayar (barang sudah laku)',kepRp(tot.w))}${kpi('amber','box','Masih berupa stok',kepRp(tot.t))}${kpi('red','shield','Lewat jatuh tempo',kepRp(tot.l))}</div>
+  <div class="card"><div class="scroll"><table class="tbl"><thead><tr><th>Pemasok</th><th class="r">Tagihan</th><th class="r">Sudah dibayar</th><th class="r">Sisa utang</th><th class="r">Nilai stok</th><th class="r">Wajib dibayar</th><th></th></tr></thead><tbody>${R.map(r=>`<tr><td>${esc(r.nama)}${r.late>0?' '+badge('bad','lewat tempo'):''}</td><td class="r">${kepRp(r.P)}</td><td class="r">${kepRp(r.paid)}</td><td class="r">${kepRp(r.sisa)}</td><td class="r">${kepRp(r.stokVal)}</td><td class="r"><b>${kepRp(r.wajib)}</b></td><td><button class="btn sm" data-act="kep-sup" data-id="${esc(r.id)}">Opsi penyelesaian</button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">Belum ada pembelian dari pemasok.</td></tr>'}</tbody></table></div>
+  <div class="small muted" style="margin-top:8px">Cara hitung: nilai barang yang sudah laku = tagihan dikurangi nilai stok yang masih ada. Wajib dibayar = nilai barang yang sudah laku dikurangi pembayaran Anda. Sisanya masih berupa stok di toko.</div></div>${sel?kepDetailHtml(sel):''}`;
+}
+ACT['kep-sup']=t=>{ui.kep.sup=t.dataset.id;refresh();setTimeout(()=>{const e=document.getElementById('kepdet');if(e)e.scrollIntoView({behavior:'smooth',block:'start'})},50)};
+function kepDetailHtml(r){
+  const o=kepOpsi(r);
+  return `<div class="card" id="kepdet" style="margin-top:12px"><h3 class="ch">${ic('bot')}${esc(r.nama)}: saran penyelesaian</h3><p style="margin:0 0 10px"><b>${esc(o.ringkas)}</b></p>
+  <div class="grid g4" style="margin-bottom:10px">${kpi('blue','doc','Tagihan',kepRp(r.P))}${kpi('green','wallet','Sudah dibayar',kepRp(r.paid))}${kpi('amber','box','Nilai stok masih ada',kepRp(r.stokVal))}${kpi('red','cal','Wajib dibayar',kepRp(r.wajib))}</div>
+  <ol style="padding-left:20px;line-height:1.7;margin:0">${o.O.map(x=>`<li><b>${esc(x.t)}.</b> ${esc(x.d)}</li>`).join('')}</ol>
+  <h4 style="margin:14px 0 6px">Produk dari pemasok ini</h4><div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th class="r">Dibeli</th><th class="r">Sisa stok</th><th class="r">Nilai stok</th><th class="r">Laju/hari</th><th class="r">Cakupan (hari)</th><th>Status</th></tr></thead><tbody>${r.rows.sort((a,b)=>b.nilaiStok-a.nilaiStok).slice(0,15).map(x=>`<tr><td>${esc(x.nama)}</td><td class="r">${dec(x.dibeli,0)}</td><td class="r">${dec(x.stok,0)}</td><td class="r">${kepRp(x.nilaiStok)}</td><td class="r">${dec(x.laju,1)}</td><td class="r">${x.doi===Infinity?'–':dec(x.doi,0)}</td><td>${esc(x.status)}</td></tr>`).join('')}</tbody></table></div>
+  <div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn" data-act="kep-salin" data-id="${esc(r.id)}">Salin ringkasan kasus</button></div></div>`;
+}
+ACT['kep-salin']=t=>{const r=kepPemasok(t.dataset.id),o=kepOpsi(r),tx=kepKasus(r,o);try{navigator.clipboard.writeText(tx);toast('Ringkasan disalin')}catch(e){toast(tx)}};
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
