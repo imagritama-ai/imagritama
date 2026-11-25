@@ -5558,6 +5558,135 @@ ACT['sim5-live']=t=>{
     sim5Jalan(sk)},50);
 };
 
+/* ====== PAPAN STRATEGI BERSAMA + PORTAL PEMASOK ======
+   Pemilik toko menyusun strategi/target/promo per mitra (principal atau pemasok), memilih mana yang dibagikan,
+   lalu mempublikasikan ringkasan. Mitra hanya melihat angka stok/pesanan produk mereka dan item yang dibagikan.
+   Tidak pernah dibagikan: harga beli, HPP, laba, nilai transaksi, data pelanggan, keuangan toko. */
+const STR_TIPE=['Strategi','Target','Promo','Restok','Catatan'];
+const STR_ST=['Usulan','Disepakati','Berjalan','Selesai','Ditolak'];
+const STR_STC={Usulan:'mute',Disepakati:'info',Berjalan:'warn',Selesai:'ok',Ditolak:'bad'};
+ui.str={m:'',st:''};
+let STR_SUG=[];
+function canStr(){return !(typeof OL!=='undefined'&&OL.sess&&!['admin','keuangan'].includes(OL.role))}
+function strMitra(){
+  return S.principal.map(p=>({id:p.id,nama:p.nama,jenis:'Principal',ref:p}))
+    .concat(S.mitra.filter(m=>m.jenis==='Pemasok').map(m=>({id:m.id,nama:m.nama,jenis:'Pemasok',ref:m})));
+}
+const strNama=id=>{const m=strMitra().find(x=>x.id===id);return m?m.nama:(id||'Umum')};
+function strShared(id){return (S.strategi||[]).filter(x=>x.mitra===id&&x.share).map(x=>({id:x.id,tipe:x.tipe,judul:x.judul,produk:x.sku?((skuOf(x.sku)||{}).nama||x.sku):'',isi:x.isi,due:x.due||'',status:x.status,tgl:x.tgl,tanggapan:(x.tanggapan||[]).map(t=>({tgl:t.tgl,dari:t.dari,teks:t.teks}))}))}
+
+/* ---- ringkasan untuk portal pemasok (tanpa harga/HPP/laba) ---- */
+function pemasokSnapshot(id){
+  const m=S.mitra.find(x=>x.id===id),td=todayISO();
+  const mine=new Set();S.docs.forEach(d=>{if(d.jenis==='Beli'&&d.status!=='BATAL'&&d.mitra===id)(d.items||[]).forEach(i=>mine.add(i.sku))});
+  const v30=velData(30,'');
+  const isi=v30.filter(r=>mine.has(r.s.sku)).map(r=>{const perDay=Math.max(0,r.sold)/30,stok=Math.max(0,r.stok),mn=minOf(r.s),need=stok<=mn||(r.doi!==Infinity&&r.doi<21);
+    return need?{sku:r.s.sku,nama:r.s.nama,stok,min:mn,laju:Math.round(perDay*10)/10,doi:r.doi===Infinity?null:Math.round(r.doi),saran:Math.max(0,Math.ceil(perDay*30-stok),stok<=mn?Math.ceil(mn*2-stok):0)}:null}).filter(Boolean).sort((a,b)=>(a.doi==null?9999:a.doi)-(b.doi==null?9999:b.doi));
+  const po=(S.po||[]).filter(o=>o.jenis==='PO'&&o.mitra===id&&(o.status==='Dipesan'||o.status==='Sebagian')).map(o=>({no:o.no,tgl:o.tgl,eta:o.eta||'',status:o.status,
+    items:(o.items||[]).map(i=>({nama:(skuOf(i.sku)||{}).nama||i.sku,qty:+i.qty||0,sisa:Math.max(0,(+i.qty||0)-(+i.done||0))})).filter(i=>i.sisa>0)}));
+  const sh=(m&&m.share)||{};
+  return {nama:m?m.nama:'',jenis:'pemasok',ts:new Date().toISOString(),bagian:{sellout:false,stok:false,program:false,klaim:false},
+    isi_ulang:sh.isi===false?[]:isi,po:sh.po===false?[]:po,strategi:sh.strategi===false?[]:strShared(id),catatan:'Saran pesan = kebutuhan 30 hari dikurangi stok saat ini.'};
+}
+const _prnSnap0=prnSnapshot;
+prnSnapshot=function(id){const o=_prnSnap0(id),x=S.principal.find(p=>p.id===id);o.jenis='principal';o.strategi=(x&&x.share&&x.share.strategi===false)?[]:strShared(id);return o};
+async function mitraPublish(id){
+  if(!ONLINE)return toast('Publikasi hanya tersedia di versi online',true);
+  if(S.principal.some(p=>p.id===id))return prnPublish(id);
+  const snap=pemasokSnapshot(id);
+  await olRest('principal_snapshot?on_conflict=principal_id',{method:'POST',prefer:'resolution=merge-duplicates,return=minimal',body:JSON.stringify({principal_id:id,data:snap,updated_at:new Date().toISOString()})});
+  const m=S.mitra.find(x=>x.id===id);m.pubTs=snap.ts;AUD('Data portal pemasok dipublikasikan',m.nama,id);commit();return snap;
+}
+
+/* ---- usulan otomatis dari data ---- */
+function strSuggest(){
+  const out=[],v30=velData(30,'');
+  S.principal.forEach(p=>{
+    const set=new Set(S.sku.filter(s=>{const pr=produkOf(s.pid);return pr&&pr.prin===p.id}).map(s=>s.sku));
+    v30.filter(r=>set.has(r.s.sku)&&r.sold>0&&r.doi!==Infinity&&r.doi<14).slice(0,3).forEach(r=>out.push({mitra:p.id,tipe:'Restok',judul:'Stok '+r.s.nama+' tinggal ±'+Math.round(r.doi)+' hari',sku:r.s.sku,isi:'Terjual '+Math.round(r.sold)+' unit dalam 30 hari terakhir, stok '+Math.max(0,Math.round(r.stok))+'. Mohon kepastian pasokan dan jadwal kirim.'}));
+  });
+  S.program.filter(p=>p.status==='Aktif').forEach(p=>{const r=prgReal(p);if(r.target>0&&r.proj/r.target<0.9)out.push({mitra:p.pihak,tipe:'Target',judul:'Program "'+p.nama+'" diproyeksi '+Math.round(r.proj/r.target*100)+'% dari target',sku:'',isi:'Capaian saat ini '+Math.round(r.pct*100)+'%. Diskusikan dorongan penjualan atau penyesuaian target.'})});
+  const ex=new Set((S.strategi||[]).map(x=>x.mitra+'|'+x.judul));
+  return out.filter(x=>!ex.has(x.mitra+'|'+x.judul)).slice(0,8);
+}
+
+/* ---- halaman ---- */
+PAGES.strategi=()=>{
+  const all=(S.strategi||[]).slice().sort((a,b)=>(a.tgl<b.tgl?1:a.tgl>b.tgl?-1:0)),F=ui.str,can=canStr();
+  const L=all.filter(x=>(!F.m||x.mitra===F.m)&&(!F.st||x.status===F.st)),M=strMitra();STR_SUG=can?strSuggest():[];
+  const cnt=s=>all.filter(x=>x.status===s).length;
+  return {title:'Papan Strategi',sub:'Strategi, target, dan promo bersama principal dan pemasok. Hanya item yang ditandai "dibagikan" yang terlihat oleh mitra.',right:'',
+  html:`<div class="grid g4" style="margin-bottom:12px">${kpi('blue','bars','Total item',String(all.length))}${kpi('amber','cal','Berjalan',String(cnt('Berjalan')))}${kpi('green','doc','Disepakati',String(cnt('Disepakati')))}${kpi('blue','shield','Dibagikan ke mitra',String(all.filter(x=>x.share).length))}</div>
+  <div class="row srow" style="margin-bottom:10px;gap:8px;flex-wrap:wrap"><select class="in" data-chg="str-fm" style="max-width:220px"><option value="">Semua mitra</option>${M.map(m=>`<option value="${esc(m.id)}" ${F.m===m.id?'selected':''}>${esc(m.nama)} (${m.jenis})</option>`).join('')}</select>
+  <select class="in" data-chg="str-fs" style="max-width:160px"><option value="">Semua status</option>${STR_ST.map(s=>`<option ${F.st===s?'selected':''}>${s}</option>`).join('')}</select>
+  <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">${ONLINE&&can?`<button class="btn" data-act="str-pubs">Publikasikan semua</button>`:''}${can?`<button class="btn pri" data-act="str-new">${ic('plus')}Item baru</button>`:''}</span></div>
+  ${STR_SUG.length?`<div class="card" style="margin-bottom:12px"><h3 class="ch">${ic('bot')}Usulan dari data toko</h3><div class="small muted" style="margin-bottom:8px">Dihitung otomatis dari kecepatan jual dan capaian program. Klik untuk menjadikannya item (belum dibagikan).</div>${STR_SUG.map((s,i)=>`<div class="row" style="gap:8px;padding:6px 0;border-top:1px solid #e8ecf3;align-items:center"><div style="flex:1;min-width:0"><b>${esc(s.judul)}</b><div class="small muted">${esc(strNama(s.mitra))} · ${esc(s.tipe)}</div></div><button class="btn sm" data-act="str-sug" data-i="${i}">Jadikan item</button></div>`).join('')}</div>`:''}
+  <div class="card"><div class="scroll"><table class="tbl"><thead><tr><th>Mitra</th><th>Item</th><th>Target</th><th>Status</th><th>Tanggapan</th><th></th></tr></thead><tbody>${L.map(x=>`<tr><td>${esc(strNama(x.mitra))}<div class="small muted">${x.mitra?(S.principal.some(p=>p.id===x.mitra)?'Principal':'Pemasok'):''}</div></td><td><b>${esc(x.judul)}</b> ${badge('mute',x.tipe)}${x.share?' '+badge('ok','dibagikan'):' '+badge('mute','internal')}<div class="small muted">${esc(x.isi||'')}</div></td><td>${x.due?fmtTgl(x.due):'–'}</td><td>${can?`<select class="in" data-chg="str-st" data-id="${esc(x.id)}">${STR_ST.map(s=>`<option ${x.status===s?'selected':''}>${s}</option>`).join('')}</select>`:badge(STR_STC[x.status]||'mute',x.status)}</td><td class="small">${(x.tanggapan||[]).slice(-2).map(t=>`<div><b>${esc(t.dari)}</b>: ${esc(t.teks)}</div>`).join('')||'<span class="muted">–</span>'}</td><td style="white-space:nowrap">${can?`<button class="btn sm ghost" data-act="str-tg" data-id="${esc(x.id)}">Tanggapan</button><button class="btn sm ghost" data-act="str-edit" data-id="${esc(x.id)}">Ubah</button><button class="btn sm ghost" data-act="str-del" data-id="${esc(x.id)}">Hapus</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Belum ada item. Klik "Item baru" atau pilih dari usulan data toko.</td></tr>'}</tbody></table></div></div>
+  <div class="card" style="margin-top:12px"><h3 class="ch">${ic('shield')}Portal mitra</h3><div class="small muted" style="margin-bottom:8px">Setiap mitra masuk dengan akunnya sendiri dan hanya melihat ringkasan miliknya. Pemasok melihat PO terbuka dan saran isi ulang produknya (tanpa harga). Principal melihat penjualan, stok, program, dan klaim.</div>
+  <table class="tbl"><thead><tr><th>Mitra</th><th>Jenis</th><th>Item dibagikan</th><th>Terakhir dipublikasikan</th><th></th></tr></thead><tbody>${M.map(m=>`<tr><td>${esc(m.nama)}</td><td>${m.jenis}</td><td>${(S.strategi||[]).filter(x=>x.mitra===m.id&&x.share).length}</td><td>${m.ref.pubTs?fmtTgl(m.ref.pubTs.slice(0,10)):'belum pernah'}</td><td>${ONLINE&&can?`<button class="btn sm" data-act="str-pub" data-id="${esc(m.id)}">Publikasikan</button>`:''}<button class="btn sm ghost" data-act="str-prev" data-id="${esc(m.id)}">Lihat tampilan mitra</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Belum ada principal atau pemasok.</td></tr>'}</tbody></table></div>`};
+};
+try{const i=NAV.findIndex(n=>n[0]==='program');NAV.splice(i>=0?i+1:NAV.length,0,['strategi','Papan Strategi','bars'])}catch(e){}
+try{ROLE_PAGES.keuangan.push('strategi')}catch(e){}
+
+ACT['str-fm']=t=>{ui.str.m=t.value;refresh()};
+ACT['str-fs']=t=>{ui.str.st=t.value;refresh()};
+ACT['str-st']=t=>{if(!canStr())return;const x=(S.strategi||[]).find(i=>i.id===t.dataset.id);if(!x)return;x.status=t.value;AUD('Status papan strategi',x.judul+' → '+x.status,x.id);if(commit()===false)return;refresh()};
+function strForm(x){
+  x=x||{};const M=strMitra();
+  return `${skuDatalist()}<div class="field"><label class="lbl" for="sf-m">Mitra</label><select class="in" id="sf-m"><option value="">Umum (tanpa mitra)</option>${M.map(m=>`<option value="${esc(m.id)}" ${x.mitra===m.id?'selected':''}>${esc(m.nama)} (${m.jenis})</option>`).join('')}</select></div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:130px"><label class="lbl" for="sf-t">Jenis</label><select class="in" id="sf-t">${STR_TIPE.map(s=>`<option ${x.tipe===s?'selected':''}>${s}</option>`).join('')}</select></div>
+  <div class="field" style="flex:1;min-width:130px"><label class="lbl" for="sf-d">Target tanggal</label><input class="in" type="date" id="sf-d" value="${esc(x.due||'')}"></div></div>
+  <div class="field"><label class="lbl" for="sf-j">Judul</label><input class="in" id="sf-j" value="${esc(x.judul||'')}" maxlength="120"></div>
+  <div class="field"><label class="lbl" for="sf-s">Produk (opsional, ketik nama atau kode)</label><input class="in" id="sf-s" list="skulist" value="${esc(x.sku?x.sku+' — '+((skuOf(x.sku)||{}).nama||''):'')}"></div>
+  <div class="field"><label class="lbl" for="sf-i">Isi / rencana</label><textarea class="in" id="sf-i" rows="3" maxlength="600">${esc(x.isi||'')}</textarea></div>
+  <label style="display:flex;gap:8px;margin-top:8px"><input type="checkbox" id="sf-b" ${x.share?'checked':''}><span>Bagikan ke mitra (terlihat di portal mereka setelah dipublikasikan)</span></label>
+  <div class="note" style="margin-top:8px">Jangan menulis harga beli, HPP, laba, atau nama pelanggan di sini jika item dibagikan.</div>`;
+}
+ACT['str-new']=()=>{if(!canStr())return;ui.strEd=null;openModal('Item Papan Strategi',strForm(),'<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="str-ok">Simpan</button>','md')};
+ACT['str-edit']=t=>{if(!canStr())return;const x=(S.strategi||[]).find(i=>i.id===t.dataset.id);if(!x)return;ui.strEd=x.id;openModal('Ubah Item',strForm(x),'<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="str-ok">Simpan</button>','md')};
+ACT['str-ok']=()=>{
+  if(!canStr())return;const j=$('#sf-j').value.trim();if(!j)return toast('Judul wajib diisi',true);
+  const k=($('#sf-s').value.split(' — ')[0]||'').trim(),sk=k&&skuOf(k)?k:'';
+  const d={mitra:$('#sf-m').value,tipe:$('#sf-t').value,due:$('#sf-d').value,judul:j,sku:sk,isi:$('#sf-i').value.trim(),share:!!$('#sf-b').checked};
+  S.strategi=S.strategi||[];
+  if(ui.strEd){const x=S.strategi.find(i=>i.id===ui.strEd);if(x)Object.assign(x,d);AUD('Ubah item strategi',j,ui.strEd)}
+  else{const id='STR-'+uid();S.strategi.push(Object.assign({id,tgl:todayISO(),status:'Usulan',tanggapan:[]},d));AUD('Item strategi baru',j,id)}
+  if(commit()===false)return;closeModal();refresh();toast('Item disimpan'+(d.share?'. Publikasikan agar terlihat oleh mitra.':''));
+};
+ACT['str-del']=t=>{if(!canStr())return;const x=(S.strategi||[]).find(i=>i.id===t.dataset.id);if(!x)return;S.strategi=S.strategi.filter(i=>i.id!==x.id);AUD('Hapus item strategi',x.judul,x.id);if(commit()===false)return;refresh();toast('Item dihapus')};
+ACT['str-sug']=t=>{if(!canStr())return;const s=STR_SUG[+t.dataset.i];if(!s)return;S.strategi=S.strategi||[];S.strategi.push({id:'STR-'+uid(),tgl:todayISO(),status:'Usulan',tanggapan:[],share:false,due:'',mitra:s.mitra,tipe:s.tipe,judul:s.judul,sku:s.sku,isi:s.isi});AUD('Usulan jadi item strategi',s.judul,s.mitra);if(commit()===false)return;refresh();toast('Ditambahkan sebagai item')};
+ACT['str-tg']=t=>{if(!canStr())return;const x=(S.strategi||[]).find(i=>i.id===t.dataset.id);if(!x)return;ui.strTg=x.id;
+  openModal('Tanggapan · '+x.judul,`<div style="max-height:30vh;overflow:auto;margin-bottom:10px">${(x.tanggapan||[]).map(g=>`<div style="padding:6px 0;border-bottom:1px solid #e8ecf3"><b>${esc(g.dari)}</b> <span class="small muted">${fmtTgl(g.tgl)}</span><div>${esc(g.teks)}</div></div>`).join('')||'<div class="muted small">Belum ada tanggapan.</div>'}</div>
+  <div class="field"><label class="lbl" for="tg-d">Dari</label><select class="in" id="tg-d"><option>Toko</option><option>${esc(strNama(x.mitra))}</option></select></div>
+  <div class="field"><label class="lbl" for="tg-t">Tanggapan</label><textarea class="in" id="tg-t" rows="3" maxlength="400"></textarea></div><div class="small muted">Catat hasil diskusi (mis. dari WhatsApp atau pertemuan). Tanggapan ikut terlihat di portal bila item dibagikan.</div>`,
+  '<button class="btn" data-act="close">Tutup</button><button class="btn pri" data-act="str-tg-ok">Simpan tanggapan</button>','md')};
+ACT['str-tg-ok']=()=>{const x=(S.strategi||[]).find(i=>i.id===ui.strTg);if(!x||!canStr())return;const tx=$('#tg-t').value.trim();if(!tx)return toast('Tanggapan kosong',true);
+  x.tanggapan=x.tanggapan||[];x.tanggapan.push({tgl:todayISO(),dari:$('#tg-d').value,teks:tx});AUD('Tanggapan strategi',x.judul,x.id);if(commit()===false)return;closeModal();refresh();toast('Tanggapan dicatat')};
+ACT['str-pub']=async t=>{try{await mitraPublish(t.dataset.id);toast('Data dipublikasikan');refresh()}catch(e){toast('Gagal publikasi: '+e.message,true)}};
+ACT['str-pubs']=async()=>{let n=0;for(const m of strMitra()){try{await mitraPublish(m.id);n++}catch(e){toast('Gagal: '+e.message,true);return}}toast(n+' portal diperbarui');refresh()};
+ACT['str-prev']=t=>{const id=t.dataset.id,sn=S.principal.some(p=>p.id===id)?prnSnapshot(id):pemasokSnapshot(id);openModal('Tampilan mitra · '+strNama(id),`<div id="strprev"></div>`,'<button class="btn" data-act="close">Tutup</button>','lg');strPrevHtml(sn)};
+
+/* ---- tampilan di portal (akun mitra) ---- */
+function strPortalHtml(sn){
+  const f=n=>dec(n,0),S1=sn.strategi||[],P=sn.po||[],I=sn.isi_ulang||[];
+  const tb=(h,rows,empty)=>`<section class="pc"><h3>${h}</h3>${rows||`<div style="color:#5a6a87;font-size:13px">${empty}</div>`}</section>`;
+  let h='';
+  if(sn.jenis==='pemasok'){
+    h+=`<div class="kp"><div><small>Produk perlu isi ulang</small><b>${I.length}</b></div><div><small>PO terbuka</small><b>${P.length}</b></div><div><small>Item strategi</small><b>${S1.length}</b></div></div>`;
+    h+=tb('Saran isi ulang (stok menipis)',I.length?`<table><thead><tr><th>Produk</th><th class="r">Stok</th><th class="r">Min</th><th class="r">Laju/hari</th><th class="r">Cakupan (hari)</th><th class="r">Saran pesan</th></tr></thead><tbody>${I.map(x=>`<tr><td>${esc(x.nama)}</td><td class="r">${f(x.stok)}</td><td class="r">${f(x.min)}</td><td class="r">${dec(x.laju,1)}</td><td class="r">${x.doi==null?'–':f(x.doi)}</td><td class="r"><b>${f(x.saran)}</b></td></tr>`).join('')}</tbody></table><div style="font-size:12px;color:#5a6a87;margin-top:6px">${esc(sn.catatan||'')}</div>`:'','Tidak ada produk yang perlu diisi ulang saat ini.');
+    h+=tb('Pesanan pembelian terbuka',P.length?`<table><thead><tr><th>No PO</th><th>Tanggal</th><th>Estimasi kirim</th><th>Status</th><th>Barang (sisa)</th></tr></thead><tbody>${P.map(o=>`<tr><td>${esc(o.no)}</td><td>${fmtTgl(o.tgl)}</td><td>${o.eta?fmtTgl(o.eta):'–'}</td><td>${esc(o.status)}</td><td>${o.items.map(i=>esc(i.nama)+' ('+f(i.sisa)+' dari '+f(i.qty)+')').join('<br>')}</td></tr>`).join('')}</tbody></table>`:'','Tidak ada PO terbuka.');
+  }
+  h+=tb('Papan strategi bersama',S1.length?`<table><thead><tr><th>Item</th><th>Target</th><th>Status</th><th>Tanggapan</th></tr></thead><tbody>${S1.map(x=>`<tr><td><b>${esc(x.judul)}</b> <small>(${esc(x.tipe)})</small>${x.produk?`<div style="font-size:12px;color:#5a6a87">${esc(x.produk)}</div>`:''}<div style="font-size:12.5px">${esc(x.isi||'')}</div></td><td>${x.due?fmtTgl(x.due):'–'}</td><td>${esc(x.status)}</td><td style="font-size:12.5px">${(x.tanggapan||[]).map(t=>`<div><b>${esc(t.dari)}</b>: ${esc(t.teks)}</div>`).join('')||'–'}</td></tr>`).join('')}</tbody></table>`:'','Belum ada item strategi yang dibagikan.');
+  return h;
+}
+const _portalRender0=portalRender;
+portalRender=function(snap,nama){
+  _portalRender0(snap,nama);const o=document.getElementById('portal');if(!o)return;
+  const hd=o.querySelector('header div div');if(hd&&snap.jenis==='pemasok')hd.textContent='Portal Pemasok · '+(snap.nama||nama||'');
+  const m=o.querySelector('main'),p=m&&m.querySelector(':scope > p:last-child');
+  if(m&&(snap.jenis==='pemasok'||(snap.strategi&&snap.strategi.length))){const d=document.createElement('div');d.innerHTML=strPortalHtml(snap);if(p)m.insertBefore(d,p);else m.appendChild(d)}
+};
+function strPrevHtml(sn){const el=document.getElementById('strprev');if(!el)return;el.innerHTML=`<div style="background:#f1f4fa;padding:12px;border-radius:10px"><style>#strprev table{width:100%;border-collapse:collapse;font-size:13px}#strprev th,#strprev td{padding:6px;border-bottom:1px solid #e8ecf3;text-align:left}#strprev .r{text-align:right}#strprev .pc{background:#fff;border-radius:10px;padding:12px;margin-bottom:10px;overflow-x:auto}#strprev h3{margin:0 0 8px;font-size:14px}#strprev .kp{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}#strprev .kp div{background:#fff;padding:8px 12px;border-radius:8px}#strprev .kp small{display:block;color:#5a6a87}</style>${strPortalHtml(sn)||'<div class="muted">Tidak ada data yang dibagikan.</div>'}${sn.jenis==='principal'?`<div class="small muted">Bagian penjualan, stok, program, dan klaim untuk principal tampil di portal mereka sesuai pengaturan akses (menu Program, tombol Portal).</div>`:''}</div>`}
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
