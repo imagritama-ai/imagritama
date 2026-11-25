@@ -7111,6 +7111,168 @@ ACT['hj-min']=t=>{
   if(v===null)delete s.hargaMin;else s.hargaMin=v;
   if(!commit())return;refresh();toast(v>s.harga?'Disimpan. Perhatian: harga minimum di atas harga jual saat ini.':'Harga minimum disimpan',v>s.harga)};
 
+/* ====== HPP tahap 2: naikkan harga jual ke batas aman (dengan pratinjau), harga minimum lewat Excel, kolom benefit di Excel harga pemasok ====== */
+HJS.nk={m:5,s:500,x:30};HJS.xl=null;HJS.xlDone=null;
+
+/* ---------- 1. Excel harga pemasok: kolom benefit ---------- */
+const HBX=[['hargaCash','Harga bila cash',['harga bila cash','harga cash']],['bonusTempo','Bonus % tempo',['bonus tempo','bonus persen tempo']],['bonusCash','Bonus % cash',['bonus cash','bonus persen cash']],['bonusBentuk','Bentuk bonus (cashback/potong/barang)',['bentuk bonus','bentuk bonus cashback potong barang']],['hadiahNama','Hadiah',['hadiah','nama hadiah']],['hadiahNilai','Nilai hadiah',['nilai hadiah']],['hadiahDus','Syarat hadiah (dus)',['syarat hadiah dus','syarat hadiah']],['isiDus','Isi per dus',['isi per dus','isi dus']],['hadiahPenerima','Hadiah untuk (toko/lain)',['hadiah untuk toko lain','hadiah untuk','penerima hadiah']]];
+HBX.forEach(c=>{if(!HB_F.some(x=>x[0]===c[0]))HB_F.push([c[0],c[1]])});
+const hbBentukOf=s=>{const t=PP_NORM(s);return /^potong/.test(t)?'potong':/^barang|tambahan/.test(t)?'barang':/^cash/.test(t)?'cashback':null};
+const hbPenerimaOf=s=>{const t=PP_NORM(s);return t===''?'':/^toko|usaha/.test(t)?'toko':'lain'};
+function hbTemplate(){
+  const tk=hbTerakhir(),ex=r=>HBX.map(c=>r?(c[0]==='hargaCash'||c[0]==='hadiahNilai'||c[0]==='hadiahDus'||c[0]==='isiDus'||c[0]==='bonusTempo'||c[0]==='bonusCash'?(r[c[0]]||''):(r[c[0]]||'')):'');
+  const rows=[['SKU','Pemasok (ID atau nama)','Harga beli','Diskon %','Bonus: beli','Bonus: gratis','Tempo (hari)','Minimum order','Catatan / benefit lain'].concat(HBX.map(c=>c[1])).concat(['Nama barang (info)','Harga efektif (info)','Status (info)'])];
+  const used=new Set();
+  hbList().slice().sort((a,b)=>a.sku.localeCompare(b.sku)).forEach(h=>{used.add(h.sku+'|'+h.sup);rows.push([h.sku,h.sup,h.harga,h.diskon||'',h.bonusBeli||'',h.bonusGratis||'',h.tempo==null?'':h.tempo,h.minQty==null?'':h.minQty,h.catatan||''].concat(ex(h)).concat([(skuOf(h.sku)||{}).nama||'',Math.round(hbEfektif(h)),'Tersimpan']))});
+  Object.keys(tk).sort().forEach(k=>{if(used.has(k))return;const [sku,sup]=k.split('|');if(!skuOf(sku))return;rows.push([sku,sup,tk[k].harga,'','','','','',''].concat(ex(null)).concat([(skuOf(sku)||{}).nama||'',tk[k].harga,'Dari faktur terakhir, belum tersimpan']))});
+  const ref=[['ID pemasok','Nama pemasok']].concat(hbPemasok().map(m=>[m.id,m.nama]));
+  const pet=[['PETUNJUK HARGA BELI PER PEMASOK'],[''],
+   ['1. Satu baris = satu barang dari satu pemasok. Ubah harga, diskon, bonus, tempo, minimum order, atau catatan.'],
+   ['2. Kolom Pemasok boleh diisi ID (misalnya SUP-0001) atau nama pemasok persis seperti di daftar (lihat lembar Pemasok).'],
+   ['3. Baris berstatus "Dari faktur terakhir" diambil dari faktur pembelian Anda. Hapus baris yang tidak ingin disimpan, atau biarkan untuk disimpan sebagai harga acuan.'],
+   ['4. Bonus barang: isi dua kolom Bonus: beli dan Bonus: gratis (mis. beli 10 gratis 1). Kosongkan dua-duanya bila tidak ada.'],
+   ['5. Sel kosong = tidak diubah. Tulis tanda minus - untuk menghapus isian.'],
+   ['6. Harga bila cash: harga bila dibayar tunai. Bonus % tempo dan Bonus % cash: persen bonus menurut cara bayar (bonus cash menggantikan bonus tempo, tidak ditambahkan).'],
+   ['7. Bentuk bonus: tulis cashback (uang setelah lunas), potong (potong invoice, langsung mengurangi tagihan), atau barang (tambahan barang).'],
+   ['8. Hadiah dari pabrik: isi Hadiah, Nilai hadiah (Rp), Syarat hadiah (dus), dan Isi per dus (unit). Hadiah untuk: toko (mengurangi HPP target) atau lain (pribadi/karyawan/sosial, tidak mengurangi HPP). Kosongkan bila belum ditentukan.'],
+   ['9. Harga beli wajib untuk baris baru. Baris yang tidak ada di file tidak dihapus. Menghapus harga pemasok dilakukan di aplikasi.'],
+   ['10. Setelah disimpan, unggah di menu Harga Beli Pemasok tab Excel. Anda akan melihat pratinjau dulu sebelum Terapkan. Pembukuan tidak berubah.']];
+  return XL.build([{name:'Harga Beli',rows},{name:'Pemasok',rows:ref},{name:'Petunjuk',rows:pet}]);
+}
+{
+  const _an=hbAnalisa;
+  hbAnalisa=function(rows,file){
+    const out=_an(rows,file);
+    let hi=-1;for(let i=0;i<Math.min(rows.length,15);i++){const j=rows[i].map(x=>PP_NORM(x));if(j.includes('sku')&&j.some(x=>x.startsWith('pemasok'))&&j.includes('harga beli')){hi=i;break}}
+    if(hi<0)return out;
+    const hn=rows[hi].map(x=>PP_NORM(x)),ix={};
+    HBX.forEach(c=>{const k=hn.findIndex(h=>c[2].some(a=>PP_NORM(a)===h));if(k>=0)ix[c[0]]=k});
+    if(!Object.keys(ix).length)return out;
+    const colS=hn.findIndex(h=>h==='sku'),colP=hn.findIndex(h=>h.startsWith('pemasok'));
+    const sups=hbPemasok(),errRows=new Set(out.err.map(e=>e.r));
+    const get=(r,k)=>ix[k]==null?undefined:String(r[ix[k]]==null?'':r[ix[k]]).trim();
+    for(let i=hi+1;i<rows.length;i++){
+      const r=rows[i],no=i+1;if(!r||r.every(x=>String(x==null?'':x).trim()===''))continue;if(errRows.has(no))continue;
+      const sku=String(r[colS]==null?'':r[colS]).trim(),supIn=String(r[colP]==null?'':r[colP]).trim();
+      const s=sku?skuOf(sku):null;if(!s)continue;
+      const sp=sups.find(m=>m.id.toLowerCase()===supIn.toLowerCase())||sups.find(m=>PP_NORM(m.nama)===PP_NORM(supIn));if(!sp)continue;
+      const ex=hbFind(s.sku,sp.id),u=out.ubah.find(x=>x.r===no),nw=out.baru.find(x=>x.r===no);
+      if(!u&&!nw&&!ex)continue; /* baris yang sudah ditolak oleh pemeriksaan awal */
+      const v={},bad=[],cl=t=>t==='-',n=(k,min,max)=>{const t=get(r,k);if(t===undefined||t==='')return;if(cl(t)){v[k]=0;return}const x=mhNum(t);if(!(x>=min&&(max==null||x<=max)))bad.push((HBX.find(c=>c[0]===k)||[])[1]+' tidak valid');else v[k]=x};
+      n('hargaCash',0.0001);n('bonusTempo',0,100);n('bonusCash',0,100);n('hadiahNilai',0);n('hadiahDus',0);n('isiDus',0);
+      if(v.hargaCash===0)v.hargaCash=null;
+      const bk=get(r,'bonusBentuk');if(bk!==undefined&&bk!==''){if(cl(bk))v.bonusBentuk='cashback';else{const b=hbBentukOf(bk);if(b)v.bonusBentuk=b;else bad.push('Bentuk bonus harus cashback, potong, atau barang')}}
+      const hn2=get(r,'hadiahNama');if(hn2!==undefined&&hn2!=='')v.hadiahNama=cl(hn2)?'':hn2;
+      const hp=get(r,'hadiahPenerima');if(hp!==undefined&&hp!=='')v.hadiahPenerima=cl(hp)?'':hbPenerimaOf(hp);
+      /* gabungkan dengan nilai sekarang / nilai baris baru untuk pemeriksaan silang */
+      const cur=Object.assign({},ex||{},nw?nw.v:{},u?Object.fromEntries(u.ch.map(c=>[c.f,c.baru])):{},v);
+      if(v.hargaCash&&cur.harga&&v.hargaCash>cur.harga)bad.push('Harga cash lebih tinggi dari harga biasa');
+      if(+cur.hadiahNilai>0&&(!cur.hadiahNama||!(+cur.hadiahDus>0&&+cur.isiDus>0)))bad.push('Hadiah butuh nama, syarat dus, dan isi per dus');
+      if(bad.length){
+        out.ubah=out.ubah.filter(x=>x.r!==no);out.baru=out.baru.filter(x=>x.r!==no);bad.forEach(m=>out.err.push({r:no,m}));errRows.add(no);continue;
+      }
+      if(nw){Object.assign(nw.v,v);continue}
+      const ch=[];Object.keys(v).forEach(f=>{const a=ex?ex[f]:undefined;if(JSON.stringify(mhNorm(f,a))!==JSON.stringify(mhNorm(f,v[f]))&&!(a==null&&(v[f]===0||v[f]===''||v[f]===null)))ch.push({f,lama:a,baru:v[f]})});
+      if(!ch.length)continue;
+      if(u)u.ch.push(...ch);else{out.ubah.push({r:no,id:ex.id,sku:s.sku,sup:sp.id,ch});if(out.sama>0)out.sama--}
+    }
+    return out;
+  };
+}
+
+/* ---------- 2. naikkan harga jual yang di bawah batas aman ---------- */
+function hjNaikHitung(){
+  const {m,s,x}=HJS.nk,map=hjLastMap(),L=[],tahan=[];
+  S.sku.forEach(k=>{const b=hjBatas(k.sku,map);if(!(b.lim>0)||k.harga>=b.lim-0.5)return;
+    const step=Math.max(1,+s||1),baru=Math.ceil(b.lim*(1+(+m||0)/100)/step)*step,naik=k.harga>0?baru/k.harga-1:1;
+    (naik*100>(+x||0)?tahan:L).push({s:k,b,baru,naik})});
+  return {L,tahan};
+}
+ACT['hj-naik']=()=>{
+  if(!hbBolehUbah())return;const h=hjNaikHitung(),N=HJS.nk;
+  const opt=(v,t,cur)=>'<option value="'+v+'" '+(+cur===v?'selected':'')+'>'+t+'</option>';
+  openModal('Naikkan harga jual ke batas aman','<div class="row"><div class="field"><label class="lbl" for="nk-m">Margin di atas batas aman (%)</label><input class="in" id="nk-m" type="number" min="0" max="200" step="any" value="'+N.m+'" data-chg="hj-naik-set"></div>'
+   +'<div class="field"><label class="lbl" for="nk-s">Bulatkan ke atas</label><select class="in" id="nk-s" data-chg="hj-naik-set">'+opt(1,'Rp1',N.s)+opt(100,'Rp100',N.s)+opt(500,'Rp500',N.s)+opt(1000,'Rp1.000',N.s)+'</select></div>'
+   +'<div class="field"><label class="lbl" for="nk-x">Tahan bila kenaikan lebih dari (%)</label><input class="in" id="nk-x" type="number" min="0" max="500" step="any" value="'+N.x+'" data-chg="hj-naik-set"></div></div>'
+   +'<div class="note">Akan diubah: <b>'+h.L.length+'</b> barang. Ditahan karena kenaikan terlalu besar: <b>'+h.tahan.length+'</b> (periksa harga belinya, mungkin salah ketik).</div>'
+   +'<div class="scroll" style="max-height:38vh;margin-top:8px"><table class="tbl"><thead><tr><th>Barang</th><th class="r">Harga lama</th><th class="r">Batas aman</th><th class="r">Harga baru</th><th class="r">Naik</th></tr></thead><tbody>'
+   +(h.L.slice(0,60).map(x=>'<tr><td>'+esc(x.s.nama)+'</td><td class="r">'+rp(x.s.harga)+'</td><td class="r">'+hjR(x.b.lim)+'</td><td class="r"><b>'+rp(x.baru)+'</b></td><td class="r">'+Math.round(x.naik*1000)/10+'%</td></tr>').join('')||'<tr><td colspan="5" class="empty">Tidak ada barang yang perlu dinaikkan.</td></tr>')
+   +(h.L.length>60?'<tr><td colspan="5" class="small muted">... dan '+(h.L.length-60)+' barang lainnya</td></tr>':'')+'</tbody></table></div>'
+   +(h.tahan.length?'<div class="small" style="margin-top:6px"><b>Ditahan:</b> '+h.tahan.slice(0,8).map(x=>esc(x.s.nama)+' (+'+Math.round(x.naik*100)+'%)').join(', ')+(h.tahan.length>8?', dan '+(h.tahan.length-8)+' lainnya':'')+'</div>':'')
+   +'<div class="note" style="margin-top:8px">Hanya harga jual yang berubah. Faktur lama dan pembukuan tidak berubah. Setiap perubahan tercatat di Riwayat Data Barang dan bisa dikembalikan.</div>',
+   '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hj-naik-ok" '+(h.L.length?'':'disabled')+'>Naikkan '+h.L.length+' harga</button>','lg');
+};
+ACT['hj-naik-set']=()=>{const g=id=>+($(id)||{}).value;const m=g('#nk-m'),s=g('#nk-s'),x=g('#nk-x');HJS.nk={m:m>=0&&m<=200?m:5,s:s>=1?s:500,x:x>=0&&x<=500?x:30};ACT['hj-naik']()};
+ACT['hj-naik-ok']=()=>{
+  if(!hbBolehUbah())return;const h=hjNaikHitung();if(!h.L.length)return;
+  const bak=JSON.stringify(S);
+  try{
+    MHS.via='Naikkan ke batas aman';
+    h.L.forEach(x=>{x.s.harga=x.baru});
+    AUD('Harga jual dinaikkan ke batas aman',h.L.length+' barang, margin '+HJS.nk.m+'%','');
+    const ok=commit();MHS.via='';
+    if(ok===false){toast('Ditolak oleh sistem. Tidak ada harga yang berubah.',true);return}
+    closeModal();refresh();toast(h.L.length+' harga jual dinaikkan. Riwayat tercatat.');
+  }catch(e){MHS.via='';try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message+'. Data dikembalikan.',true)}
+};
+
+/* ---------- 3. harga minimum lewat Excel ---------- */
+function hjXlTemplate(){
+  const map=hjLastMap(),rows=[['SKU','Harga minimum (isi di sini)','Nama barang (info)','Harga jual (info)','HPP rata-rata (info)','Beli terakhir (info)','Batas aman sekarang (info)']];
+  S.sku.slice().sort((a,b)=>a.sku.localeCompare(b.sku)).forEach(s=>{const b=hjBatas(s.sku,map);rows.push([s.sku,s.hargaMin||'',s.nama,s.harga||0,Math.round(b.avg||0),b.last||'',Math.round(b.lim)])});
+  const pet=[['PETUNJUK HARGA MINIMUM JUAL'],[''],['1. Isi kolom Harga minimum untuk barang yang ingin Anda beri batas harga sendiri. Kolom lain hanya informasi.'],['2. Sel kosong = tidak diubah. Tulis tanda minus - untuk menghapus harga minimum.'],['3. Harga minimum hanya bisa menaikkan batas. Batas aman tidak pernah di bawah HPP.'],['4. Setelah disimpan, unggah di menu HPP dan Harga Minimum, tab Harga minimum jual. Anda melihat pratinjau dulu sebelum Terapkan.']];
+  return XL.build([{name:'Harga Minimum',rows},{name:'Petunjuk',rows:pet}]);
+}
+function hjXlAnalisa(rows,file){
+  const out={file,baris:0,ubah:[],err:[],sama:0};
+  let hi=-1;for(let i=0;i<Math.min(rows.length,15);i++){const j=rows[i].map(x=>PP_NORM(x));if(j.includes('sku')&&j.some(x=>x.startsWith('harga minimum'))){hi=i;break}}
+  if(hi<0){out.err.push({r:0,m:'Judul kolom tidak ditemukan. Pakai file hasil Unduh Excel dan jangan ubah baris judul.'});return out}
+  const hn=rows[hi].map(x=>PP_NORM(x)),cs=hn.indexOf('sku'),cm=hn.findIndex(x=>x.startsWith('harga minimum')),seen=new Set();
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i],no=i+1;if(!r||r.every(x=>String(x==null?'':x).trim()===''))continue;out.baris++;
+    const sku=String(r[cs]==null?'':r[cs]).trim(),t=String(r[cm]==null?'':r[cm]).trim(),s=skuOf(sku);
+    if(!s){out.err.push({r:no,m:'SKU "'+sku+'" tidak dikenal'});continue}
+    if(seen.has(sku)){out.err.push({r:no,m:'SKU '+sku+' muncul dua kali'});continue}seen.add(sku);
+    if(t===''){out.sama++;continue}
+    let v;if(t==='-')v=null;else{v=mhNum(t);if(!(v>0)){out.err.push({r:no,m:'Harga minimum harus angka lebih dari 0 atau tanda minus'});continue}}
+    const lama=s.hargaMin||null;if((lama||null)===(v||null)){out.sama++;continue}
+    out.ubah.push({r:no,sku:s.sku,lama,baru:v});
+  }
+  return out;
+}
+ACT['hj-xl-dl']=()=>{try{XL.save(hjXlTemplate(),'IMAGRITAMA_Harga_Minimum_'+stamp()+'.xlsx');toast('Excel diunduh. Cek folder Unduhan.')}catch(e){toast('Gagal: '+e.message,true)}};
+ACT['hj-xl-file']=async t=>{
+  const f=t.files&&t.files[0];if(!f)return;
+  if(!/\.xlsx$/i.test(f.name)){t.value='';return toast('Gunakan file .xlsx (hasil Unduh Excel).',true)}
+  try{const rows=await XL.read(await f.arrayBuffer());HJS.xlDone=null;HJS.xl=hjXlAnalisa(rows,f.name);t.value='';refresh()}catch(e){t.value='';toast('File tidak bisa dibaca: '+e.message,true)}
+};
+ACT['hj-xl-batal']=()=>{HJS.xl=null;refresh()};
+ACT['hj-xl-apply']=()=>{
+  if(!hbBolehUbah())return;const im=HJS.xl;if(!im||!im.ubah.length)return toast('Tidak ada perubahan untuk diterapkan',true);
+  const bak=JSON.stringify(S);
+  try{
+    MHS.via='Excel: '+(im.file||'file');
+    im.ubah.forEach(u=>{const s=skuOf(u.sku);if(!s)return;if(u.baru==null)delete s.hargaMin;else s.hargaMin=u.baru});
+    AUD('Harga minimum diterapkan dari Excel',(im.file||'file')+': '+im.ubah.length+' barang','');
+    const ok=commit();MHS.via='';if(ok===false){toast('Ditolak oleh sistem. Tidak ada yang berubah.',true);return}
+    HJS.xlDone={n:im.ubah.length,file:im.file};HJS.xl=null;refresh();toast('Harga minimum diterapkan. Riwayat tercatat.');
+  }catch(e){MHS.via='';try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message+'. Data dikembalikan.',true)}
+};
+function hjXlHtml(){
+  const im=HJS.xl,can=finOK()&&!(typeof OL!=='undefined'&&OL.readonly),n=hjNaikHitung().L.length+hjNaikHitung().tahan.length;
+  let h='<div class="card" style="margin-bottom:10px"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><div style="flex:1;min-width:220px"><b>'+(n?n+' barang':'Semua barang')+'</b> '+(n?'punya harga jual di bawah batas aman.':'harga jualnya sudah di atas batas aman.')+'</div>'
+   +(can?'<button class="btn pri" data-act="hj-naik" '+(n?'':'disabled')+'>'+ic('plus')+'Naikkan harga jual ke batas aman</button><button class="btn" data-act="hj-xl-dl">'+ic('doc')+'Unduh Excel harga minimum</button><label class="btn" style="cursor:pointer">'+ic('doc')+'Pilih file Excel<input type="file" accept=".xlsx" data-chg="hj-xl-file" style="display:none"></label>':'')+'</div></div>';
+  if(HJS.xlDone)h+='<div class="note" style="margin-bottom:10px;border-color:var(--green)"><b>Berhasil diterapkan</b> dari '+esc(HJS.xlDone.file||'file')+': '+HJS.xlDone.n+' harga minimum diubah. Lihat Riwayat di menu Data Barang.</div>';
+  if(im){
+    h+='<div class="card" style="margin-bottom:10px"><h3 style="margin:0 0 6px">Pratinjau: '+esc(im.file||'')+'</h3><div class="grid g4" style="margin-bottom:10px">'+kpi('blue','doc','Baris terbaca',num(im.baris))+kpi('green','check','Akan diubah',num(im.ubah.length))+kpi('amber','plus','Tidak berubah',num(im.sama))+kpi('red','warn','Bermasalah',num(im.err.length))+'</div>'
+     +(im.ubah.length?'<div class="scroll" style="max-height:34vh"><table class="tbl"><thead><tr><th>Barang</th><th class="r">Dari</th><th class="r">Menjadi</th><th class="r">Harga jual</th></tr></thead><tbody>'+im.ubah.slice(0,200).map(u=>{const s=skuOf(u.sku)||{};return '<tr><td>'+esc(s.nama||u.sku)+'</td><td class="r">'+(u.lama?rp(u.lama):'–')+'</td><td class="r"><b>'+(u.baru?rp(u.baru):'dihapus')+'</b></td><td class="r">'+rp(s.harga||0)+(u.baru>s.harga?'<div class="small" style="color:var(--amber)">di atas harga jual</div>':'')+'</td></tr>'}).join('')+'</tbody></table></div>':'')
+     +(im.err.length?'<h4 style="margin:10px 0 4px;color:var(--red)">Baris bermasalah (dilewati)</h4><div class="small" style="max-height:20vh;overflow:auto">'+im.err.slice(0,80).map(e=>'Baris '+esc(String(e.r))+': '+esc(e.m)).join('<br>')+'</div>':'')
+     +'<div class="row" style="gap:8px;margin-top:12px"><button class="btn pri" data-act="hj-xl-apply" '+(im.ubah.length?'':'disabled')+'>Terapkan '+(im.ubah.length?im.ubah.length+' perubahan':'')+'</button><button class="btn" data-act="hj-xl-batal">Batal</button></div></div>';
+  }
+  return h;
+}
+{const _m=hjMinHtml;hjMinHtml=function(){return hjXlHtml()+_m()}}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
