@@ -7274,6 +7274,122 @@ function hjXlHtml(){
 {const _m=hjMinHtml;hjMinHtml=function(){return hjXlHtml()+_m()}}
 /* tahap 2 selesai */
 
+/* ====== Riwayat perubahan data Pelanggan & Pemasok (siapa mengubah apa, kapan) ====== */
+try{
+  MH_F.m={nama:['Nama'],telp:['Telepon'],alamat:['Alamat'],lokasi:['Lokasi'],komoditas:['Komoditas'],luas:['Luas lahan'],catatan:['Catatan']};
+  MH_TIPE.m='Pelanggan / Pemasok';
+  const mhMitraAdd=o=>{(S.mitra||[]).forEach(m=>{if(m.demo)return;o['m:'+m.id]=JSON.stringify(mhPick('m',m))});return o};
+  const _snapM=mhSnap;
+  mhSnap=function(){return mhMitraAdd(_snapM())};
+  const _namaM=mhNama;
+  mhNama=function(t,id,o){if(t==='m'){const m=(S.mitra||[]).find(x=>x.id===id);return ((m||o||{}).nama||id)+(m?' ('+m.jenis+')':'')}return _namaM(t,id,o)};
+  /* foto awal untuk data yang sudah ada: tanpa ini semua pelanggan tercatat "dibuat" saat perubahan pertama */
+  const mhMitraBase=()=>{if(S.mh&&!Object.keys(S.mh).some(k=>k[0]==='m'))mhMitraAdd(S.mh)};
+  const _recM=mhRecord;
+  mhRecord=function(){mhMitraBase();return _recM.apply(this,arguments)};
+  const _derM=derive;
+  derive=function(){const r=_derM.apply(this,arguments);try{mhMitraBase()}catch(e){}return r};
+  mhMitraBase();
+}catch(e){}
+/* ====== Benefit pemasok dicatat otomatis dari faktur pembelian baru ======
+   Hanya faktur yang dibuat SETELAH fitur ini aktif. Faktur lama tidak disentuh. Status "Menunggu" tidak mengubah pembukuan. */
+function hbAutoBenefit(){
+  if(typeof S==='undefined'||!Array.isArray(S.docs))return 0;
+  if(typeof S.bnN!=='number'){S.bnN=S.docs.length;S.bnStart=S.docs.length;return 0}
+  if(S.bnN>S.docs.length){S.bnN=S.docs.length;if(S.bnStart>S.docs.length)S.bnStart=S.docs.length}
+  if(S.bnN===S.docs.length)return 0;
+  let add=0;const bn=hjBn();
+  for(let i=S.bnN;i<S.docs.length;i++){
+    const d=S.docs[i];if(!d||d.jenis!=='Beli'||d.status==='BATAL'||!d.mitra)continue;
+    const mode=(d.jt||d.metode==='Tempo')?'tempo':'cash';
+    (d.items||[]).forEach(it=>{
+      const h=hbFind(it.sku,d.mitra);if(!h||!(+it.qty>0))return;
+      const lap=hbLapis(h,mode,0),nm='Bonus '+lap.pct+'%';
+      if(lap.pct>0&&lap.bentuk!=='potong'&&+it.harga>0&&!bn.some(b=>b.doc===d.no&&b.sku===it.sku&&b.nama===nm)){
+        bn.push({id:hjBnNo(),tgl:d.tgl,sup:d.mitra,sku:it.sku,doc:d.no,status:'Menunggu',jenis:lap.bentuk==='barang'?'Barang (bonus %)':'Cashback',nama:nm,nilai:Math.round(it.qty*it.harga*lap.pct/100),syarat:'Setelah faktur lunas',auto:true});add++;
+      }
+      if(+h.hadiahNilai>0&&h.hadiahNama&&!bn.some(b=>b.jenis==='Hadiah'&&b.sup===d.mitra&&b.sku===it.sku&&b.nama===h.hadiahNama)){
+        let q=0;for(let j=S.bnStart||0;j<=i;j++){const e=S.docs[j];if(e&&e.jenis==='Beli'&&e.status!=='BATAL'&&e.mitra===d.mitra)(e.items||[]).forEach(x=>{if(x.sku===it.sku)q+=+x.qty||0})}
+        const dus=q/(+h.isiDus||1);
+        if(+h.hadiahDus>0&&dus>=+h.hadiahDus){bn.push({id:hjBnNo(),tgl:d.tgl,sup:d.mitra,sku:it.sku,doc:d.no,status:'Menunggu',jenis:'Hadiah',nama:h.hadiahNama,nilai:+h.hadiahNilai,syarat:'Volume '+h.hadiahDus+' dus tercapai, dibayar pabrik',auto:true});add++}
+      }
+    });
+  }
+  S.bnN=S.docs.length;return add;
+}
+{
+  const _c=commit;
+  commit=function(){let n=0;try{n=hbAutoBenefit()}catch(e){}const r=_c.apply(this,arguments);if(n>0&&r!==false){try{toast(n+' benefit pemasok dicatat otomatis dari faktur. Lihat menu HPP, tab Benefit.')}catch(e){}}return r};
+}
+/* ====== Benefit pemasok: pencairan SEBAGIAN (bertahap) dan pembatalan per pencairan ====== */
+function bnNorm(b){if(b.jenis==='Hadiah')return [];if(!Array.isArray(b.cairan)){b.cairan=(b.status==='Cair'&&+b.nilaiCair>0)?[{id:'C1',tgl:b.tglCair,nilai:+b.nilaiCair,metode:b.metode,jm:b.jm||null}]:[]}return b.cairan}
+const bnAktif=b=>bnNorm(b).filter(c=>!c.batal);
+const bnSum=b=>bnAktif(b).reduce((a,c)=>a+(+c.nilai||0),0);
+const bnSisa=b=>Math.max(0,(+b.nilai||0)-bnSum(b));
+function bnHitung(b){const s=bnSum(b);
+  if(s<=0.5){b.status='Menunggu';delete b.nilaiCair;delete b.tglCair;delete b.metode;delete b.jm;return}
+  const l=bnAktif(b).slice(-1)[0];b.nilaiCair=s;b.tglCair=l.tgl;b.metode=l.metode;if(l.jm)b.jm=l.jm;else delete b.jm;
+  b.status=(s>=(+b.nilai||0)-0.5||b.sisaGugur)?'Cair':'Sebagian';
+}
+{
+  const _cair=ACT['hj-bn-cair'],_ok=ACT['hj-bn-cair-ok'],_undo=ACT['hj-bn-undo'];
+  ACT['hj-bn-cair']=function(t){
+    const b=hjB(t.dataset.id);if(!b||b.jenis==='Hadiah')return _cair.apply(this,arguments);
+    if(!hbBolehUbah())return;const s=bnSum(b),sisa=bnSisa(b);
+    openModal('Cairkan benefit · '+b.id,'<p><b>'+esc(b.nama)+'</b> · '+esc(mitraNama(b.sup))+'</p><div class="grid g4" style="margin-bottom:10px">'+kpi('blue','wallet','Perkiraan',rp(b.nilai))+kpi('green','check','Sudah cair',rp(s))+kpi('amber','wallet','Sisa',rp(sisa))+'</div>'
+     +'<div class="row"><div class="field"><label class="lbl" for="bc-t">Tanggal diterima</label><input class="in" type="date" id="bc-t" value="'+todayISO()+'"></div><div class="field"><label class="lbl" for="bc-n">Nilai diterima sekarang (Rp)</label><input class="in" type="number" id="bc-n" min="1" value="'+Math.round(sisa||b.nilai)+'"></div><div class="field"><label class="lbl" for="bc-m">Diterima lewat</label><select class="in" id="bc-m"><option>Transfer</option><option>Tunai</option></select></div></div>'
+     +'<label style="display:flex;gap:8px;margin-top:8px"><input type="checkbox" id="bc-j" checked> Catat di pembukuan (Kas/Bank bertambah, Pendapatan lain)</label><div class="note" style="margin-top:8px">Isi lebih kecil dari sisa bila baru diterima sebagian. Sisanya tetap menunggu dan bisa dicairkan lagi nanti.</div>',
+     '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hj-bn-cair-ok" data-id="'+esc(b.id)+'">Cairkan</button>','md');
+  };
+  ACT['hj-bn-cair-ok']=function(t){
+    const b=hjB(t.dataset.id);if(!b||b.jenis==='Hadiah')return _ok.apply(this,arguments);
+    if(!hbBolehUbah())return;const tgl=$('#bc-t').value,n=+$('#bc-n').value;
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(n>0))return toast('Nilai harus lebih dari 0',true);
+    const bak=JSON.stringify(S);
+    try{
+      S.jm=S.jm||[];const arr=bnNorm(b),c={id:'C'+(arr.length+1),tgl,nilai:n,metode:$('#bc-m').value,jm:null};
+      if($('#bc-j').checked){const id=nextNo('JM-'+yymmdd(tgl)+'-');S.jm.push({id,tgl,tipe:'umum',ket:'Benefit pemasok '+b.id+' · '+b.nama+' (pencairan '+c.id+')',lines:[{a:akunKas(c.metode),d:n,k:0},{a:'pendLain',d:0,k:n}]});c.jm=id}
+      arr.push(c);bnHitung(b);AUD('Benefit dicairkan',b.id+' '+b.nama+' '+rp(n)+(b.status==='Sebagian'?' (sebagian, sisa '+rp(bnSisa(b))+')':''),b.id);
+      if(!commit()){S=JSON.parse(bak);derive();return}
+      closeModal();refresh();toast(b.status==='Sebagian'?'Dicairkan sebagian. Sisa '+rp(bnSisa(b))+' masih menunggu.':'Benefit dicairkan penuh'+(c.jm?' dan tercatat di pembukuan':''));
+    }catch(e){try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message+'. Data dikembalikan.',true)}
+  };
+  ACT['hj-bn-tutup']=t=>{
+    if(!hbBolehUbah())return;const b=hjB(t.dataset.id);if(!b||b.status!=='Sebagian')return;
+    b.sisaGugur=bnSisa(b);bnHitung(b);AUD('Sisa benefit ditutup (tidak diterima)',b.id+' sisa '+rp(b.sisaGugur),b.id);if(!commit())return;refresh();toast('Sisa '+rp(b.sisaGugur)+' ditandai tidak diterima. Benefit ditutup.');
+  };
+  ACT['hj-bn-undo']=function(t){
+    const b=hjB(t.dataset.id);if(!b||b.jenis==='Hadiah'||b.status==='Gugur')return _undo.apply(this,arguments);
+    if(!hbBolehUbah())return;
+    if(!bnAktif(b).length&&!b.sisaGugur)return _undo.apply(this,arguments);
+    openModal('Batalkan pencairan · '+b.id,'<p><b>'+esc(b.nama)+'</b> · '+esc(mitraNama(b.sup))+'</p>'
+     +(b.sisaGugur?'<div class="note" style="margin-bottom:8px">Sisa '+rp(b.sisaGugur)+' sudah ditutup. <button class="btn sm" data-act="hj-bn-buka" data-id="'+esc(b.id)+'">Buka kembali sisa</button></div>':'')
+     +'<table class="tbl"><thead><tr><th>Pencairan</th><th>Tanggal</th><th class="r">Nilai</th><th></th></tr></thead><tbody>'+bnAktif(b).map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+fmtTgl(c.tgl)+'<div class="small muted">'+esc(c.metode||'')+'</div></td><td class="r">'+rp(c.nilai)+'</td><td><button class="btn sm" data-act="hj-bn-undo1" data-id="'+esc(b.id)+'" data-c="'+esc(c.id)+'">Batalkan</button></td></tr>').join('')+'</tbody></table>'
+     +'<div class="note" style="margin-top:8px">Membatalkan satu pencairan juga membatalkan jurnal pembukuannya. Sisa yang menunggu bertambah lagi.</div>','<button class="btn" data-act="close">Tutup</button>','md');
+  };
+  ACT['hj-bn-buka']=t=>{if(!hbBolehUbah())return;const b=hjB(t.dataset.id);if(!b)return;delete b.sisaGugur;bnHitung(b);AUD('Sisa benefit dibuka kembali',b.id,b.id);if(!commit())return;closeModal();refresh();toast('Sisa dibuka kembali')};
+  ACT['hj-bn-undo1']=t=>{
+    if(!hbBolehUbah())return;const b=hjB(t.dataset.id);if(!b)return;const c=bnAktif(b).find(x=>x.id===t.dataset.c);if(!c)return;
+    c.batal=true;if(c.jm){const e=(S.jm||[]).find(x=>x.id===c.jm);if(e)e.batal=true}
+    bnHitung(b);AUD('Pencairan benefit dibatalkan',b.id+' '+c.id+' '+rp(c.nilai),b.id);if(!commit())return;closeModal();refresh();toast('Pencairan '+c.id+' dibatalkan. Jurnal terkait dibatalkan.');
+  };
+}
+function hjBnHtml(){
+  const L=hjBn().slice().sort((a,b)=>b.id.localeCompare(a.id)),can=finOK()&&!(typeof OL!=='undefined'&&OL.readonly);
+  const cairDi=b=>b.jenis==='Hadiah'?(b.status==='Cair'?+b.nilaiCair||0:0):bnSum(b);
+  const tunggu=sum(L.filter(b=>b.status==='Menunggu'),b=>+b.nilai||0)+sum(L.filter(b=>b.status==='Sebagian'),bnSisa),cair=sum(L,cairDi);
+  const f=HJS.bq==='Semua'?L:HJS.bq==='Menunggu'?L.filter(b=>b.status==='Menunggu'||b.status==='Sebagian'):L.filter(b=>b.status===HJS.bq);
+  return '<div class="grid g4" style="margin-bottom:10px">'+kpi('amber','wallet','Menunggu cair',hjR(tunggu))+kpi('green','check','Sudah cair',hjR(cair))+kpi('red','warn','Gugur',num(L.filter(b=>b.status==='Gugur').length)+' benefit')+kpi('blue','doc','Seluruh catatan',num(L.length))+'</div>'
+   +'<div class="card"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">'+['Menunggu','Cair','Gugur','Semua'].map(s=>'<button class="btn sm '+(HJS.bq===s?'pri':'ghost')+'" data-act="hj-bq" data-s="'+s+'">'+s+'</button>').join('')+(can?'<button class="btn pri" data-act="hj-bn-new">'+ic('plus')+'Catat benefit dari pembelian</button>':'')+'</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>ID</th><th>Tanggal</th><th>Pemasok / barang</th><th>Benefit</th><th class="r">Nilai</th><th>Syarat</th><th>Status</th><th></th></tr></thead><tbody>'
+   +(f.map(b=>{const sb=b.status==='Sebagian',nil=b.status==='Cair'?rp(b.nilaiCair):rp(b.nilai)+(sb?'<div class="small muted">cair '+rp(bnSum(b))+' · sisa '+rp(bnSisa(b))+'</div>':'');
+     const aksi=!can?'':(b.status==='Menunggu'?'<button class="btn sm pri" data-act="hj-bn-cair" data-id="'+esc(b.id)+'">Cairkan</button><button class="btn sm ghost" data-act="hj-bn-gugur" data-id="'+esc(b.id)+'">Gugur</button>'
+       :sb?'<button class="btn sm pri" data-act="hj-bn-cair" data-id="'+esc(b.id)+'">Cairkan lagi</button><button class="btn sm ghost" data-act="hj-bn-tutup" data-id="'+esc(b.id)+'">Tutup sisa</button><button class="btn sm ghost" data-act="hj-bn-undo" data-id="'+esc(b.id)+'">Batalkan</button>'
+       :'<button class="btn sm ghost" data-act="hj-bn-undo" data-id="'+esc(b.id)+'">Batalkan</button>');
+     return '<tr><td class="small">'+esc(b.id)+'</td><td class="small">'+fmtTgl(b.tgl)+(b.doc?'<div class="muted">'+esc(b.doc)+'</div>':'')+'</td><td>'+esc(mitraNama(b.sup))+'<div class="small muted">'+esc((skuOf(b.sku)||{}).nama||b.sku)+'</div></td><td>'+esc(b.jenis)+'<div class="small muted">'+esc(b.nama)+'</div></td><td class="r">'+nil+'</td><td class="small">'+esc(b.syarat||'')+(b.penerima?'<div class="muted">untuk '+esc(b.penerima)+'</div>':'')+(b.sisaGugur?'<div class="muted">sisa '+rp(b.sisaGugur)+' tidak diterima</div>':'')+'</td><td>'+badge(b.status==='Cair'?'ok':b.status==='Gugur'?'bad':'warn',b.status)+(b.tglCair?'<div class="small muted">'+fmtTgl(b.tglCair)+'</div>':'')+'</td><td style="white-space:nowrap">'+aksi+'</td></tr>'}).join('')||'<tr><td colspan="8" class="empty">Belum ada benefit di daftar ini.</td></tr>')
+   +'</tbody></table></div><div class="note" style="margin-top:8px">Benefit masuk pembukuan hanya saat dicairkan, sebagai Pendapatan lain. Pencairan boleh bertahap. Selama masih Menunggu, benefit tidak mengurangi HPP dan tidak dihitung sebagai laba.</div></div>';
+}
+
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
 
