@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2400"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2410"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5231,6 +5231,7 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
 .stpop>.card:first-of-type>div:first-child{padding-right:36px}
 .stpop .stx{position:absolute;top:6px;right:8px;z-index:5;width:28px;height:28px;border-radius:50%;border:1px solid var(--line,#d9e2f1);background:#fff;color:#475467;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .stpop .stx:hover{background:#fee4e2;color:#b42318}
+.stpop .stef{width:118px;max-width:100%;text-align:right;font-weight:700;padding:4px 6px;font-size:13px}
 }
 /* semua kartu: area foto kecil dan seragam; produk tanpa foto memakai ikon samar */
 .pgrid .pc .pi{height:56px;min-height:0;margin:0 0 2px}
@@ -5295,9 +5296,14 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
   if(typeof cartHTML!=='function')return;
   const stPrep=np=>{try{
     if(!np.querySelector('.stx')){const x=document.createElement('button');x.type='button';x.className='stx';x.setAttribute('data-act','pos-status');x.setAttribute('aria-label','Tutup status');x.title='Tutup (Esc)';x.textContent='✕';np.insertBefore(x,np.firstChild)}
+    const tb=np.querySelector('.tbl tbody');
+    if(tb&&!tb.querySelector('.stef')&&/Harga efektif/.test(np.textContent)){Array.from(tb.rows).forEach((tr,i)=>{const td=tr.cells[1];if(!td)return;const d=String(td.textContent||'').replace(/\D/g,'');
+      td.innerHTML='<input class="in sm stef" type="text" inputmode="numeric" autocomplete="off" data-rp="1" data-chg="ls-pos-eff" data-i="'+i+'" value="'+(typeof posFmtInt==='function'?posFmtInt(d):d)+'" aria-label="Harga efektif (bisa diubah)" title="Ketik harga efektif baru, lalu Enter">'})}
     const cards=np.querySelectorAll(':scope>.card');const ng=cards.length>1?cards[cards.length-1]:null;
     if(ng&&!ng.querySelector(':scope>.ngl')){const kids=Array.from(ng.children).slice(2);if(kids.length){const w=document.createElement('div');w.className='ngl';kids.forEach(k=>w.appendChild(k));ng.appendChild(w)}}
   }catch(e){}};
+  /* Owner: harga efektif per produk bisa diketik langsung; harga di keranjang disesuaikan (memperhitungkan diskon faktur) */
+  ACT['ls-pos-eff']=t=>{try{const E=lpEval(),x=E.L[+t.dataset.i];if(!x||!(E.f>0))return;const v=+(String(t.value).replace(/\D/g,''))||0;x.c.harga=Math.max(0,Math.ceil(v/E.f-1e-9));rCart()}catch(e){}};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.querySelector('body>#stpop .stx');if(x)x.click()}});
   const stSave=sp=>sp?Array.from(sp.querySelectorAll('.scroll,.card,.ngl')).map(x=>x.scrollTop):[];
   const stLoad=(sp,a)=>{if(!sp||!a)return;Array.from(sp.querySelectorAll('.scroll,.card,.ngl')).forEach((x,i)=>{if(a[i]&&x.scrollTop!==a[i])x.scrollTop=a[i]})};
