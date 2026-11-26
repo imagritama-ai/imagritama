@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2340"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2350"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5211,10 +5211,14 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
 .pgrid .pc .nm{min-height:0;font-size:12.5px}
 .pgrid .pc .st{margin-top:auto}
 /* keranjang: daftar belanja menampilkan 5 produk, lebihnya digulir; total dan tombol bayar tetap di bawah */
-@media (min-width:901px){body .pos #cartcol>.scroll{flex:1 1 auto;min-height:292px!important}}
+@media (min-width:901px){body .pos #cartcol>.scroll{flex:1 1 auto;min-height:330px!important}}
+/* nama produk di keranjang tampil penuh (memuat kemasan), tidak dipotong */
+body #cartcol .cart td:nth-child(2) b{display:block!important;-webkit-line-clamp:unset!important;overflow:visible!important;white-space:normal!important;word-break:break-word}
+body #cartcol .cart td:nth-child(2){min-width:130px}
+body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24px;padding-left:4px;padding-right:2px}
 @media (max-width:900px){body .cartwrap #cartcol>.scroll{flex:1 1 auto;min-height:min(292px,40vh)!important}}
 @media (min-width:901px){
- body #posroot.pos{grid-template-columns:minmax(0,1.75fr) minmax(310px,1fr)}
+ body #posroot.pos{grid-template-columns:minmax(0,1.15fr) minmax(420px,1fr)}
  .chips1{flex-wrap:nowrap!important;overflow-x:auto;overflow-y:hidden}
 }
 @media (min-width:901px) and (max-height:780px){
