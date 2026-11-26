@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2514"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2515"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
 @media (max-width:600px){
   #view .tabrow .tabs:has([data-act="dtab"]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;flex-basis:100%;overflow:visible}
   body:has(.dkbar:not(:empty)) #app{height:calc(100dvh - 44px)}
@@ -5836,7 +5836,7 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
     <div class="card" style="margin-top:12px"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Sisa Hasil Usaha (SHU) · Tahun ${sh.th}</h3><div class="field" style="margin-left:auto;max-width:120px"><label class="lbl" for="shu-th">Tahun</label><input class="in" id="shu-th" type="number" value="${sh.th}" data-chg="kt-shu-th"></div></div>
     <div class="note" style="margin-bottom:10px">Hitungan usulan untuk rapat anggota (aturan bagi yang berlaku ada di AD/ART kelompok Anda; angka persentase bisa diubah). SHU dihitung dari laba usaha setelah pajak tahun tersebut: <b>${rp(sh.shu)}</b>.</div>
     <div class="row" style="margin-bottom:8px"><div class="field"><label class="lbl" for="shu-cad">Cadangan (%)</label><input class="in" id="shu-cad" type="number" min="0" max="100" value="${sh.cad}" step="0.01" required></div><div class="field"><label class="lbl" for="shu-sim">Jasa simpanan (%)</label><input class="in" id="shu-sim" type="number" min="0" max="100" value="${sh.pSim}" step="0.01" required></div><div class="field"><label class="lbl" for="shu-trx">Jasa transaksi (%)</label><input class="in" id="shu-trx" type="number" min="0" max="100" value="${sh.pTrx}" step="0.01" required></div><button class="btn" data-act="kt-shu-par">Simpan persentase</button></div>
-    ${!sh.valid?`<div class="note">Periksa ketiga persentase dan simpan dengan total 100% untuk melihat pembagian.</div>`:sh.shu>0&&A.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Anggota</th><th class="r">Simpanan akhir tahun</th><th class="r">Transaksi di toko/koperasi</th><th class="r">SHU</th></tr></thead><tbody>${sh.rows.map(r=>`<tr><td>${esc(r.a.nama)}</td><td class="r">${rp(r.simp)}</td><td class="r">${rp(r.trx)}</td><td class="r bold">${rp(r.shu)}</td></tr>`).join('')}<tr><td class="bold">Total dibagikan ke anggota</td><td></td><td></td><td class="r bold">${rp(sh.dibagi)}</td></tr><tr><td>Cadangan</td><td></td><td></td><td class="r">${rp(sh.cadangan)}</td></tr></tbody></table></div><div class="note" style="margin-top:8px">${sh.cad+sh.pSim+sh.pTrx!==100?'Perhatian: total persentase tidak 100 ('+(sh.cad+sh.pSim+sh.pTrx)+'). ':''}Bagian yang tidak terpakai (misal anggota tanpa transaksi) tetap menjadi cadangan.</div>`:`<div class="note">${sh.shu>0?'Tambah anggota dulu.':'Belum ada SHU positif pada tahun ini.'}</div>`}</div>`;
+    ${!sh.valid?`<div class="note">Periksa ketiga persentase dan simpan dengan total 100% untuk melihat pembagian.</div>`:sh.shu>0&&A.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Anggota</th><th class="r">Simpanan akhir tahun</th><th class="r">Transaksi di toko/koperasi</th><th class="r">SHU</th></tr></thead><tbody>${sh.rows.map(r=>`<tr><td>${esc(r.a.nama)}</td><td class="r">${rp(r.simp)}</td><td class="r">${rp(r.trx)}</td><td class="r bold">${rp(r.shu)}</td></tr>`).join('')}<tr><td class="bold">Total dibagikan ke anggota</td><td></td><td></td><td class="r bold">${rp(sh.dibagi)}</td></tr><tr><td>Cadangan</td><td></td><td></td><td class="r">${rp(sh.cadangan)}</td></tr></tbody></table></div><div class="note" style="margin-top:8px">${sh.cad+sh.pSim+sh.pTrx!==100?'Perhatian: total persentase tidak 100 ('+(sh.cad+sh.pSim+sh.pTrx)+'). ':''}Retur mengurangi transaksi pada tahun retur dicatat. Transaksi neto nol atau negatif mendapat bobot nol untuk jasa transaksi. Bagian yang tidak terpakai tetap menjadi cadangan.</div>`:`<div class="note">${sh.shu>0?'Tambah anggota dulu.':'Belum ada SHU positif pada tahun ini.'}</div>`}</div>`;
   }
   function validShuPercent(values){
     return values.every(v=>Number.isFinite(v)&&v>=0&&v<=100) &&
@@ -5849,9 +5849,20 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
     const valid=validShuPercent([cad,pSim,pTrx]);
     if(!valid)return {th,shu,cad,pSim,pTrx,valid,rows:[],dibagi:0,cadangan:shu};
     const simp=A.map(a=>sum(S.simpanan.filter(x=>x.anggota===a.id&&aktifSp(x)&&x.tgl<=end),x=>x.arah==='masuk'?+x.nilai:-(+x.nilai)));
-    const trx=A.map(a=>a.mitra?sum(S.docs.filter(d=>d.jenis==='Jual'&&d.status!=='BATAL'&&d.mitra===a.mitra&&d.tgl.slice(0,4)==String(th)),d=>D.doc[d.no].total-(D.doc[d.no].retur||0)):0);
-    const ts=sum(simp,x=>Math.max(0,x)),tt=sum(trx,x=>x);
-    const rows=A.map((a,i)=>{const s=ts>0?shu*pSim/100*Math.max(0,simp[i])/ts:0,t=tt>0?shu*pTrx/100*trx[i]/tt:0;return {a,simp:simp[i],trx:trx[i],shu:Math.floor(s+t),fraction:(s+t)%1}});
+    // Attribute returns to the year they are posted, as in the annual sales report.
+    const sales=new Map(S.docs.filter(d=>d.jenis==='Jual').map(d=>[d.no,d]));
+    const netByPartner=new Map();
+    for(const doc of S.docs){
+      if(doc.status==='BATAL'||doc.tgl.slice(0,4)!==String(th))continue;
+      if(doc.jenis!=='Jual'&&doc.jenis!=='RetJual')continue;
+      const sale=doc.jenis==='Jual'?doc:sales.get(doc.ref);
+      if(!sale||sale.status==='BATAL'||!sale.mitra)continue;
+      const amount=D.doc[doc.no].total*(doc.jenis==='Jual'?1:-1);
+      netByPartner.set(sale.mitra,(netByPartner.get(sale.mitra)||0)+amount);
+    }
+    const trx=A.map(member=>netByPartner.get(member.mitra)||0);
+    const ts=sum(simp,x=>Math.max(0,x)),tt=sum(trx,x=>Math.max(0,x));
+    const rows=A.map((a,i)=>{const s=ts>0?shu*pSim/100*Math.max(0,simp[i])/ts:0,t=tt>0?shu*pTrx/100*Math.max(0,trx[i])/tt:0;return {a,simp:simp[i],trx:trx[i],shu:Math.floor(s+t),fraction:(s+t)%1}});
     // Allocate whole rupiah by largest remainder, leaving unused shares in reserve.
     const target=Math.round(shu*((ts>0?pSim:0)+(tt>0?pTrx:0))/100);
     const extra=target-sum(rows,r=>r.shu);
