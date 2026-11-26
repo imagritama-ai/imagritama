@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0837"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0902"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -7818,6 +7818,115 @@ ACT['pl-undo']=t=>{
     if(T.tab==='program'){
       const head=r.html.slice(0,i);r.html=head+tab+'</div>'+plHtml();
     }else r.html=r.html.slice(0,i)+tab+r.html.slice(i);
+    return r;
+  };
+}
+
+/* ====== Strategi Harga: label strategi di penjualan, laba per strategi, paket (subsidi silang), jembatan laba kotor, simulator ======
+   Tidak mengubah jurnal atau HPP. Hanya label (d.strategi) dan laporan analisis dari data faktur yang sudah ada. */
+const LS_LBL=[['','Tanpa label'],['paket','Paket / bundling'],['promo','Promo / diskon'],['tandingan','Harga tandingan'],['obral','Obral stok'],['gratis','Dengan barang gratis'],['grosir','Grosir / langganan']];
+const lsNama=k=>(LS_LBL.find(x=>x[0]===k)||['',k||'Tanpa label'])[1];
+const LSS={sim:[]};
+const lsMin=()=>{const v=S.settings&&S.settings.paketMin;return v==null||v===''?10:+v};
+const lsOpsi=sel=>LS_LBL.map(x=>'<option value="'+x[0]+'"'+(sel===x[0]?' selected':'')+'>'+x[1]+'</option>').join('');
+function lsFak(d){
+  const r=D.doc[d.no];if(!r)return null;
+  const ok=Array.isArray(r.hppu)&&r.hppu.length===(d.items||[]).length;
+  const items=(d.items||[]).map((it,i)=>{const q=+it.qty||0,h=+it.harga||0,gross=q*h,net=gross*r.ratio,hpp=ok?q*(+r.hppu[i]||0):0;return {sku:it.sku,q,h,net,hpp,laba:net-hpp,gratis:h===0}});
+  return {d,r,items,gross:r.sub,disc:r.disc,net:r.total,hpp:r.hpp,laba:r.total-r.hpp,ok};
+}
+function lsData(){
+  const J=[],R=[];
+  for(const d of S.docs){if(d.status==='BATAL'||!inPeriod(d.tgl,ui.period))continue;
+    if(d.jenis==='Jual'){const f=lsFak(d);if(f)J.push(f)}else if(d.jenis==='RetJual'){const r=D.doc[d.no];if(r)R.push(r)}}
+  const kotor=sum(J,f=>f.gross),disc=sum(J,f=>f.disc),retur=sum(R,r=>r.total),hppJ=sum(J,f=>f.hpp),hppR=sum(R,r=>r.hpp);
+  const gratis=sum(J,f=>sum(f.items.filter(i=>i.gratis),i=>i.hpp));
+  const bersih=kotor-disc-retur,hpp=hppJ-hppR;
+  const per={};J.forEach(f=>{const k=f.d.strategi||'';const o=per[k]||(per[k]={n:0,net:0,hpp:0,disc:0,rugi:0});o.n++;o.net+=f.net;o.hpp+=f.hpp;o.disc+=f.disc;o.rugi+=sum(f.items.filter(i=>i.laba<-0.5),i=>-i.laba)});
+  const rugiSku={};J.forEach(f=>f.items.forEach(i=>{if(f.ok&&i.laba<-0.5&&!i.gratis){const o=rugiSku[i.sku]||(rugiSku[i.sku]={q:0,rugi:0});o.q+=i.q;o.rugi+=-i.laba}}));
+  J.sort((a,b)=>String(b.d.tgl).localeCompare(String(a.d.tgl))||String(b.d.no).localeCompare(String(a.d.no)));
+  return {J,kotor,disc,retur,bersih,hpp,gratis,lk:bersih-hpp,per,rugiSku};
+}
+function lsPaket(f){
+  const pos=sum(f.items.filter(i=>i.laba>0.5),i=>i.laba),neg=sum(f.items.filter(i=>i.laba<-0.5),i=>-i.laba),m=f.net>0?f.laba/f.net:0;
+  return {pos,neg,m,adaRugi:neg>0.5,sehat:f.laba>=0&&m*100>=lsMin()};
+}
+const lsNamaSku=k=>(skuOf(k)||{}).nama||k;
+function lsFakHtml(f){
+  const P=lsPaket(f);
+  return '<div class="card" style="margin-bottom:12px"><div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><b>'+esc(f.d.no)+'</b><span class="small muted">'+fmtTgl(f.d.tgl)+' · '+esc(mitraNama(f.d.mitra))+'</span><span>'+badge('info',lsNama(f.d.strategi||''))+'</span><span style="margin-left:auto">'+(P.adaRugi?badge(P.sehat?'ok':'bad',P.sehat?'Subsidi silang sehat':'Subsidi silang tidak cukup'):badge('ok','Semua produk berlaba'))+'</span></div>'
+   +'<div class="scroll"><table class="tbl" style="margin-top:6px"><thead><tr><th>Produk</th><th class="r">Qty</th><th class="r">Harga nyata/unit</th><th class="r">HPP/unit</th><th class="r">Laba/rugi</th></tr></thead><tbody>'
+   +f.items.map(i=>'<tr><td>'+esc(lsNamaSku(i.sku))+(i.gratis?' '+badge('warn','gratis'):'')+'</td><td class="r">'+num(i.q)+'</td><td class="r">'+rp(i.q?i.net/i.q:0)+'</td><td class="r">'+rp(i.q?i.hpp/i.q:0)+'</td><td class="r" style="color:var(--'+(i.laba<-0.5?'red':'green')+')"><b>'+rp(i.laba)+'</b></td></tr>').join('')
+   +'</tbody><tfoot><tr><th colspan="4">Total faktur (laba '+pct(P.m)+')</th><th class="r">'+rp(f.laba)+'</th></tr></tfoot></table></div>'
+   +(P.adaRugi?'<div class="note" style="margin-top:6px">Rugi produk Rp'+num(Math.round(P.neg))+' ditutup laba produk lain Rp'+num(Math.round(P.pos))+' (tutup '+(P.neg>0?(P.pos/P.neg).toFixed(1).replace('.',','):'–')+'×). Batas sehat: laba paket minimal '+lsMin()+'% dari penjualan paket.</div>':'')+'</div>';
+}
+function lsSimHtml(){
+  const rows=LSS.sim,B=rows.map(r=>{const s=skuOf(r.sku)||{},hpp=(D.inv[r.sku]||{}).avg||0,net=(+r.q||0)*(+r.h||0),c=(+r.q||0)*hpp;return {r,s,hpp,net,c,laba:net-c,normal:+s.harga||0}});
+  const net=sum(B,b=>b.net),c=sum(B,b=>b.c),laba=net-c,m=net>0?laba/net:0,pos=sum(B.filter(b=>b.laba>0.5),b=>b.laba),neg=sum(B.filter(b=>b.laba<-0.5),b=>-b.laba);
+  const sehat=laba>=0&&m*100>=lsMin();
+  return '<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">Simulator paket / harga</h3><div class="note" style="margin-bottom:8px">Coba harga paket sebelum dijual. HPP memakai <b>HPP buku</b> (rata-rata stok saat ini). Tidak mengubah data apa pun.</div>'
+   +'<div class="row" style="gap:6px;margin-bottom:8px"><input class="in" id="ls-q" list="ls-dl" placeholder="Ketik kode atau nama produk" style="flex:1"><button class="btn" data-act="ls-sim-add">Tambah produk</button></div><datalist id="ls-dl">'+S.sku.map(s=>'<option value="'+esc(s.sku+' · '+s.nama)+'">').join('')+'</datalist>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th class="r">Qty</th><th class="r">Harga normal</th><th class="r">Harga paket/unit</th><th class="r">HPP/unit</th><th class="r">Laba/rugi</th><th></th></tr></thead><tbody>'
+   +(B.map((b,i)=>'<tr><td>'+esc(b.s.nama||b.r.sku)+'</td><td class="r"><input class="in" type="number" min="1" style="width:70px;text-align:right" value="'+b.r.q+'" data-chg="ls-sim-chg" data-i="'+i+'" data-f="q" aria-label="Qty"></td><td class="r">'+rp(b.normal)+'</td><td class="r"><input class="in" type="number" min="0" style="width:110px;text-align:right" value="'+b.r.h+'" data-chg="ls-sim-chg" data-i="'+i+'" data-f="h" aria-label="Harga paket"></td><td class="r">'+rp(b.hpp)+'</td><td class="r" style="color:var(--'+(b.laba<-0.5?'red':'green')+')"><b>'+rp(b.laba)+'</b></td><td><button class="btn sm ghost" data-act="ls-sim-del" data-i="'+i+'">Hapus</button></td></tr>').join('')||'<tr><td colspan="7" class="empty">Tambahkan produk untuk mulai menghitung.</td></tr>')
+   +'</tbody>'+(B.length?'<tfoot><tr><th colspan="5">Total paket (penjualan '+rp(net)+', HPP '+rp(c)+')</th><th class="r">'+rp(laba)+'</th><th></th></tr></tfoot>':'')+'</table></div>'
+   +(B.length?'<div style="margin-top:8px">'+badge(sehat?'ok':'bad',sehat?'Laba paket '+pct(m)+' (di atas batas '+lsMin()+'%)':'Laba paket '+pct(m)+' (di bawah batas '+lsMin()+'%)')+(neg>0.5?' <span class="small">Rugi produk Rp'+num(Math.round(neg))+' ditutup laba Rp'+num(Math.round(pos))+'.</span>':'')+'</div>':'')+'</div>';
+}
+function lsHtml(){
+  const can=finOK()&&!(typeof OL!=='undefined'&&OL.readonly),A=lsData(),keys=LS_LBL.map(x=>x[0]);
+  const bridge=[['Penjualan kotor (harga × qty)',A.kotor,0],['Diskon & potongan',-A.disc,0],['Retur penjualan',-A.retur,0],['Penjualan bersih',A.bersih,1],['HPP',-A.hpp,0],['di antaranya HPP barang gratis',-A.gratis,2],['Laba kotor',A.lk,1]];
+  const pk=A.J.filter(f=>f.d.strategi==='paket'||(f.items.length>1&&f.ok&&f.items.some(i=>i.laba<-0.5))).slice(0,20);
+  const rs=Object.entries(A.rugiSku).sort((a,b)=>b[1].rugi-a[1].rugi).slice(0,15);
+  return '<div class="note" style="margin-bottom:10px"><b>Laba per strategi.</b> Periode: <b>'+esc(perLabel())+'</b> (ganti di pilihan periode di atas). Laporan ini membaca faktur penjualan yang sudah ada dan <b>tidak mengubah jurnal atau HPP</b>. Beri label strategi di Smart POS (saat proses transaksi) atau di daftar faktur di bawah.</div>'
+   +'<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">Jembatan laba kotor</h3><table class="tbl"><tbody>'+bridge.map(r=>'<tr><td class="'+(r[2]===1?'bold':'')+'" style="'+(r[2]===2?'padding-left:22px;color:var(--muted)':'')+'">'+r[0]+'</td><td class="r '+(r[2]===1?'bold':'')+'">'+rp(r[1])+'</td></tr>').join('')+'</tbody></table><div class="small muted" style="margin-top:6px">Margin laba kotor '+pct(A.bersih>0?A.lk/A.bersih:0)+'. Angka ini sama dengan Laba Rugi untuk periode yang sama.</div></div>'
+   +'<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">Laba per strategi</h3><div class="scroll"><table class="tbl"><thead><tr><th>Strategi</th><th class="r">Faktur</th><th class="r">Penjualan bersih</th><th class="r">Diskon</th><th class="r">HPP</th><th class="r">Laba kotor</th><th class="r">Margin</th><th class="r">Rugi per produk</th></tr></thead><tbody>'
+   +(keys.filter(k=>A.per[k]).map(k=>{const o=A.per[k],l=o.net-o.hpp;return '<tr><td>'+esc(lsNama(k))+'</td><td class="r">'+num(o.n)+'</td><td class="r">'+rp(o.net)+'</td><td class="r">'+rp(o.disc)+'</td><td class="r">'+rp(o.hpp)+'</td><td class="r"><b>'+rp(l)+'</b></td><td class="r">'+pct(o.net>0?l/o.net:0)+'</td><td class="r">'+(o.rugi>0.5?rp(o.rugi):'–')+'</td></tr>'}).join('')||'<tr><td colspan="8" class="empty">Belum ada penjualan pada periode ini.</td></tr>')
+   +'</tbody></table></div></div>'
+   +lsSimHtml()
+   +'<div class="card" style="margin-bottom:14px"><div class="row" style="gap:8px;align-items:center"><h3 style="margin:0">Paket dan faktur dengan produk dijual rugi</h3><span style="margin-left:auto"></span>'+(can?'<label class="small">Batas laba paket minimal <input class="in" type="number" min="0" max="100" style="width:70px" value="'+lsMin()+'" data-chg="ls-min" aria-label="Batas laba paket"> %</label>':'<span class="small muted">Batas laba paket '+lsMin()+'%</span>')+'</div><div style="margin-top:10px">'
+   +(pk.map(lsFakHtml).join('')||'<div class="empty">Belum ada paket atau faktur dengan produk dijual rugi pada periode ini.</div>')+'</div></div>'
+   +'<div class="card" style="margin-bottom:14px"><h3 style="margin:0 0 6px">Produk yang dijual di bawah HPP</h3><div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th class="r">Qty dijual rugi</th><th class="r">Total rugi</th></tr></thead><tbody>'
+   +(rs.map(([k,o])=>'<tr><td>'+esc(lsNamaSku(k))+'</td><td class="r">'+num(o.q)+'</td><td class="r">'+rp(o.rugi)+'</td></tr>').join('')||'<tr><td colspan="3" class="empty">Tidak ada produk yang dijual di bawah HPP pada periode ini.</td></tr>')
+   +'</tbody></table></div><div class="small muted" style="margin-top:6px">Harga memakai harga nyata setelah diskon faktur. Barang gratis tidak dihitung di sini karena sudah tampil di jembatan laba.</div></div>'
+   +'<div class="card"><h3 style="margin:0 0 6px">Beri label faktur penjualan</h3><div class="scroll"><table class="tbl"><thead><tr><th>Faktur</th><th>Tanggal</th><th>Pelanggan</th><th class="r">Penjualan</th><th class="r">Laba kotor</th><th>Strategi</th></tr></thead><tbody>'
+   +(A.J.slice(0,15).map(f=>'<tr><td class="small">'+esc(f.d.no)+'</td><td class="small">'+fmtTgl(f.d.tgl)+'</td><td>'+esc(mitraNama(f.d.mitra))+'</td><td class="r">'+rp(f.net)+'</td><td class="r">'+rp(f.laba)+'</td><td>'+(can?'<select class="in" data-chg="ls-lbl" data-no="'+esc(f.d.no)+'" aria-label="Strategi '+esc(f.d.no)+'">'+lsOpsi(f.d.strategi||'')+'</select>':esc(lsNama(f.d.strategi||'')))+'</td></tr>').join('')||'<tr><td colspan="6" class="empty">Belum ada faktur penjualan pada periode ini.</td></tr>')
+   +'</tbody></table></div><div class="small muted" style="margin-top:6px">Menampilkan 15 faktur terbaru pada periode.</div></div>';
+}
+/* ---------- aksi ---------- */
+ACT['ls-lbl']=el=>{
+  if(!finOK()||(typeof OL!=='undefined'&&OL.readonly))return;const d=S.docs.find(x=>x.no===el.dataset.no&&x.jenis==='Jual');if(!d)return;
+  if(el.value)d.strategi=el.value;else delete d.strategi;AUD('Label strategi faktur',d.no+' → '+lsNama(el.value),d.no);if(!commit())return;refresh();
+};
+ACT['ls-min']=el=>{
+  if(!finOK()||(typeof OL!=='undefined'&&OL.readonly))return;const v=+el.value;if(!(v>=0&&v<=100))return toast('Isi 0 sampai 100',true);
+  S.settings.paketMin=v;if(!commit())return;refresh();
+};
+ACT['ls-sim-add']=()=>{
+  const q=String($('#ls-q').value||'').trim();if(!q)return;const kode=q.split(' · ')[0].trim().toLowerCase();
+  let s=S.sku.find(x=>x.sku.toLowerCase()===kode)||S.sku.find(x=>x.nama.toLowerCase()===q.toLowerCase());
+  if(!s){const c=S.sku.filter(x=>(x.nama+' '+x.sku).toLowerCase().includes(q.toLowerCase()));if(c.length===1)s=c[0]}
+  if(!s)return toast('Produk tidak ditemukan atau lebih dari satu. Pilih dari daftar yang muncul.',true);
+  LSS.sim.push({sku:s.sku,q:1,h:+s.harga||0});refresh();
+};
+ACT['ls-sim-del']=t=>{LSS.sim.splice(+t.dataset.i,1);refresh()};
+ACT['ls-sim-chg']=el=>{const r=LSS.sim[+el.dataset.i];if(!r)return;const v=+el.value;r[el.dataset.f]=v>=0?v:0;refresh()};
+/* ---------- kasir: label strategi ---------- */
+ACT['pos-str']=el=>{P().strategi=el.value||''};
+{
+  const _pd=posDocDraft;
+  posDocDraft=function(){const d=_pd.apply(this,arguments),s=P().strategi;if(s)d.strategi=s;return d};
+  const _rc=resetCart;
+  resetCart=function(){const r=_rc.apply(this,arguments);P().strategi='';return r};
+  const _ch=cartHTML;
+  cartHTML=function(){
+    const h=_ch.apply(this,arguments),mark='<div class="row" style="margin-top:12px;gap:8px"><button class="btn" data-act="pos-draft">';
+    const sel='<div class="field" style="margin-top:10px"><label class="lbl" for="pos-str">Strategi penjualan (opsional, untuk laporan laba)</label><select class="in" id="pos-str" data-chg="pos-str">'+lsOpsi(P().strategi||'')+'</select></div>';
+    const i=h.indexOf(mark);return i<0?h+sel:h.slice(0,i)+sel+h.slice(i);
+  };
+  const _k=PAGES.keuangan;
+  PAGES.keuangan=function(){
+    const r=_k.apply(this,arguments);if(!finOK()||!r||!r.html)return r;
+    const i=r.html.indexOf('</div>'),tab='<button class="tab '+(ui.keu.tab==='strategi'?'on':'')+'" data-act="keu-tab" data-t="strategi">Laba per Strategi</button>';
+    r.html=ui.keu.tab==='strategi'?r.html.slice(0,i)+tab+'</div>'+lsHtml():r.html.slice(0,i)+tab+r.html.slice(i);
     return r;
   };
 }
