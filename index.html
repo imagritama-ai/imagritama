@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1900"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2000"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -4709,6 +4709,28 @@ function trxBatasKasir(){return typeof finOK==='function'&&!finOK()}
 /* ====== Layar tablet & HP landscape ====== */
 ;(function(){var s=document.createElement('style');s.id='resp-css';s.textContent="/* ===== LAYAR TABLET & HP LANDSCAPE: menu jadi bilah datar, ruang tinggi dihemat ===== */\n@media (min-width:901px) and (max-width:1100px){\n #app{height:auto;display:block}\n .shell,body.sidec .shell{display:block}\n .side{flex-direction:row!important;overflow-x:auto;padding:6px 10px!important;gap:4px;width:auto!important;height:auto!important;max-height:none!important}\n .side hr,.side h4,.qlink,.sidefoot,.sidetg{display:none!important}\n .nav,body.sidec .nav{width:auto!important;white-space:nowrap;padding:8px 12px!important;font-size:13px}\n .nav span,body.sidec .nav span{display:inline!important}\n main{overflow:visible}\n}\n@media (max-height:520px) and (max-width:1000px){\n #phr,.hr{display:none!important}\n #view:has(#posroot) .tabrow>*:not(.tabs):not(.lokchip){display:none!important}\n header.top{padding:3px 10px!important;min-height:0!important}\n .side{padding:2px 8px!important}.nav{padding:5px 10px!important}\n main{padding-top:6px!important}\n .pgrid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}\n}\n@media (max-width:900px){\n .cartwrap{height:88vh;height:88dvh}\n #cartbar{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}\n}\n";document.head.appendChild(s)})();
 
+/* ====== Konsultasi: kata umum di awal nama produk (mis. "Daun", "Benih") tidak boleh dianggap nama produk ====== */
+const KN_UMUM=new Set(['daun','benih','bibit','pupuk','obat','racun','buah','batang','akar','bunga','tanah','tanaman','hama','lahan','tangki','kalsium','super','plant','bio','organik','cair','bubuk','serbuk','tabur','pompa','selang','mulsa','plastik','tali','alat','paket','bundling','gulma','rumput']);
+const knKata=s=>String(s||'').toLowerCase().split(/[\s@\/(),]+/).filter(Boolean);
+(function(){
+  const _pk=parseKonsul;
+  parseKonsul=function(t0){
+    const r=_pk.apply(this,arguments);
+    if(!r.pids.length)return r;
+    const t=' '+String(t0).toLowerCase().replace(/[^a-z0-9]+/g,' ')+' ';
+    const hamaKat=['Insektisida','Fungisida','Herbisida','Pupuk','Plant Health'].includes(r.kat);
+    r.pids=r.pids.filter(id=>{
+      const p=produkOf(id)||{};if(r.bahan&&r.bahan.length&&(p.bahan||'').toLowerCase().split(/[,;+/]/).some(b=>b.trim().length>=5&&t.includes(b.trim())))return true;
+      const w=knKata(p.nama).map(x=>x.replace(/[^a-z0-9]/g,'')).filter(Boolean);if(!w.length)return false;
+      const hit=x=>t.includes(' '+x+' ');
+      const lain=w.slice(1).filter(x=>x.length>=4&&!/^\d/.test(x)).some(hit);
+      if(KN_UMUM.has(w[0])&&!lain)return false;
+      if(hamaKat&&!lain&&grpOf(p.kategori||'')==='Benih')return false;
+      return true;
+    });
+    return r;
+  };
+})();
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
 function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
