@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0902"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0946"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -7927,6 +7927,196 @@ ACT['pos-str']=el=>{P().strategi=el.value||''};
     const r=_k.apply(this,arguments);if(!finOK()||!r||!r.html)return r;
     const i=r.html.indexOf('</div>'),tab='<button class="tab '+(ui.keu.tab==='strategi'?'on':'')+'" data-act="keu-tab" data-t="strategi">Laba per Strategi</button>';
     r.html=ui.keu.tab==='strategi'?r.html.slice(0,i)+tab+'</div>'+lsHtml():r.html.slice(0,i)+tab+r.html.slice(i);
+    return r;
+  };
+}
+
+/* ====== Smart POS: status margin, tampilan Kasir/Owner, nego cepat, tingkat harga, persetujuan ======
+   Tidak mengubah jurnal. Hanya membantu menentukan harga di kasir dan mencatat izin. */
+const LP_ST=[['WARNING','RUGI','#d92d20'],['NOT GOOD','TIPIS SEKALI','#f79009'],['FAIR','TIPIS','#d4a106'],['GOOD','BAIK','#1570ef'],['VERY GOOD','SANGAT BAIK','#12a05c'],['EXCELLENT','ISTIMEWA','#0e9384']];
+const LP_DEF={amb:[0,3,7,15,25],basis:'buku',label:'en',izin0:'pin',izin1:'alasan',target:7,tierL:3,tierG:8};
+const LPX={ok:false,pend:null};
+const lpCfg=()=>Object.assign({},LP_DEF,(S.settings&&S.settings.posCfg)||{});
+const lpOwner=()=>canApprove()&&finOK()&&!(typeof OL!=='undefined'&&OL.readonly);
+const lpOwnerView=()=>lpOwner()&&!P().modeKasir;
+const lpHash=s=>{let h1=0xdeadbeef,h2=0x41c6ce57;s='imagritama|'+s;for(let i=0,c;i<s.length;i++){c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return String(4294967296*(2097151&h2)+(h1>>>0))};
+function lpLevel(mPct){const a=lpCfg().amb,r=Math.round(mPct*100)/100;return r<a[0]?0:r<a[1]?1:r<=a[2]?2:r<=a[3]?3:r<=a[4]?4:5}
+const lpNama=l=>LP_ST[l][lpCfg().label==='id'?1:0];
+function lpRate(sku,mode){
+  let tot=0;
+  for(const p of (typeof plList==='function'?plList():[])){
+    if(!(p.skus||[]).includes(sku))continue;
+    if(Array.isArray(p.lebur)&&!p.lebur.includes(sku))continue;
+    const B=(p.benefit||[]).filter(b=>b.perlakuan==='hpp'&&b.bentuk!=='pribadi'&&(mode==='cair'?b.status==='Cair':b.status!=='Gugur'));
+    const amt=sum(B,b=>mode==='cair'?(+b.nilaiCair||0):(+b.nilai||0));
+    const all=p.skus||[],sel=Array.isArray(p.lebur)?all.filter(k=>p.lebur.includes(k)):all,sub=sel.length<all.length;
+    const den=sub?sel.reduce((a,k)=>a+plNilaiSku(p,k),0):plHitung(p).pembagi;
+    if(den>0)tot+=Math.min(1,amt/den);
+  }
+  return Math.min(0.95,tot);
+}
+function lpHpp(sku,basis,map){
+  let a=(D.inv[sku]||{}).avg||0;if(!(a>0))a=(map||hjLastMap())[sku]||0;
+  if(basis==='konservatif')return a*(1-lpRate(sku,'cair'));
+  if(basis==='optimis')return a*(1-lpRate(sku,'rencana'));
+  return a;
+}
+function lpEval(){
+  const p=P(),t=posCalc(),f=t.sub>0?1-t.dsc/t.sub:1,cfg=lpCfg(),map=hjLastMap();
+  const L=p.cart.map(c=>{const s=skuOf(c.sku)||{},eff=(+c.harga||0)*f,hpp=lpHpp(c.sku,cfg.basis,map),m=eff>0?(eff-hpp)/eff:(hpp>0?-1:0),b=hjBatas(c.sku,map);
+    return {c,s,eff,hpp,m,lvl:lpLevel(m*100),lim:b.lim,q:+c.qty||0}});
+  const rev=sum(L,x=>x.q*x.eff),cost=sum(L,x=>x.q*x.hpp),laba=rev-cost,m=rev>0?laba/rev:(cost>0?-1:0),lvl=L.length?lpLevel(m*100):null;
+  return {t,f,cfg,L,rev,cost,laba,m,lvl,bad:hjCek(p.cart,{tipe:p.dTipe,nilai:p.dNilai})};
+}
+function lpButuh(E){
+  const owner=lpOwner(),paketOk=P().strategi==='paket'&&E.lvl>=2&&E.m*100>=lsMin();
+  let need=E.lvl<=1?E.cfg['izin'+E.lvl]:'bebas';
+  if(!['bebas','alasan','pin'].includes(need))need='bebas';
+  if(owner&&E.lvl===1)need='bebas';
+  if(E.bad.length&&!paketOk&&!owner&&need!=='pin')need='pin';
+  return {need,paketOk,owner};
+}
+function lpBar(lvl,owner,cfg){
+  const a=cfg.amb,rng=['< '+a[0]+'%',a[0]+'% – < '+a[1]+'%',a[1]+'% – '+a[2]+'%','> '+a[2]+'% – '+a[3]+'%','> '+a[3]+'% – '+a[4]+'%','> '+a[4]+'%'];
+  return '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px">'+LP_ST.map((s,i)=>'<div style="text-align:center"><div style="height:10px;border-radius:6px;background:'+s[2]+';opacity:'+(i===lvl?1:.3)+'"></div><div style="font-size:10px;font-weight:'+(i===lvl?800:500)+';margin-top:3px;color:'+(i===lvl?s[2]:'inherit')+'">'+(cfg.label==='id'?s[1]:s[0])+(i===lvl?' ◀':'')+'</div>'+(owner?'<div style="font-size:9px;opacity:.7">'+rng[i]+'</div>':'')+'</div>').join('')+'</div>';
+}
+function lpStatusHtml(E,ov){
+  if(!E.L.length)return '';
+  const c=LP_ST[E.lvl][2],B=lpButuh(E);
+  const msg=B.need==='bebas'?(E.bad.length&&!B.paketOk?'<span style="color:#b54708">Ada harga di bawah batas aman. '+(B.owner?'Anda perlu menulis alasan izin.':'Butuh persetujuan pemilik (PIN).')+'</span>':'<span style="color:#067647">✔ Transaksi diizinkan</span>')
+    :B.need==='alasan'?'<span style="color:#b54708">Butuh alasan singkat sebelum diproses</span>':(B.owner?'<span style="color:#b54708">Anda pemilik: cukup tulis alasan izin</span>':'<span style="color:#b42318">Butuh persetujuan pemilik (PIN)</span>');
+  let h='<div class="card" style="margin-top:10px;padding:10px;border-left:4px solid '+c+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><span class="small muted">STATUS</span><div style="font-size:22px;font-weight:800;color:'+c+'">● '+lpNama(E.lvl)+'</div></div>'
+   +(ov?'<div style="font-size:24px;font-weight:800;color:'+c+'">'+pct(E.m)+'</div>':'')+(lpOwner()?'<button class="btn sm ghost" data-act="ls-pos-mode" title="Ganti tampilan">Tampilan: '+(ov?'Owner':'Kasir')+'</button>':'')+'</div>'
+   +lpBar(E.lvl,ov,E.cfg)+'<div style="margin-top:8px;font-weight:600">'+msg+'</div>';
+  if(ov){
+    const t=+E.cfg.target||0;
+    h+='<div class="totbox" style="margin-top:8px"><div class="line"><span>Total penjualan</span><b>'+rp(E.rev)+'</b></div><div class="line"><span>Total HPP ('+(E.cfg.basis==='konservatif'?'efektif pasti':E.cfg.basis==='optimis'?'efektif rencana':'buku')+')</span><b>'+rp(E.cost)+'</b></div><div class="line"><span>Laba kotor</span><b style="color:'+(E.laba<0?'#b42318':'#067647')+'">'+rp(E.laba)+'</b></div><div class="line"><span>Gross profit margin</span><b>'+pct(E.m)+'</b></div></div>'
+     +'<div class="scroll"><table class="tbl" style="margin-top:6px"><thead><tr><th>Produk</th><th class="r">Harga efektif</th><th class="r">HPP/unit</th><th class="r">Impas (BEP)</th><th class="r">Harga target '+t+'%</th><th class="r">Margin</th><th></th></tr></thead><tbody>'
+     +E.L.map((x,i)=>{const tg=t<100?x.hpp/(1-t/100):0;return '<tr><td>'+esc(x.s.nama||x.c.sku)+'</td><td class="r">'+rp(x.eff)+'</td><td class="r">'+rp(x.hpp)+'</td><td class="r">'+rp(x.hpp)+'</td><td class="r">'+(x.hpp>0?rp(tg):'–')+'</td><td class="r" style="color:'+LP_ST[x.lvl][2]+'"><b>'+pct(x.m)+'</b><div class="small">'+lpNama(x.lvl)+'</div></td><td>'+(x.hpp>0&&E.f>0?'<button class="btn sm" data-act="ls-pos-target" data-i="'+i+'">Pakai target</button>':'')+'</td></tr>'}).join('')
+     +'</tbody></table></div>';
+  }
+  return h+'</div>';
+}
+const lpTier=(s,tk)=>{const c=lpCfg(),n=+s.harga||0,pc=tk==='langganan'?+c.tierL:tk==='grosir'?+c.tierG:0;return Math.round(n*(1-pc/100))};
+function lpNegoHtml(E){
+  if(!E.L.length)return '';
+  const m=mitraOf(P().mitra)||{},tk=m.tingkat||'umum',ed=lpOwner();
+  const dot=(x,price)=>{const e=price*E.f,mm=e>0?(e-x.hpp)/e:-1;return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+LP_ST[lpLevel(mm*100)][2]+';margin-right:4px"></span>'};
+  return '<div class="card" style="margin-top:10px;padding:10px"><b>Nego cepat</b><div class="small muted" style="margin-bottom:6px">Satu ketukan mengisi harga. Titik warna menunjukkan status harga itu.</div>'
+   +E.L.map((x,i)=>{const n=+x.s.harga||0,L=lpTier(x.s,'langganan'),G=lpTier(x.s,'grosir'),lo=E.f>0&&x.lim>0?Math.ceil(x.lim/E.f):0;
+     const chip=(lb,v)=>v>0?'<button class="btn sm" style="margin:2px" data-act="ls-pos-set" data-i="'+i+'" data-v="'+v+'">'+dot(x,v)+lb+' '+rp(v)+'</button>':'';
+     return '<div style="margin-bottom:6px"><div class="small"><b>'+esc(x.s.nama||x.c.sku)+'</b></div>'+chip('Normal',n)+chip('Langganan',L)+chip('Grosir',G)+chip('Terendah',lo)+'</div>'}).join('')
+   +'<div style="margin-top:6px"><span class="small muted">Diskon cepat:</span> <button class="btn sm" data-act="ls-pos-disc" data-k="p2">−2%</button><button class="btn sm" data-act="ls-pos-disc" data-k="p5">−5%</button><button class="btn sm" data-act="ls-pos-disc" data-k="r5000">−Rp5.000</button><button class="btn sm" data-act="ls-pos-disc" data-k="bulat">Bulatkan ke ribuan</button><button class="btn sm ghost" data-act="ls-pos-disc" data-k="nol">Hapus diskon</button></div>'
+   +'<div class="row" style="margin-top:8px;gap:8px;align-items:center"><label class="small" for="ls-tier">Tingkat harga pelanggan</label><select class="in" id="ls-tier" style="width:auto" data-chg="ls-tier-set"'+(ed?'':' disabled')+'>'+[['umum','Umum'],['langganan','Langganan'],['grosir','Grosir']].map(o=>'<option value="'+o[0]+'"'+(tk===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select><button class="btn sm pri" data-act="ls-tier-apply">Terapkan ke semua produk</button></div></div>';
+}
+/* ---------- aksi POS ---------- */
+ACT['ls-pos-mode']=()=>{P().modeKasir=!P().modeKasir;rCart()};
+ACT['ls-pos-set']=t=>{const c=P().cart[+t.dataset.i];if(!c)return;c.harga=Math.max(0,Math.round(+t.dataset.v||0));rCart()};
+ACT['ls-pos-target']=t=>{
+  const E=lpEval(),x=E.L[+t.dataset.i];if(!x||!(x.hpp>0)||!(E.f>0))return;const tg=x.hpp/(1-(+E.cfg.target||0)/100);
+  x.c.harga=Math.ceil(tg/E.f);rCart();
+};
+ACT['ls-pos-disc']=t=>{
+  const p=P(),k=t.dataset.k,tt=posCalc();
+  if(k==='p2'){p.dTipe='%';p.dNilai=2}else if(k==='p5'){p.dTipe='%';p.dNilai=5}else if(k==='r5000'){p.dTipe='Rp';p.dNilai=5000}
+  else if(k==='nol'){p.dNilai=0}else if(k==='bulat'){p.dNilai=Math.round(tt.dsc+(tt.total%1000));p.dTipe='Rp'}
+  rCart();
+};
+ACT['ls-tier-set']=el=>{
+  if(!lpOwner())return;const m=mitraOf(P().mitra);if(!m||m.id==='CUS-0001')return toast('Pilih pelanggan terdaftar dulu',true);
+  m.tingkat=el.value==='umum'?undefined:el.value;if(!m.tingkat)delete m.tingkat;AUD('Tingkat harga pelanggan',m.nama+' → '+el.value,m.id);if(!commit())return;rCart();
+};
+ACT['ls-tier-apply']=()=>{
+  const tk=(mitraOf(P().mitra)||{}).tingkat||'umum';P().cart.forEach(c=>{const s=skuOf(c.sku);if(s&&+s.harga>0)c.harga=lpTier(s,tk)});rCart();toast('Harga disesuaikan ke tingkat '+tk);
+};
+/* ---------- persetujuan ---------- */
+function lpModal(E,need,owner){
+  const ls=E.L.filter(x=>x.lvl<=1);
+  openModal('Perlu persetujuan · status '+lpNama(E.lvl),'<p>Status keranjang <b style="color:'+LP_ST[E.lvl][2]+'">'+lpNama(E.lvl)+'</b>'+(owner?' ('+pct(E.m)+')':'')+'.'+(E.bad.length?' Ada produk di bawah harga minimum.':'')+'</p>'
+   +(owner?'<p class="small">Sebagai pemilik, Anda cukup menulis alasan. Izin ini tercatat.</p>':(need==='pin'?'<p class="small">Minta pemilik memasukkan PIN, atau naikkan harga.</p>':'<p class="small">Tulis alasan singkat. Izin ini tercatat.</p>'))
+   +'<div class="field"><label class="lbl" for="li-alasan">Alasan (wajib, minimal 5 huruf)</label><textarea class="in" id="li-alasan" rows="2" placeholder="mis. tandingan harga toko sebelah, paket pelanggan langganan"></textarea></div>'
+   +(!owner&&need==='pin'?'<div class="field" style="margin-top:8px"><label class="lbl" for="li-pin">PIN pemilik</label><input class="in" id="li-pin" type="password" inputmode="numeric" autocomplete="off" style="max-width:160px"></div>':''),
+   '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="ls-izin-ok">Izinkan dan proses</button>','sm');
+}
+function lpGo(fn,self,args,E,alasan,oleh){
+  closeModal();const n0=S.docs.length;LPX.ok=true;HJ.ok=true;
+  try{fn.apply(self,args)}finally{LPX.ok=false;HJ.ok=false}
+  if(S.docs.length>n0){
+    const d=S.docs[S.docs.length-1],ts=new Date().toISOString(),mg=Math.round(E.m*10000)/100;
+    d.izinPos={status:lpNama(E.lvl),margin:mg,alasan,oleh,ts};
+    S.izinJual=S.izinJual||[];
+    const rows=E.bad.length?E.bad.map(b=>({sku:b.sku,eff:b.eff,lim:b.lim})):(E.L[0]?[{sku:E.L[0].c.sku,eff:E.L[0].eff,lim:E.L[0].lim}]:[]);
+    rows.forEach(b=>S.izinJual.push({id:uid(),tgl:todayISO(),ts,doc:d.no,sku:b.sku,harga:Math.round(b.eff),batas:Math.round(b.lim),alasan:'['+lpNama(E.lvl)+' '+mg+'%] '+alasan,oleh}));
+    AUD('Izin jual (status margin)',d.no+' · '+lpNama(E.lvl)+' · '+alasan,d.no);commit();
+  }
+}
+ACT['ls-izin-ok']=()=>{
+  const q=LPX.pend;if(!q)return;const a=String(($('#li-alasan')||{}).value||'').trim();
+  if(a.length<5)return toast('Tulis alasan izin (minimal 5 huruf)',true);
+  if(!q.owner&&q.need==='pin'){
+    const h=S.settings.posPinHash;if(!h)return toast('PIN pemilik belum diatur. Atur di Pengaturan → Smart POS, atau minta pemilik login.',true);
+    if(lpHash(String(($('#li-pin')||{}).value||''))!==h)return toast('PIN salah',true);
+  }
+  LPX.pend=null;lpGo(q.fn,q.self,q.args,q.E,a,q.owner?mhUser():'PIN pemilik · '+mhUser());
+};
+{
+  const _pr=ACT['pos-proses'];
+  ACT['pos-proses']=function(){
+    if(LPX.ok||!P().cart.length)return _pr.apply(this,arguments);
+    const E=lpEval(),B=lpButuh(E);
+    if(B.owner&&E.bad.length&&!B.paketOk)return _pr.apply(this,arguments);
+    if(B.need==='bebas'){
+      if(E.bad.length&&B.paketOk)return lpGo(_pr,this,arguments,E,'Paket sehat: laba paket '+pct(E.m)+' menutup produk di bawah batas',mhUser());
+      return _pr.apply(this,arguments);
+    }
+    LPX.pend={fn:_pr,self:this,args:arguments,need:B.need,owner:B.owner,E};
+    lpModal(E,B.need,B.owner);
+  };
+  const _ch=cartHTML;
+  cartHTML=function(){
+    let h=_ch.apply(this,arguments);
+    try{
+      const E=lpEval(),ov=lpOwnerView(),m1='<div class="totbox"',m2='<div style="margin-top:10px"><span class="lbl">Metode Pembayaran</span>';
+      const i1=h.indexOf(m1);if(i1>=0)h=h.slice(0,i1)+lpNegoHtml(E)+h.slice(i1);else h+=lpNegoHtml(E);
+      const i2=h.indexOf(m2);const st=lpStatusHtml(E,ov);if(i2>=0)h=h.slice(0,i2)+st+h.slice(i2);else h+=st;
+    }catch(e){}
+    return h;
+  };
+}
+/* ---------- Pengaturan Smart POS ---------- */
+ACT['ls-set']=el=>{
+  if(!lpOwner())return;const k=el.dataset.k,c=(S.settings.posCfg=S.settings.posCfg||{});
+  if(k==='amb'){const a=lpCfg().amb.slice();a[+el.dataset.i]=+el.value;if(a.some(x=>!isFinite(x))||a.some((x,i)=>i&&x<=a[i-1]))return toast('Ambang harus naik berurutan, mis. 0, 3, 7, 15, 25',true);c.amb=a}
+  else if(k==='target'||k==='tierL'||k==='tierG'){const v=+el.value;if(!(v>=0&&v<100))return toast('Isi 0 sampai 99',true);c[k]=v}
+  else c[k]=el.value;
+  AUD('Pengaturan Smart POS',k+' diubah');if(!commit())return;refresh();toast('Tersimpan');
+};
+ACT['ls-pin']=()=>{
+  if(!lpOwner())return;
+  openModal('PIN pemilik untuk persetujuan di kasir','<div class="field"><label class="lbl" for="lp-1">PIN baru (4–8 angka)</label><input class="in" id="lp-1" type="password" inputmode="numeric" autocomplete="off" style="max-width:180px"></div><div class="field" style="margin-top:8px"><label class="lbl" for="lp-2">Ulangi PIN</label><input class="in" id="lp-2" type="password" inputmode="numeric" autocomplete="off" style="max-width:180px"></div><div class="note" style="margin-top:8px">PIN ini pengaman ringan di kasir, bukan pengaman data. Jangan dipakai ulang dari PIN bank atau ATM.</div>','<button class="btn" data-act="close">Batal</button>'+(S.settings.posPinHash?'<button class="btn" data-act="ls-pin-del">Hapus PIN</button>':'')+'<button class="btn pri" data-act="ls-pin-ok">Simpan PIN</button>','sm');
+};
+ACT['ls-pin-ok']=()=>{
+  if(!lpOwner())return;const a=String($('#lp-1').value||''),b=String($('#lp-2').value||'');
+  if(!/^\d{4,8}$/.test(a))return toast('PIN harus 4 sampai 8 angka',true);if(a!==b)return toast('Kedua PIN tidak sama',true);
+  S.settings.posPinHash=lpHash(a);AUD('PIN pemilik POS diubah','');if(!commit())return;closeModal();refresh();toast('PIN disimpan');
+};
+ACT['ls-pin-del']=()=>{if(!lpOwner())return;delete S.settings.posPinHash;AUD('PIN pemilik POS dihapus','');if(!commit())return;closeModal();refresh();toast('PIN dihapus')};
+{
+  const _pg=PAGES.pengaturan;
+  PAGES.pengaturan=function(){
+    const r=_pg.apply(this,arguments);if(!lpOwner())return r;
+    const c=lpCfg(),opt=(v,a)=>a.map(o=>'<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>').join(''),iz=[['bebas','Boleh langsung'],['alasan','Wajib alasan'],['pin','Wajib PIN pemilik']];
+    r.html='<div class="card" style="margin-bottom:12px"><h3>Smart POS: status margin dan persetujuan</h3><div class="row" style="gap:10px">'
+     +'<div class="field"><label class="lbl" for="lps-b">HPP yang dipakai menilai margin</label><select class="in" id="lps-b" data-chg="ls-set" data-k="basis">'+opt(c.basis,[['buku','HPP buku (rata-rata stok)'],['konservatif','HPP efektif pasti (benefit yang sudah cair)'],['optimis','HPP efektif rencana (semua benefit terencana)']])+'</select></div>'
+     +'<div class="field"><label class="lbl" for="lps-l">Label status</label><select class="in" id="lps-l" data-chg="ls-set" data-k="label">'+opt(c.label,[['en','English (WARNING … EXCELLENT)'],['id','Indonesia (Rugi … Istimewa)']])+'</select></div>'
+     +'<div class="field"><label class="lbl" for="lps-i0">Status Warning (rugi)</label><select class="in" id="lps-i0" data-chg="ls-set" data-k="izin0">'+opt(c.izin0,iz)+'</select></div>'
+     +'<div class="field"><label class="lbl" for="lps-i1">Status Not Good</label><select class="in" id="lps-i1" data-chg="ls-set" data-k="izin1">'+opt(c.izin1,iz)+'</select></div></div>'
+     +'<div class="row" style="gap:10px;margin-top:8px"><div class="field" style="min-width:100%"><span class="lbl">Ambang status margin (%): batas Warning, Not Good, Fair, Good, Very Good</span><div style="display:flex;gap:6px;flex-wrap:wrap">'+c.amb.map((v,i)=>'<input class="in" type="number" step="0.5" style="width:80px" value="'+v+'" data-chg="ls-set" data-k="amb" data-i="'+i+'" aria-label="Ambang '+(i+1)+'">').join('')+'</div></div>'
+     +'<div class="field"><label class="lbl" for="lps-t">Target margin harga (%)</label><input class="in" id="lps-t" type="number" min="0" max="99" style="width:100px" value="'+c.target+'" data-chg="ls-set" data-k="target"></div>'
+     +'<div class="field"><label class="lbl" for="lps-tl">Potongan harga Langganan (%)</label><input class="in" id="lps-tl" type="number" min="0" max="99" style="width:100px" value="'+c.tierL+'" data-chg="ls-set" data-k="tierL"></div>'
+     +'<div class="field"><label class="lbl" for="lps-tg">Potongan harga Grosir (%)</label><input class="in" id="lps-tg" type="number" min="0" max="99" style="width:100px" value="'+c.tierG+'" data-chg="ls-set" data-k="tierG"></div>'
+     +'<div class="field"><label class="lbl">PIN pemilik</label><button class="btn" data-act="ls-pin">'+(S.settings.posPinHash?'Ubah / hapus PIN':'Atur PIN')+'</button></div></div>'
+     +'<div class="note" style="margin-top:8px">Kasir hanya melihat warna status dan izin, tidak melihat HPP, laba, atau rentang persen. Rentang dan angka hanya tampil di tampilan Owner. Margin dihitung dari harga jual setelah diskon.</div></div>'+r.html;
     return r;
   };
 }
