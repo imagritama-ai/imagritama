@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1320"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1350"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -4251,6 +4251,35 @@ ACT['pk-muat']=()=>{
       if(dulu==='disetujui'){ada.status='draft';b++}u++}});
   AUD('Muat pengetahuan awal',n+' baru, '+u+' diperbarui, '+b+' kembali ke Draf');commit();refresh();
   toast(n+' entri baru, '+u+' diperbarui'+(b?' ('+b+' yang sudah disetujui kembali ke Draf)':''))};
+
+/* ====== SMART POS: layar kasir fokus (keranjang selalu terlihat, panel bantu dilipat, bilah keranjang di HP) ====== */
+let posBantuBuka=false,posSheet=false;
+(function(){
+  const _k0=PAGES.kasir0;
+  PAGES.kasir0=function(){
+    const r=_k0.apply(this,arguments);
+    try{
+      let h=r.html;
+      h=h.replace('<div class="pos">','<div class="pos'+(posBantuBuka?' bantu':'')+(posSheet?' sheet-open':'')+'" id="posroot">');
+      h=h.replace('<div class="chips" style="margin-top:8px">','<div class="chips" style="margin-top:8px">');
+      h=h.replace('<div class="col col3">','<div class="posbantu"><button class="btn sm" data-act="pos-bantu" id="posbantu-btn" aria-expanded="'+posBantuBuka+'">'+(posBantuBuka?'Sembunyikan':'Tampilkan')+' panel konsultasi &amp; asisten</button><span class="small muted"> Untuk melayani pelanggan, layar kasir dibuat ringkas.</span></div><div class="col col3" id="posbantu-col">');
+      h=h.replace('<section class="card" id="cartcol" aria-label="Keranjang">','<div class="sheet-bd" data-act="pos-sheet-tutup"></div><div class="cartwrap" id="cartwrap"><button class="sheet-x" data-act="pos-sheet-tutup" aria-label="Tutup keranjang">Tutup keranjang ✕</button><section class="card" id="cartcol" aria-label="Keranjang">');
+      h=h.replace(/(id="cartcol"[\s\S]*?<\/section>)(\s*<div class="posbantu">)/,'$1</div>$2');
+      r.html=h;
+    }catch(e){}
+    return r;
+  };
+  function posTabH(){const t=document.querySelector('#view>.tabrow,#view>.tabs');if(t)document.documentElement.style.setProperty('--tabh',Math.ceil(t.getBoundingClientRect().height)+'px')}
+  const _rfz=refresh;refresh=function(){_rfz.apply(this,arguments);setTimeout(posTabH,60);setTimeout(posTabH,600)};
+  window.addEventListener('resize',posTabH);window.addEventListener('hashchange',()=>setTimeout(posTabH,200));
+  ACT['pos-bantu']=()=>{posBantuBuka=!posBantuBuka;const r=$('#posroot');if(r)r.classList.toggle('bantu',posBantuBuka);const b=$('#posbantu-btn');if(b){b.textContent=(posBantuBuka?'Sembunyikan':'Tampilkan')+' panel konsultasi & asisten';b.setAttribute('aria-expanded',posBantuBuka)}};
+  ACT['mob-bayar']=()=>ACT['pos-sheet']();
+  ACT['pos-sheet']=()=>{posSheet=true;document.body.classList.add('sheet-on');const r=$('#posroot');if(r)r.classList.add('sheet-open')};
+  ACT['pos-sheet-tutup']=()=>{posSheet=false;document.body.classList.remove('sheet-on');const r=$('#posroot');if(r)r.classList.remove('sheet-open');if(typeof mobBar==='function')mobBar()};
+  window.addEventListener('hashchange',()=>{posSheet=false;document.body.classList.remove('sheet-on')});
+})();
+
+(function(){try{if(document.getElementById('poscss'))return;const s=document.createElement('style');s.id='poscss';s.textContent="/* ===== SMART POS fokus: keranjang tetap terlihat, panel bantu dilipat, bilah keranjang di HP ===== */\n.posbantu{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}\n.pos .col3{display:none}.pos.bantu .col3{display:block}\n.pos{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}\n.pos.bantu{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.95fr)}\n.pos .posbantu{grid-column:1/-1}.pos.bantu .posbantu{grid-column:1/-1}\n.pos>.col3{grid-column:auto}\n.cartwrap{position:sticky;top:calc(var(--tabh,58px) + 4px);align-self:start;max-height:calc(100vh - var(--tabh,58px) - 90px);overflow:auto;border-radius:12px}\n.cartwrap>.card{margin:0}\n.sheet-x,.sheet-bd{display:none}\n@media (max-width:1500px){.pos.bantu{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}.pos.bantu>.col3{grid-column:1/-1}}\n@media (max-width:900px){\n .pos,.pos.bantu{grid-template-columns:minmax(0,1fr)}\n .pos>.col3{grid-column:auto}\n .cartwrap{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:88vh;z-index:90;border-radius:16px 16px 0 0;background:var(--bg,#f1f4fa);box-shadow:0 -10px 30px rgba(10,27,68,.3);transform:translateY(105%);transition:transform .22s ease;padding:8px 10px 14px;visibility:hidden}\n .sheet-open .cartwrap{transform:none;visibility:visible}\n .sheet-x{display:block;width:100%;margin:0 0 8px;padding:10px;border:0;border-radius:10px;background:#e2e8f2;font-weight:700;color:var(--ink,#0a1b44);cursor:pointer;font-size:14px}\n .sheet-open .sheet-bd{display:block;position:fixed;inset:0;background:rgba(10,27,68,.45);z-index:85}\n #view:has(.pos){padding-bottom:84px}\n body.sheet-on #cartbar{display:none!important}\n .pgrid .pc .btn,.pgrid .pc [data-act=\"pos-add\"]{min-width:44px;min-height:44px}\n}\n";document.head.appendChild(s)}catch(e){}})();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
