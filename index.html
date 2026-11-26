@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0952"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1002"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -8161,6 +8161,28 @@ ACT['plt-del']=el=>{if(!lpOwner())return;const p=pltS();p.log=p.log.filter(x=>x.
 {
   const _pg=PAGES.pengaturan;
   PAGES.pengaturan=function(){const r=_pg.apply(this,arguments);if(lpOwner()&&r&&r.html)r.html=pltHtml()+r.html;return r};
+}
+
+/* ====== Perbaikan Konsultasi: nama komoditas bukan nama produk, dan catatan jujur bila belum ada data label ====== */
+{
+  const _pk=parseKonsul;
+  parseKonsul=function(t0){
+    const r=_pk.apply(this,arguments),t=String(t0).toLowerCase();
+    if(r.pids.length){
+      const komKw=new Set();KOM_LIST.forEach(k=>KOM[k].kw.forEach(w=>komKw.add(String(w).toLowerCase())));
+      r.pids=r.pids.filter(id=>{const p=produkOf(id)||{},first=String(p.nama||'').toLowerCase().split(/[\s@]/)[0];
+        if(!komKw.has(first))return true;
+        return (p.bahan||'').toLowerCase().split(/[,;+/]/).map(x=>x.trim()).some(b=>b.length>=5&&t.includes(b));});
+    }
+    return r;
+  };
+  const _kh=konHasilHTML;
+  konHasilHTML=function(){
+    let h=_kh.apply(this,arguments);if(!h||h.indexOf('Saran produk')<0)return h;
+    const K=SMS().kon,list=K.hasil||[],n=list.filter(k=>{const s=skuOf(k),sp=s&&spekOf(s.pid);return sp&&(sp.rek||[]).length}).length;
+    const note='<div class="note" style="margin-top:8px">'+(n===0?'Daftar ini dipilih dari jenis produk dan komoditas, belum dicocokkan dengan label atau rekomendasi resmi (data teknis produk belum diisi). Cek label produk dan dosis sebelum menyarankan ke pelanggan.':'Hanya '+n+' dari '+list.length+' produk yang punya data teknis. Selebihnya dipilih dari jenis produk. Cek label sebelum menyarankan.')+'</div>';
+    return h.replace(/(<div class="row" style="margin-top:10px"><button class="btn pri" data-act="kon-simpan">)/,note+'$1');
+  };
 }
 
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
