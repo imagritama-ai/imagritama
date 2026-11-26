@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2390"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2400"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5206,9 +5206,9 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
 /* tampilan Owner: panel lebar; judul tabel dan ringkasan tetap diam, hanya baris produk yang bergulir; nama produk tidak dipotong */
 @media (min-width:901px){
 .stpop.stown{width:min(1040px,calc(100vw - 28px))!important;display:flex!important;flex-direction:column;overflow:hidden!important}
-.stpop.stown>.card:first-child{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-.stpop.stown>.card:first-child .scroll{flex:1 1 auto;min-height:0;overflow:auto!important;max-height:none!important}
-.stpop.stown>.card:last-child:not(:first-child){flex:0 1 auto;max-height:28%;overflow:auto}
+.stpop.stown>.card:first-of-type{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.stpop.stown>.card:first-of-type .scroll{flex:1 1 auto;min-height:0;overflow:auto!important;max-height:none!important}
+.stpop.stown>.card:last-of-type:not(:first-of-type){flex:0 1 auto;max-height:28%}
 .stpop.stown .tbl{width:100%;table-layout:auto}
 .stpop.stown .tbl thead th{position:sticky;top:0;z-index:2;background:#eaf0fb}
 .stpop.stown .tbl th,.stpop.stown .tbl td{white-space:nowrap;padding:6px 8px}
@@ -5219,7 +5219,18 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
 @media (min-width:1200px){
 .stpop.stown{width:min(1260px,calc(100vw - 28px))!important;display:grid!important;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:minmax(0,1fr);gap:10px}
 .stpop.stown>*+*{margin-top:0!important}
-.stpop.stown>.card:last-child:not(:first-child){max-height:none;overflow:auto;min-height:0}
+.stpop.stown>.card:last-of-type:not(:first-of-type){max-height:none;min-height:0}
+}
+/* semua tampilan: bagian atas panel (status, izin transaksi, judul Nego cepat) tetap terlihat; hanya daftar produk nego yang bergulir */
+@media (min-width:901px){
+.stpop:not(.stown){display:flex!important;flex-direction:column;overflow:hidden!important}
+.stpop:not(.stown)>.card:first-of-type{flex:none}
+.stpop>.card:last-of-type:not(:first-of-type){display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.stpop:not(.stown)>.card:last-of-type:not(:first-of-type){flex:1 1 auto}
+.stpop .ngl{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+.stpop>.card:first-of-type>div:first-child{padding-right:36px}
+.stpop .stx{position:absolute;top:6px;right:8px;z-index:5;width:28px;height:28px;border-radius:50%;border:1px solid var(--line,#d9e2f1);background:#fff;color:#475467;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.stpop .stx:hover{background:#fee4e2;color:#b42318}
 }
 /* semua kartu: area foto kecil dan seragam; produk tanpa foto memakai ikon samar */
 .pgrid .pc .pi{height:56px;min-height:0;margin:0 0 2px}
@@ -5282,8 +5293,14 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
 /* ---------- posisi gulir keranjang & katalog dipertahankan saat keranjang digambar ulang (Status, Nego cepat, Target, Diskon) ---------- */
 (function(){
   if(typeof cartHTML!=='function')return;
-  const stSave=sp=>sp?Array.from(sp.querySelectorAll('.scroll,.card')).map(x=>x.scrollTop):[];
-  const stLoad=(sp,a)=>{if(!sp||!a)return;Array.from(sp.querySelectorAll('.scroll,.card')).forEach((x,i)=>{if(a[i]&&x.scrollTop!==a[i])x.scrollTop=a[i]})};
+  const stPrep=np=>{try{
+    if(!np.querySelector('.stx')){const x=document.createElement('button');x.type='button';x.className='stx';x.setAttribute('data-act','pos-status');x.setAttribute('aria-label','Tutup status');x.title='Tutup (Esc)';x.textContent='✕';np.insertBefore(x,np.firstChild)}
+    const cards=np.querySelectorAll(':scope>.card');const ng=cards.length>1?cards[cards.length-1]:null;
+    if(ng&&!ng.querySelector(':scope>.ngl')){const kids=Array.from(ng.children).slice(2);if(kids.length){const w=document.createElement('div');w.className='ngl';kids.forEach(k=>w.appendChild(k));ng.appendChild(w)}}
+  }catch(e){}};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){const x=document.querySelector('body>#stpop .stx');if(x)x.click()}});
+  const stSave=sp=>sp?Array.from(sp.querySelectorAll('.scroll,.card,.ngl')).map(x=>x.scrollTop):[];
+  const stLoad=(sp,a)=>{if(!sp||!a)return;Array.from(sp.querySelectorAll('.scroll,.card,.ngl')).forEach((x,i)=>{if(a[i]&&x.scrollTop!==a[i])x.scrollTop=a[i]})};
   const _c=cartHTML;
   cartHTML=function(){
     let keep=null;
@@ -5307,7 +5324,7 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
         posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},90000);
       }
     }catch(e){}
-    const mv=()=>{try{if(innerWidth<=900)return;const np=document.querySelector('#cartcol #stpop');if(np){document.querySelectorAll('body>#stpop').forEach(x=>x.remove());document.body.appendChild(np);if(keep&&keep.sp)np.scrollTop=keep.sp;if(keep)stLoad(np,keep.sx)}}catch(e){}};
+    const mv=()=>{try{if(innerWidth<=900)return;const np=document.querySelector('#cartcol #stpop');if(np){document.querySelectorAll('body>#stpop').forEach(x=>x.remove());document.body.appendChild(np);stPrep(np);if(keep&&keep.sp)np.scrollTop=keep.sp;if(keep)stLoad(np,keep.sx)}}catch(e){}};
     Promise.resolve().then(mv);if(window.requestAnimationFrame)requestAnimationFrame(mv);
     if(window.requestAnimationFrame)requestAnimationFrame(()=>{try{const cc=document.getElementById('cartcol');if(cc&&innerWidth>900){const r=cc.getBoundingClientRect();document.documentElement.style.setProperty('--stpt',Math.max(8,Math.round(r.top+6))+'px')}}catch(e){}});
     return h;
