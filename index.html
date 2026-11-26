@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1002"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1012"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -8182,6 +8182,96 @@ ACT['plt-del']=el=>{if(!lpOwner())return;const p=pltS();p.log=p.log.filter(x=>x.
     const K=SMS().kon,list=K.hasil||[],n=list.filter(k=>{const s=skuOf(k),sp=s&&spekOf(s.pid);return sp&&(sp.rek||[]).length}).length;
     const note='<div class="note" style="margin-top:8px">'+(n===0?'Daftar ini dipilih dari jenis produk dan komoditas, belum dicocokkan dengan label atau rekomendasi resmi (data teknis produk belum diisi). Cek label produk dan dosis sebelum menyarankan ke pelanggan.':'Hanya '+n+' dari '+list.length+' produk yang punya data teknis. Selebihnya dipilih dari jenis produk. Cek label sebelum menyarankan.')+'</div>';
     return h.replace(/(<div class="row" style="margin-top:10px"><button class="btn pri" data-act="kon-simpan">)/,note+'$1');
+  };
+}
+
+/* ====== Konsultasi ketat: saran pestisida hanya dari data label (tanaman + hama sasaran), herbisida umum tidak untuk tanaman berdiri ====== */
+const KT_SIN={cabai:['cabai','cabe','lombok'],bawang:['bawang'],jagung:['jagung'],padi:['padi'],tomat:['tomat'],kentang:['kentang'],kubis:['kubis','kol'],kakao:['kakao','coklat'],kedelai:['kedelai']};
+const KT_OPT=['thrips','trhips','kutu kebul','kutu daun','kutu putih','ulat grayak','ulat tentara','ulat buah','ulat kubis','ulat','wereng coklat','wereng','penggerek batang','penggerek buah','penggerek pucuk','penggerek polong','penggerek','walang sangit','belalang','lalat buah','lalat','tungau','keong','blas','hawar','antraknosa','antraknose','bercak ungu','bercak daun','bercak','busuk daun','busuk batang','busuk pangkal','busuk','layu','embun bulu','embun tepung','embun','lanas','karat','gulma','rumput','teki','daun lebar'];
+const KT_UMUM=['ulat','wereng','penggerek','kutu','busuk','bercak','embun','lalat'];
+const ktN=s=>String(s||'').toLowerCase().replace(/trhips/g,'thrips').replace(/cabe\b/g,'cabai').replace(/\s+/g,' ').trim();
+const ktPre=t=>/sebelum tanam|persiapan lahan|lahan kosong|pra.?tanam|bersihkan lahan|olah tanah|pematang|tanggul|jalan setapak/.test(String(t).toLowerCase());
+function ktOpts(p){return ktN(p&&p.target).split(/[,;&]|\bdan\b|\bserta\b/).map(x=>x.trim()).filter(x=>x.length>=3)}
+function ktTan(p,sp,tx){
+  const s=[];(sp&&sp.tan?String(sp.tan):'').split(/[,;/]/).forEach(x=>{x=ktN(x);if(x)s.push(x)});
+  const T=ktN(tx);return {list:s,txt:T}
+}
+function ktCropHit(kom,p,sp){
+  const k=ktN(kom),syn=Object.keys(KT_SIN).find(x=>KT_SIN[x].includes(k)||k.includes(x))||k,alt=KT_SIN[syn]||[k];
+  const t=ktTan(p,sp,(p&&p.target)||''),inList=t.list.some(x=>alt.some(a=>x.includes(a)));
+  if(inList)return 'ya';
+  if(t.list.length)return 'tidak';
+  return alt.some(a=>t.txt.includes(a))?'teks':'belum';
+}
+function ktKw(r){
+  const base=ktN((r.masalah||'')+' '+(r.raw||'')),out=[];
+  KT_OPT.forEach(w=>{if(base.includes(w)&&!out.some(o=>o.includes(w)))out.push(w)});
+  return out;
+}
+function ktOptHit(kws,opts,kat){
+  let strong='',weak='';
+  for(const o of opts){
+    for(const w of kws){
+      if(o===w||o.includes(w)||w.includes(o)&&o.length>=6){strong=o;break}
+      const f=w.split(' ')[0];if(KT_UMUM.includes(f)&&(o===f||o.startsWith(f+' ')&&false))weak=weak||o;
+    }
+    if(strong)break;
+  }
+  if(!strong&&!weak&&kat==='Fungisida'&&opts.some(o=>/penyakit jamur|cendawan|jamur/.test(o)))weak='penyakit jamur (umum)';
+  return {strong,weak};
+}
+function ktCari(r){
+  const pre=ktPre(r.raw),kws=ktKw(r),kat=r.kat,info={};
+  let pool=S.sku.filter(s=>grpOf(s.kategori)===kat&&(D.inv[s.sku]||{}).qty>0);
+  const buang={umum:0,tanpaData:0,tidakCocok:0};
+  if(kat==='Herbisida'&&!pre){buang.umum=pool.filter(s=>/Umum/.test(s.kategori)).length;pool=pool.filter(s=>!/Umum/.test(s.kategori))}
+  const rows=[];
+  for(const s of pool){
+    const p=produkOf(s.pid)||{},sp=spekOf(s.pid)||{},opts=ktOpts(p);
+    if(!opts.length){buang.tanpaData++;continue}
+    const h=ktOptHit(kws,opts,kat);if(!h.strong&&!h.weak){buang.tidakCocok++;continue}
+    const crop=ktCropHit(r.kom,p,sp),ver=sp.status==='Terverifikasi';
+    if(crop==='tidak'){buang.tidakCocok++;continue}
+    const t1=ver&&crop==='ya'&&!!h.strong;
+    rows.push({sku:s.sku,tier:t1?1:2,alasan:'Label menyebut: '+(h.strong||h.weak)+(crop==='ya'||crop==='teks'?'; tanaman '+r.kom.toLowerCase()+' tercantum':'; tanaman '+r.kom.toLowerCase()+' belum dipastikan')+(ver?'':'; data masih draf')+(h.strong?'':'; hanya cocok secara umum')});
+  }
+  rows.sort((a,b)=>a.tier-b.tier||(D.inv[b.sku].qty-D.inv[a.sku].qty));
+  return {rows,buang,pre,kws,kat};
+}
+{
+  const _kh=konHasil;
+  konHasil=function(r){
+    if(!r||r.pids.length||!r.kom||!['Insektisida','Fungisida','Herbisida'].includes(r.kat))return _kh.apply(this,arguments);
+    const c=ktCari(r);ui.kt={info:{},c};c.rows.forEach(x=>{ui.kt.info[x.sku]=x});
+    return c.rows.slice(0,8).map(x=>x.sku);
+  };
+  const _ht=konHasilHTML;
+  konHasilHTML=function(){
+    const K=SMS().kon,r=K.parsed;
+    if(!r||r.pids.length||!r.kom||!['Insektisida','Fungisida','Herbisida'].includes(r.kat))return _ht.apply(this,arguments);
+    const c=(ui.kt&&ui.kt.c)||ktCari(r),B=c.buang;
+    const ket='<div class="note" style="margin-top:10px"><b>Cara sistem memilih saran</b>: produk hanya disarankan bila label mencantumkan hama atau penyakit yang dimaksud. '
+      +'<b>Sesuai label</b> bila datanya sudah Anda verifikasi. <b>Perlu dicek</b> bila datanya masih draf atau belum jelas tanamannya. Produk tanpa data label tidak disarankan.</div>';
+    const eks=[];
+    if(B.umum)eks.push(B.umum+' herbisida umum (pembunuh semua tanaman, mis. glifosat/parakuat) tidak disarankan untuk tanaman yang sedang tumbuh. Tulis "sebelum tanam" atau "persiapan lahan" bila untuk lahan kosong.');
+    if(B.tanpaData)eks.push(B.tanpaData+' produk '+r.kat.toLowerCase()+' di stok belum punya data sasaran dari label.');
+    const ex=eks.length?'<div class="small muted" style="margin-top:8px">Tidak ditampilkan: '+eks.map(esc).join(' ')+'</div>':'';
+    if(!c.rows.length)return ket+'<div class="empty" style="margin-top:10px"><b>Belum ada produk yang bisa disarankan dengan yakin.</b><br>Belum ada produk di stok yang labelnya tercatat cocok untuk '+esc(r.kom.toLowerCase())+' dengan masalah ini. Sarankan pelanggan bertanya ke penyuluh atau pemilik toko, jangan menebak produk.</div>'+ex;
+    const h=_ht.apply(this,arguments);
+    const dasar='<div style="margin-top:10px"><div class="small bold">Dasar saran</div>'+c.rows.slice(0,8).map(x=>{const s=skuOf(x.sku);return '<div class="small" style="margin:4px 0"><span class="badge '+(x.tier===1?'ok':'warn')+'">'+(x.tier===1?'Sesuai label':'Perlu dicek')+'</span> <b>'+esc(s.nama)+'</b>: '+esc(x.alasan)+'</div>'}).join('')+'</div>';
+    return ket+h.replace(/<div class="note" style="margin-top:8px">(Daftar ini dipilih|Hanya \d+ dari)[^<]*<\/div>/,'')+dasar+ex;
+  };
+  const _sf=specForm;
+  specForm=function(pid){
+    let h=_sf.apply(this,arguments);const sp=spekOf(pid)||{};
+    const add='<div class="field" style="min-width:100%"><label class="lbl" for="sp-tan">Tanaman yang tercantum di label (pisahkan dengan koma)</label><input class="in" id="sp-tan" value="'+esc(sp.tan||'')+'" placeholder="mis. cabai, bawang merah, jagung"></div>';
+    return h.replace('<div class="note">',add+'<div class="note">');
+  };
+  const _ss=ACT['spek-save'];
+  ACT['spek-save']=function(t){
+    const pid=t.dataset.pid,el=$('#sp-tan'),tan=el?el.value.trim():null;
+    _ss.apply(this,arguments);
+    if(tan!==null&&S.spek[pid]){S.spek[pid].tan=tan;commit()}
   };
 }
 
