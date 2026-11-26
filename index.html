@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2480"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2490"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -672,15 +672,15 @@ const produkSku=s=>produkOf(s.pid)||{id:'',nama:s.nama,kategori:s.kategori};
 const mitraOf=id=>S.mitra.find(m=>m.id===id);
 const mitraNama=id=>{const m=mitraOf(id);return m?m.nama:(id||'–')};
 const minOf=s=>s.min!=null&&s.min!==''?+s.min:+S.settings.minDefault;
-const KODE_KAT={Insektisida:'INS',Fungisida:'FGS','Herbisida Umum':'HRB','Herbisida Selektif':'HRB',Pupuk:'PPK','Benih Hortikultura':'BNH','Benih Jagung':'BNH','Benih Padi':'BNH','Plant Health':'BST',Alsintan:'ALT','Bundling Produk':'PKT'};
+const KODE_KAT={Insektisida:'INS',Fungisida:'FGS','Herbisida Umum':'HRB','Herbisida Selektif':'HRB',Pupuk:'PPK','Benih Hortikultura':'BNH','Benih Jagung':'BNH','Benih Padi':'BNH','Plant Health':'BST',Alsintan:'ALT','Bundling Produk':'PKT','Hasil Bumi':'HSB','Hasil Olahan':'OLH'};
 const GRP={'Insektisida':'Insektisida','Fungisida':'Fungisida','Herbisida Umum':'Herbisida','Herbisida Selektif':'Herbisida','Pupuk':'Pupuk','Benih Hortikultura':'Benih','Benih Jagung':'Benih','Benih Padi':'Benih','Plant Health':'Plant Health'};
 const grpOf=k=>GRP[k]||'Lainnya';
 const GRPS=['Insektisida','Fungisida','Herbisida','Pupuk','Benih','Plant Health','Lainnya'];
 const satuan=s=>/box/i.test(s.kemasan)&&!/pcs/i.test(s.kemasan)?'box':/dus/i.test(s.kemasan)&&!/pcs/i.test(s.kemasan)?'dus':/unit/i.test(s.kemasan)?'unit':'pcs';
 const akunKas=m=>m==='Tunai'?'kasTunai':'bank';
-const BASE_AKUN=[['kasTunai','Kas tunai','Aset','1-1100',1],['bank','Bank','Aset','1-1200',1],['piutang','Piutang usaha','Aset','1-1300',1],['persediaan','Persediaan','Aset','1-1400',1],['aset','Aset tetap & peralatan','Aset','1-2100',1],['akumPeny','Akumulasi penyusutan','Aset','1-2900',-1],['utang','Utang usaha','Kewajiban','2-1100',-1],['ppnKeluar','PPN keluaran (utang pajak)','Kewajiban','2-1200',-1],['ppnMasuk','PPN masukan (dapat dikreditkan)','Aset','1-1500',1],['modal','Modal & saldo awal','Ekuitas','3-1100',-1],['prive','Prive','Ekuitas','3-1900',1],['penjualan','Penjualan neto','Pendapatan','4-1100',-1],['pendLain','Pendapatan lain','Pendapatan','4-9000',-1],['hpp','HPP','HPP','5-1100',1],['beban','Beban operasional lainnya','Beban','6-1100',1],['penyusutan','Beban penyusutan','Beban','6-2000',1],['selisih','Selisih persediaan','Beban','6-9000',1],['utangBank','Utang bank / pinjaman','Kewajiban','2-2100',-1],['bebanPiutang','Beban piutang tak tertagih','Beban','6-3000',1],['bebanBunga','Beban bunga pinjaman','Beban','6-3100',1],['bebanPajak','Pajak final dibayar','Beban','6-4000',1]];
+const BASE_AKUN=[['kasTunai','Kas tunai','Aset','1-1100',1],['bank','Bank','Aset','1-1200',1],['piutang','Piutang usaha','Aset','1-1300',1],['persediaan','Persediaan','Aset','1-1400',1],['aset','Aset tetap & peralatan','Aset','1-2100',1],['akumPeny','Akumulasi penyusutan','Aset','1-2900',-1],['utang','Utang usaha','Kewajiban','2-1100',-1],['ppnKeluar','PPN keluaran (utang pajak)','Kewajiban','2-1200',-1],['ppnMasuk','PPN masukan (dapat dikreditkan)','Aset','1-1500',1],['modal','Modal & saldo awal','Ekuitas','3-1100',-1],['prive','Prive','Ekuitas','3-1900',1],['penjualan','Penjualan neto','Pendapatan','4-1100',-1],['pendLain','Pendapatan lain','Pendapatan','4-9000',-1],['pendTani','Pendapatan penjualan hasil panen','Pendapatan','4-2100',-1],['simpananAnggota','Simpanan anggota kelompok','Kewajiban','2-3100',-1],['panjarTani','Panjar / kasbon petani & mitra','Aset','1-1350',1],['hpp','HPP','HPP','5-1100',1],['beban','Beban operasional lainnya','Beban','6-1100',1],['penyusutan','Beban penyusutan','Beban','6-2000',1],['selisih','Selisih persediaan','Beban','6-9000',1],['utangBank','Utang bank / pinjaman','Kewajiban','2-2100',-1],['bebanPiutang','Beban piutang tak tertagih','Beban','6-3000',1],['bebanBunga','Beban bunga pinjaman','Beban','6-3100',1],['bebanPajak','Pajak final dibayar','Beban','6-4000',1]];
 /* kategori beban operasional: tiap kategori = akun sendiri di jurnal & laporan */
-const BEBAN_KAT=[['gaji','Gaji & upah karyawan','6-1110',/gaji|upah|honor|lembur|thr|bonus karyawan/i],['sewa','Sewa tempat usaha','6-1120',/sewa|kontrak(an)? (toko|gudang|tempat)/i],['listrik','Listrik, air & internet','6-1130',/listrik|pln|token|air |pdam|internet|wifi|wi-fi/i],['transport','Transport, BBM & ongkos kirim','6-1140',/bensin|bbm|solar|pertalite|transport|ongkir|ongkos|kirim|parkir|tol\b|kendaraan/i],['pemasaran','Pemasaran & promosi','6-1150',/iklan|promo|brosur|spanduk|demo plot|pemasaran|marketing|banner/i],['perlengkapan','Perlengkapan & ATK','6-1160',/atk|kertas|alat tulis|perlengkapan|plastik|kantong|label|nota|tinta|printer/i],['perbaikan','Perbaikan & pemeliharaan','6-1170',/perbaikan|servis|service|reparasi|pemeliharaan|renovasi|maintenance/i],['komunikasi','Pulsa, telepon & administrasi bank','6-1180',/pulsa|telepon|telpon|admin bank|biaya admin|materai|meterai|provisi|biaya transfer/i],['izin','Perizinan, retribusi & iuran','6-1190',/izin|perizinan|retribusi|iuran|keamanan|sampah|pbb|npwp|sertifikat/i],['asuransi','Asuransi','6-1195',/asuransi/i],['susut','Kerusakan, hilang & kedaluwarsa','6-1198',/rusak|hilang|kedaluwarsa|expired|kadaluarsa|susut/i]];
+const BEBAN_KAT=[['gaji','Gaji & upah karyawan','6-1110',/gaji|upah|honor|lembur|thr|bonus karyawan/i],['sewa','Sewa tempat usaha','6-1120',/sewa|kontrak(an)? (toko|gudang|tempat)/i],['listrik','Listrik, air & internet','6-1130',/listrik|pln|token|air |pdam|internet|wifi|wi-fi/i],['transport','Transport, BBM & ongkos kirim','6-1140',/bensin|bbm|solar|pertalite|transport|ongkir|ongkos|kirim|parkir|tol\b|kendaraan/i],['pemasaran','Pemasaran & promosi','6-1150',/iklan|promo|brosur|spanduk|demo plot|pemasaran|marketing|banner/i],['perlengkapan','Perlengkapan & ATK','6-1160',/atk|kertas|alat tulis|perlengkapan|plastik|kantong|label|nota|tinta|printer/i],['perbaikan','Perbaikan & pemeliharaan','6-1170',/perbaikan|servis|service|reparasi|pemeliharaan|renovasi|maintenance/i],['komunikasi','Pulsa, telepon & administrasi bank','6-1180',/pulsa|telepon|telpon|admin bank|biaya admin|materai|meterai|provisi|biaya transfer/i],['izin','Perizinan, retribusi & iuran','6-1190',/izin|perizinan|retribusi|iuran|keamanan|sampah|pbb|npwp|sertifikat/i],['asuransi','Asuransi','6-1195',/asuransi/i],['susut','Kerusakan, hilang & kedaluwarsa','6-1198',/rusak|hilang|kedaluwarsa|expired|kadaluarsa|susut/i],['taniSaprodi','Usahatani: benih, pupuk & obat','6-1210',/^\b\B$/],['taniTenaga','Usahatani: upah tenaga kerja','6-1220',/^\b\B$/],['taniLahan','Usahatani: sewa lahan, air & alat','6-1230',/^\b\B$/],['taniPanen','Usahatani: panen & pascapanen','6-1240',/^\b\B$/]];
 BEBAN_KAT.forEach(([k,n,c])=>BASE_AKUN.push(['b_'+k,n,'Beban',c,1]));
 const katAkun=k=>{if(k&&k.kat&&AKUN['b_'+k.kat])return 'b_'+k.kat;if(k&&k.kat==='lain')return 'beban';const t=String((k&&k.ket)||'').replace(/^Beban operasional:\s*/i,'');const f=BEBAN_KAT.find(x=>x[3].test(t));return f?'b_'+f[0]:'beban'};
 const akunBenefit=()=>S.settings&&S.settings.benefitAkun==='pendLain'?'pendLain':'hpp';
@@ -710,7 +710,7 @@ function derive(){
   ensureGd();const gud={};S.sku.forEach(s=>{gud[s.sku]={}});const gq=(k,g,q)=>{if(!gud[k])return;gud[k][g]=(gud[k][g]||0)+q};const gdOf=d=>d.gd||S.gudang[0].id;
   const inv={},mov={},last={},dd={},hppMap={};
   S.sku.forEach(s=>{inv[s.sku]={qty:0,val:0,avg:0};mov[s.sku]=[];last[s.sku]=s.hpp0||0});
-  const order=S.docs.map((d,i)=>[d,i]).sort((a,b)=>a[0].tgl<b[0].tgl?-1:a[0].tgl>b[0].tgl?1:a[1]-b[1]).map(x=>x[0]);
+  const order=S.docs.map((d,i)=>[d,i]).concat((S.olah||[]).map((o,i)=>[Object.assign({},o,{jenis:'Olah',status:o.batal?'BATAL':'',items:o.items||[]}),S.docs.length+i])).sort((a,b)=>a[0].tgl<b[0].tgl?-1:a[0].tgl>b[0].tgl?1:a[1]-b[1]).map(x=>x[0]);
   const avgOf=k=>{const s=inv[k];return s.qty>0.000001?s.val/s.qty:last[k]};
   const post=(k,d,qty,val,jenis)=>{const s=inv[k];s.qty+=qty;s.val+=val;if(Math.abs(s.val)<0.01)s.val=0;if(s.qty>0.000001)last[k]=s.val/s.qty;mov[k].push({tgl:d.tgl,no:d.no,jenis,qty,nilai:val,sq:s.qty,sv:s.val})};
   for(const d of order){
@@ -724,6 +724,12 @@ function derive(){
     else r.total=t.sub;
     dd[d.no]=r;
     if(!act)continue;
+    if(d.jenis==='Olah'){
+      let C=0;for(const it of d.inputs||[]){if(!inv[it.sku])continue;const q=+it.qty,a=avgOf(it.sku);gq(it.sku,gdOf(d),-q);post(it.sku,d,-q,-q*a,'Olah (bahan)');C+=q*a}
+      const tot=C+(+d.biaya||0),outs=(d.items||[]).filter(it=>inv[it.sku]),wsum=sum(outs,it=>it.porsi!=null&&it.porsi!==''?+it.porsi:0),qsum=sum(outs,it=>+it.qty);let rest=tot;
+      outs.forEach((it,i)=>{const q=+it.qty,sh=wsum>0?(+it.porsi||0)/wsum:(qsum>0?q/qsum:0),v=i===outs.length-1?rest:Math.round(tot*sh*100)/100;rest-=v;gq(it.sku,gdOf(d),q);post(it.sku,d,q,v,'Olah (hasil)')});
+      r.bahan=C;r.val=tot;continue;
+    }
     for(const it of d.items||[]){
       if(!inv[it.sku])continue;
       const q=+it.qty,k=it.sku;
@@ -781,8 +787,9 @@ function cashEvents(){
   for(const d of S.docs){
     if(d.status==='BATAL')continue;
     const dir=d.jenis==='Jual'?1:d.jenis==='Beli'?-1:0;if(!dir)continue;
-    for(const p of d.bayar||[]){if(p.metode==='Hapus piutang')continue;ev.push({tgl:p.tgl,akun:akunKas(p.metode),nilai:dir*p.nilai,kelas:'ops',ket:(dir>0?'Penerimaan ':'Pembayaran ')+d.no+(p.ket?' · '+p.ket:''),ref:d.no,metode:p.metode})}
+    for(const p of d.bayar||[]){if(p.metode==='Hapus piutang'||p.metode==='Potong panjar')continue;ev.push({tgl:p.tgl,akun:akunKas(p.metode),nilai:dir*p.nilai,kelas:'ops',ket:(dir>0?'Penerimaan ':'Pembayaran ')+d.no+(p.ket?' · '+p.ket:''),ref:d.no,metode:p.metode})}
   }
+  for(const o of S.olah||[]){if(o.batal||!(+o.biaya>0))continue;ev.push({tgl:o.tgl,akun:akunKas(o.metode),nilai:-(+o.biaya),kelas:'ops',ket:'Biaya pengolahan '+o.no+(o.ket?' · '+o.ket:''),ref:o.no,metode:o.metode})}
   for(const pe of pinjEntries()){ev.push({tgl:pe.tgl,akun:'bank',nilai:pe.kas,kelas:'fin',ket:pe.ket,ref:pe.ref,metode:'Transfer',tipe:'pinj'})}
   for(const k of S.kas)ev.push({tgl:k.tgl,akun:akunKas(k.metode),nilai:(k.arah==='masuk'?1:-1)*k.nilai,kelas:k.tipe==='investasi'?'inv':(k.tipe==='modal'||k.tipe==='prive')?'fin':'ops',ket:k.ket,ref:k.id,metode:k.metode,tipe:k.tipe});
   for(const e of S.jm||[]){if(e.batal)continue;const cash=e.lines.filter(l=>l.a==='kasTunai'||l.a==='bank'),oth=e.lines.filter(l=>l.a!=='kasTunai'&&l.a!=='bank');
@@ -829,7 +836,7 @@ function journal(){
   }
   for(const d of S.docs){
     if(d.status==='BATAL')continue;
-    if(d.jenis==='Beli')for(const p of d.bayar||[])add(p.tgl,d.no,'Pembayaran utang '+d.no+(p.ket?' · '+p.ket:''),[ln('utang',+p.nilai,0),ln(akunKas(p.metode),0,+p.nilai)]);
+    if(d.jenis==='Beli')for(const p of d.bayar||[])add(p.tgl,d.no,'Pembayaran utang '+d.no+(p.ket?' · '+p.ket:''),[ln('utang',+p.nilai,0),ln(p.metode==='Potong panjar'?'panjarTani':akunKas(p.metode),0,+p.nilai)]);
     if(d.jenis==='Jual')for(const p of d.bayar||[]){if(p.metode==='Hapus piutang')add(p.tgl,d.no,'Penghapusan piutang tak tertagih '+d.no+(p.ket?' · '+p.ket:''),[ln('bebanPiutang',+p.nilai,0),ln('piutang',0,+p.nilai)],'wo');else add(p.tgl,d.no,'Penerimaan piutang '+d.no+(p.ket?' · '+p.ket:''),[ln(akunKas(p.metode),+p.nilai,0),ln('piutang',0,+p.nilai)])}
   }
   for(const k of S.kas){
@@ -840,6 +847,7 @@ function journal(){
     else if(k.tipe==='prive')add(k.tgl,k.id,k.ket,[ln('prive',v,0),ln(a,0,v)]);
     else if(k.tipe==='pajak')add(k.tgl,k.id,k.ket,[ln('bebanPajak',v,0),ln(a,0,v)]);
   }
+  for(const o of S.olah||[]){if(o.batal||!(+o.biaya>0))continue;add(o.tgl,o.no,'Biaya pengolahan '+o.no+(o.ket?' · '+o.ket:''),[ln('persediaan',+o.biaya,0),ln(akunKas(o.metode),0,+o.biaya)],'olah')}
   for(const e of S.jm||[]){if(e.batal)continue;add(e.tgl,e.id,e.ket,e.lines.map(l=>ln(l.a,+l.d||0,+l.k||0)),'jm')}
   for(const e of depEntries())add(e.tgl,e.ref,e.ket,[ln('penyusutan',e.v,0),ln('akumPeny',0,e.v)],'dep');
   for(const e of pinjEntries())add(e.tgl,e.ref,e.ket,e.lines,'pjm');
@@ -1018,7 +1026,7 @@ function periodLabel(){return perLabel()}
 (function(){const pl=periodList(),cur=todayISO().slice(0,7);ui.period=pl.includes(cur)?cur:pl[0]})();
 
 /* ====== shell + router ====== */
-const NAV=[['dashboard','Dashboard','home'],['pos','Smart POS','cart'],['aicore','Office AI','bot'],['transaksi','Pembelian & Penjualan','doc'],['pesanan','Pesanan (PO/SO)','cart'],['stok','Stok & Persediaan','box'],['gudang','Gudang & Outlet','gudang'],['velocity','Velocity Stok','trend'],['program','Program & Rebate','receipt'],['mitra','Pelanggan & Pemasok','people'],['keuangan','Keuangan','wallet'],['agronomi','Agronomi','leaf'],['laporan','Laporan','bars'],['pengaturan','Pengaturan','gear']];
+const NAV=[['dashboard','Dashboard','home'],['pos','Smart POS','cart'],['aicore','Office AI','bot'],['transaksi','Pembelian & Penjualan','doc'],['pesanan','Pesanan (PO/SO)','cart'],['stok','Stok & Persediaan','box'],['gudang','Gudang & Outlet','gudang'],['velocity','Velocity Stok','trend'],['program','Program & Rebate','receipt'],['mitra','Pelanggan & Pemasok','people'],['keuangan','Keuangan','wallet'],['agronomi','Agronomi','leaf'],['usaha','Usahatani & Hasil Bumi','leaf'],['laporan','Laporan','bars'],['pengaturan','Pengaturan','gear']];
 function shell(){
   $('#app').innerHTML=`<header class="top"><div class="brand">${logo(40)}<div><b>IMAGRITAMA</b><small>Integrated Agribusiness System</small></div></div><div class="ttl"><h1 id="ptitle"></h1><p id="psub"></p></div><div class="hr" id="phr"></div><div class="olbar" id="olbar"></div></header>
 <div class="shell"><nav class="side" aria-label="Menu utama"><button class="sidetg" data-act="side-toggle" title="Ciutkan / buka menu" aria-label="Ciutkan atau buka menu"><span class="chev">‹</span><span class="tx">Ciutkan menu</span></button>${NAV.map(n=>`<a class="nav" href="#${n[0]}" data-nav="${n[0]}" title="${n[1]}">${ic(n[2])}<span>${n[1]}</span></a>`).join('')}<hr><h4>Laporan Cepat</h4>${[['jualSku','Laporan Penjualan'],['stok','Laporan Persediaan'],['labaRugi','Laporan Laba Rugi'],['arusKas','Laporan Arus Kas']].map(l=>`<button class="qlink" data-act="qlap" data-t="${l[0]}">${ic('doc')}${l[1]}</button>`).join('')}<div class="sidefoot">Data tersimpan di browser ini.</div></nav><main id="view" tabindex="-1"></main></div>
@@ -5542,6 +5550,313 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
   };
 })();
 
+/* ====== USAHATANI & HASIL BUMI: pembelian hasil bumi (timbangan, susut, panjar petani), buku usahatani per musim, panduan pelaku ====== */
+(function(){
+  if(typeof PAGES==='undefined')return;
+  ['usahatani','panjarPetani'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+  Object.assign(ui,{ut:{tab:'ringkas',sel:''}});
+  const KAT='Hasil Bumi';
+  const BIAYA=[['taniSaprodi','Benih, pupuk & obat'],['taniTenaga','Upah tenaga kerja'],['taniLahan','Sewa lahan, air & alat'],['taniPanen','Panen & pascapanen']];
+  const fin=()=>typeof finOK!=='function'||finOK();
+  const ymd=()=>todayISO();
+  const komList=()=>S.sku.filter(s=>s.kategori===KAT);
+  const petaniList=()=>S.mitra.filter(m=>m.jenis==='Pemasok');
+  /* panjar: keluar (jurnal panjar) dikurangi dipotong pada pembelian */
+  function panjarOf(mid){
+    let p=0;
+    for(const e of S.jm||[]){if(e.batal||e.tipe!=='panjar'||e.mitra!==mid)continue;for(const l of e.lines)if(l.a==='panjarTani')p+=(+l.d||0)-(+l.k||0)}
+    for(const d of S.docs){if(d.status==='BATAL'||d.jenis!=='Beli'||d.mitra!==mid)continue;for(const b of d.bayar||[])if(b.metode==='Potong panjar')p-=+b.nilai}
+    return Math.round(p*100)/100;
+  }
+  const musimOf=id=>S.usahatani.find(m=>m.id===id);
+  function musimHitung(m){
+    const biaya={};BIAYA.forEach(b=>biaya[b[0]]=0);let pend=0,kg=0;
+    for(const k of S.kas)if(k.musim===m.id&&k.tipe==='beban'&&biaya[k.kat]!==undefined)biaya[k.kat]+=+k.nilai;
+    for(const e of S.jm||[]){if(e.batal||e.musim!==m.id)continue;for(const l of e.lines)if(l.a==='pendTani')pend+=(+l.k||0)-(+l.d||0);kg+=+e.kg||0}
+    const tb=BIAYA.reduce((a,b)=>a+biaya[b[0]],0),luas=+m.luas||0;
+    return {biaya,tb,pend,kg,laba:pend-tb,rc:tb>0?pend/tb:0,hppKg:kg>0?tb/kg:0,hargaRata:kg>0?pend/kg:0,prod:luas>0?kg/luas:0,labaHa:luas>0?(pend-tb)/luas:0,bepHarga:kg>0?tb/kg:0,bepKg:kg>0&&pend>0?tb/(pend/kg):0};
+  }
+  const badge=(t,c)=>`<span class="badge ${c}">${t}</span>`;
+  const tabs=[['ringkas','Panduan Pelaku'],['beli','Beli Hasil Bumi'],['panjar','Panjar Petani'],['tani','Buku Usahatani']];
+
+  /* ---------- panduan pelaku ---------- */
+  const PELAKU=[
+   ['Produsen / principal','Siap','Pantau penjualan lewat portal principal, kelola program rebate & klaim, kirim barang ke distributor.','Pesanan SO, Program & Rebate, Portal mitra'],
+   ['Distributor','Siap','Beli dari beberapa pemasok, jual ke sub-distributor dengan harga bertingkat, kelola piutang tempo & retur.','Pembelian, Penjualan, Pesanan PO/SO, Harga bertingkat, Program'],
+   ['Sub-distributor / grosir','Siap','Harga grosir per kelompok pelanggan, tempo, cicilan, retur, benefit pemasok.','Pembelian & Penjualan, Piutang, Program belanja'],
+   ['Toko retailer eceran','Siap','Kasir cepat (Smart POS), stok, opname, biaya operasional, konsultasi produk.','Smart POS, Stok, Keuangan, Agronomi'],
+   ['Agen / tengkulak / pedagang hasil bumi','Siap','Beli hasil bumi dari petani dengan timbangan, potong susut / kadar air, potong panjar, jual ke pabrik atau pasar.','Beli Hasil Bumi, Panjar Petani, Penjualan'],
+   ['Kelompok tani','Sebagian','Pengadaan saprodi bersama dan penjualan hasil bersama bisa lewat Pembelian/Penjualan; simpanan anggota & SHU belum ada.','Pembelian, Penjualan, Panjar Petani'],
+   ['Petani (usahatani)','Siap','Buku per musim tanam: biaya, panen, laba, R/C, harga pokok per kg, titik impas, laba per hektare.','Buku Usahatani, Agronomi'],
+   ['Pabrik pengolahan hasil pertanian','Sebagian','Beli bahan baku (Beli Hasil Bumi) dan jual produk jadi; proses produksi (rendemen, biaya olah) belum ada.','Beli Hasil Bumi, Penjualan'],
+   ['Sub-sektor lain (peternakan, perikanan, perkebunan)','Sebagian','Komoditas dicatat sebagai produk Hasil Bumi (kg, ekor, liter). Siklus biologis (ternak, kolam) belum khusus.','Beli Hasil Bumi, Buku Usahatani']];
+  function tabRingkas(){
+    const sel=new Set(S.settings.pelaku||[]);
+    return `<div class="card"><h3 class="ch">Pilih peran usaha Anda</h3><div class="note" style="margin-bottom:10px">Satu aplikasi dipakai semua pelaku. Centang peran Anda sebagai penanda; menu yang dipakai tetap sama. Status <b>Sebagian</b> berarti ada yang belum tersedia, ditulis apa adanya.</div>
+    <div class="scroll"><table class="tbl"><thead><tr><th></th><th>Pelaku</th><th>Status</th><th>Yang bisa dilakukan</th><th>Menu</th></tr></thead><tbody>${PELAKU.map((r,i)=>`<tr><td><input type="checkbox" data-chg="ut-pel" data-i="${i}" aria-label="Pilih ${esc(r[0])}" ${sel.has(r[0])?'checked':''}></td><td class="bold">${esc(r[0])}</td><td>${badge(r[1],r[1]==='Siap'?'ok':'warn')}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+  ACT['ut-pel']=t=>{const r=PELAKU[+t.dataset.i];if(!r)return;const s=new Set(S.settings.pelaku||[]);t.checked?s.add(r[0]):s.delete(r[0]);S.settings.pelaku=[...s];commit()};
+
+  /* ---------- beli hasil bumi ---------- */
+  function tabBeli(){
+    const kom=komList(),docs=S.docs.filter(d=>d.jenis==='Beli'&&d.hb&&d.status!=='BATAL').slice().reverse();
+    const stokRows=kom.map(s=>{const i=D.inv[s.sku];return `<tr><td>${esc(s.nama)}</td><td class="r">${num(i.qty)} kg</td>${fin()?`<td class="r">${rp(i.avg)}</td><td class="r">${rp(i.val)}</td>`:''}</tr>`}).join('');
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Pembelian Hasil Bumi</h3><button class="btn" style="margin-left:auto" data-act="hb-kom">${ic('plus')}Komoditas Baru</button><button class="btn pri" style="margin-left:8px" data-act="hb-new">${ic('plus')}Catat Pembelian</button></div>
+    <div class="note" style="margin-bottom:10px">Catat timbangan bruto, potongan susut atau kadar air, harga per kg, dan potongan panjar. Sistem membuat faktur pembelian, stok, dan utang secara otomatis.</div>
+    ${kom.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Komoditas</th><th class="r">Stok</th>${fin()?'<th class="r">HPP/kg</th><th class="r">Nilai</th>':''}</tr></thead><tbody>${stokRows}</tbody></table></div>`:'<div class="note">Belum ada komoditas. Tekan <b>Komoditas Baru</b> (contoh: Gabah Kering Panen, Jagung Pipil, Cabai Merah).</div>'}</div>
+    <div class="card" style="margin-top:12px"><h3 class="ch">Riwayat pembelian</h3>${docs.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Tanggal</th><th>No</th><th>Petani</th><th>Komoditas</th><th class="r">Bruto kg</th><th class="r">Susut</th><th class="r">Netto kg</th>${fin()?'<th class="r">Harga/kg</th><th class="r">Total</th><th class="r">Sisa utang</th>':''}</tr></thead><tbody>${docs.slice(0,50).map(d=>{const it=d.items[0],r=D.doc[d.no];return `<tr><td>${fmtTgl(d.tgl)}</td><td>${esc(d.no)}</td><td>${esc(mitraNama(d.mitra))}</td><td>${esc((skuOf(it.sku)||{}).nama||it.sku)}</td><td class="r">${num(d.hb.bruto)}</td><td class="r">${dec(d.hb.pot,1)}%</td><td class="r">${num(it.qty)}</td>${fin()?`<td class="r">${rp(it.harga)}</td><td class="r">${rp(r.total)}</td><td class="r">${rp(r.sisa)}</td>`:''}</tr>`}).join('')}</tbody></table></div>`:'<div class="note">Belum ada pembelian hasil bumi.</div>'}</div>`;
+  }
+  ACT['hb-kom']=()=>openModal('Komoditas Baru',`<div class="field"><label class="lbl" for="hk-nama">Nama komoditas</label><input class="in" id="hk-nama" placeholder="Contoh: Gabah Kering Panen"></div><div class="field" style="margin-top:8px"><label class="lbl" for="hk-kat">Jenis</label><select class="in" id="hk-kat"><option value="Hasil Bumi">Hasil bumi (bahan dari petani)</option><option value="Hasil Olahan">Hasil olahan (produk pabrik)</option></select></div><div class="note" style="margin-top:8px">Satuan dicatat dalam kg. Harga jual bisa diatur di menu Stok &amp; Persediaan.</div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hk-ok">Simpan</button>`,'sm');
+  ACT['hk-ok']=()=>{
+    const nama=($('#hk-nama').value||'').trim();if(!nama)return toast('Nama komoditas wajib diisi',true);
+    if(S.sku.some(s=>s.nama.toLowerCase()===nama.toLowerCase()))return toast('Nama sudah ada di daftar produk',true);
+    const v={nama,pid:'',ukuran:null,kategori:($('#hk-kat')?$('#hk-kat').value:KAT),kemasan:'kg',harga:0,hpp0:0,min:null,barcode:''};
+    v.pid=newProduk(v);let n=S.sku.length+1,code;do{code='SKU-'+String(n++).padStart(4,'0')}while(skuOf(code));
+    S.sku.push(Object.assign({sku:code},v));try{AUD('Komoditas hasil bumi',nama,code)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Komoditas '+nama+' ditambahkan ('+code+')');
+  };
+  function hbPreview(){
+    const bruto=+($('#hb-bruto').value||0),pot=Math.min(99,Math.max(0,+($('#hb-pot').value||0))),h=+($('#hb-harga').value||0),m=$('#hb-mitra').value;
+    const netto=Math.round(bruto*(1-pot/100)*100)/100,total=Math.round(netto*h),out=panjarOf(m);
+    const pj=Math.min(Math.max(0,+($('#hb-pj').value||0)),out,total);
+    const el=$('#hb-prev');if(el)el.innerHTML=`Netto <b>${num(netto)} kg</b> · Nilai <b>${rp(total)}</b> · Potong panjar <b>${rp(pj)}</b> · Dibayar / jadi utang <b>${rp(total-pj)}</b>${out>0?` · Panjar petani saat ini ${rp(out)}`:''}`;
+  }
+  ACT['hb-hit']=hbPreview;
+  ACT['hb-new']=()=>{
+    if(!komList().length)return toast('Tambah komoditas dulu (tombol Komoditas Baru)',true);
+    const ps=petaniList();
+    openModal('Catat Pembelian Hasil Bumi',`<div class="row"><div class="field"><label class="lbl" for="hb-tgl">Tanggal</label><input class="in" id="hb-tgl" type="date" value="${ymd()}"></div><div class="field" style="flex:2"><label class="lbl" for="hb-mitra">Petani / pemasok</label><select class="in" id="hb-mitra" data-chg="hb-hit"><option value="">– pilih –</option>${ps.map(m=>`<option value="${esc(m.id)}">${esc(m.nama)}</option>`).join('')}</select></div></div>
+    <div class="row" style="margin-top:8px"><div class="field" style="flex:2"><label class="lbl" for="hb-baru">Atau petani baru (ketik nama)</label><input class="in" id="hb-baru" placeholder="Nama petani baru"></div><div class="field" style="flex:2"><label class="lbl" for="hb-kom">Komoditas</label><select class="in" id="hb-kom">${komList().map(s=>`<option value="${esc(s.sku)}">${esc(s.nama)}</option>`).join('')}</select></div></div>
+    <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="hb-bruto">Timbangan bruto (kg)</label><input class="in" id="hb-bruto" type="number" min="0" step="0.01" data-inp="hb-hit"></div><div class="field"><label class="lbl" for="hb-pot">Potongan susut / kadar air (%)</label><input class="in" id="hb-pot" type="number" min="0" max="99" step="0.1" value="0" data-inp="hb-hit"></div><div class="field"><label class="lbl" for="hb-harga">Harga per kg (Rp)</label><input class="in" id="hb-harga" type="number" min="0" step="1" data-inp="hb-hit"></div></div>
+    <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="hb-pj">Potong panjar (Rp)</label><input class="in" id="hb-pj" type="number" min="0" step="1" value="0" data-inp="hb-hit"></div><div class="field"><label class="lbl" for="hb-met">Pembayaran</label><select class="in" id="hb-met"><option>Tunai</option><option>Transfer</option><option>Tempo</option></select></div><div class="field"><label class="lbl" for="hb-hari">Jatuh tempo (hari)</label><input class="in" id="hb-hari" type="number" min="1" value="14"></div></div>
+    <div class="note" id="hb-prev" style="margin-top:8px">Isi timbangan dan harga untuk melihat hitungan.</div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="hb-ok">Simpan</button>`,'md');
+  };
+  ACT['hb-ok']=()=>{
+    const tgl=$('#hb-tgl').value,sku=$('#hb-kom').value,bruto=+($('#hb-bruto').value||0),pot=+($('#hb-pot').value||0),h=+($('#hb-harga').value||0),met=$('#hb-met').value,hari=Math.max(1,+($('#hb-hari').value||14));
+    let mid=$('#hb-mitra').value;const baru=($('#hb-baru').value||'').trim();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(bruto>0))return toast('Timbangan bruto harus lebih dari 0',true);
+    if(!(pot>=0&&pot<100))return toast('Potongan harus antara 0 dan 99 persen',true);if(!(h>0))return toast('Harga per kg harus lebih dari 0',true);
+    if(!mid&&!baru)return toast('Pilih petani atau ketik nama petani baru',true);
+    if(!mid){
+      const ada=S.mitra.find(m=>m.jenis==='Pemasok'&&m.nama.toLowerCase()===baru.toLowerCase());
+      if(ada)mid=ada.id;else{let n=S.mitra.filter(m=>m.id.startsWith('SUP-')).length+1;do{mid='SUP-'+String(n++).padStart(4,'0')}while(mitraOf(mid));S.mitra.push({id:mid,nama:baru,jenis:'Pemasok',telp:'',alamat:'',lokasi:'',komoditas:(skuOf(sku)||{}).nama||'',luas:'',catatan:'Petani (dicatat dari pembelian hasil bumi)'})}
+    }
+    const netto=Math.round(bruto*(1-pot/100)*100)/100,total=netto*h;if(!(netto>0))return toast('Netto harus lebih dari 0',true);
+    const out=panjarOf(mid);let pj=Math.max(0,+($('#hb-pj').value||0));if(pj>out+0.5)return toast('Potongan panjar melebihi panjar petani ('+rp(out)+')',true);if(pj>total+0.5)return toast('Potongan panjar melebihi nilai pembelian',true);pj=Math.min(pj,total);
+    const cash=total-pj,d={no:noFor('Beli',tgl),jenis:'Beli',tgl,mitra:mid,items:[{sku,qty:netto,harga:h}],metode:met,jt:met==='Tempo'?addDays(tgl,hari):null,bayar:[],hb:{bruto,pot,panjar:pj}};
+    if(pj>0)d.bayar.push({tgl,ket:'Potong panjar petani',nilai:pj,metode:'Potong panjar'});
+    if(met!=='Tempo'&&cash>0)d.bayar.push({tgl,ket:'Pembayaran '+met+' (hasil bumi)',nilai:cash,metode:met});
+    S.docs.push(d);try{AUD('Beli hasil bumi',(skuOf(sku)||{}).nama+' '+num(netto)+' kg · '+rp(total),d.no)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Pembelian '+d.no+' dicatat: netto '+num(netto)+' kg, '+rp(total));
+  };
+
+  /* ---------- panjar petani ---------- */
+  function tabPanjar(){
+    const rows=petaniList().map(m=>({m,p:panjarOf(m.id)})).filter(r=>Math.abs(r.p)>0.5||S.jm.some(e=>e.tipe==='panjar'&&e.mitra===r.m.id)).sort((a,b)=>b.p-a.p);
+    const his=(S.jm||[]).filter(e=>e.tipe==='panjar').slice().reverse().slice(0,30);
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Panjar / Kasbon Petani</h3><button class="btn pri" style="margin-left:auto" data-act="pjt-new">${ic('plus')}Beri Panjar</button></div>
+    <div class="note" style="margin-bottom:10px">Panjar adalah uang muka ke petani sebelum panen. Saat membeli hasil bumi, panjar bisa dipotong. Total panjar beredar: <b>${rp(sum(rows,r=>Math.max(0,r.p)))}</b>.</div>
+    ${rows.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Petani</th><th class="r">Sisa panjar</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.m.nama)}</td><td class="r ${r.p<-0.5?'bad-t':''}">${rp(r.p)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="note">Belum ada panjar.</div>'}</div>
+    <div class="card" style="margin-top:12px"><h3 class="ch">Riwayat pemberian panjar</h3>${his.length?`<table class="tbl"><tbody>${his.map(e=>`<tr><td>${fmtTgl(e.tgl)}</td><td>${esc(e.ket)}</td><td class="r">${rp(sum(e.lines.filter(l=>l.a==='panjarTani'),l=>+l.d||0))}</td></tr>`).join('')}</tbody></table>`:'<div class="note">Belum ada.</div>'}</div>`;
+  }
+  ACT['pjt-new']=()=>openModal('Beri Panjar ke Petani',`<div class="row"><div class="field"><label class="lbl" for="pt-tgl">Tanggal</label><input class="in" id="pt-tgl" type="date" value="${ymd()}"></div><div class="field" style="flex:2"><label class="lbl" for="pt-mitra">Petani</label><select class="in" id="pt-mitra"><option value="">– pilih –</option>${petaniList().map(m=>`<option value="${esc(m.id)}">${esc(m.nama)}</option>`).join('')}</select></div></div>
+  <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="pt-nilai">Jumlah (Rp)</label><input class="in" id="pt-nilai" type="number" min="0" step="1"></div><div class="field"><label class="lbl" for="pt-met">Dibayar dari</label><select class="in" id="pt-met"><option>Tunai</option><option>Transfer</option></select></div></div>
+  <div class="field" style="margin-top:8px"><label class="lbl" for="pt-ket">Catatan</label><input class="in" id="pt-ket" placeholder="Contoh: modal tanam musim hujan"></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="pjt-ok">Simpan</button>`,'sm');
+  ACT['pjt-ok']=()=>{
+    const tgl=$('#pt-tgl').value,mid=$('#pt-mitra').value,v=+($('#pt-nilai').value||0),met=$('#pt-met').value,ket=($('#pt-ket').value||'').trim();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!mid)return toast('Pilih petani',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);
+    const bal=cashBalance(),a=akunKas(met);if(v>(a==='kasTunai'?bal.tunai:bal.bank)+0.5)return toast('Saldo '+(a==='kasTunai'?'kas tunai':'bank')+' tidak cukup',true);
+    const id=nextNo('JM-'+yymmdd(tgl)+'-');S.jm.push({id,tgl,tipe:'panjar',mitra:mid,ket:'Panjar '+mitraNama(mid)+(ket?' · '+ket:''),lines:[{a:'panjarTani',d:v,k:0},{a:a,d:0,k:v}]});
+    try{AUD('Panjar petani',mitraNama(mid)+' · '+rp(v),id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Panjar '+rp(v)+' dicatat');
+  };
+
+  /* ---------- buku usahatani ---------- */
+  function tabTani(){
+    const T=ui.ut,list=S.usahatani,m=musimOf(T.sel)||list[list.length-1];if(m)T.sel=m.id;
+    let det='';
+    if(m){
+      const h=musimHitung(m),bs=BIAYA.map(b=>`<tr><td>${b[1]}</td><td class="r">${rp(h.biaya[b[0]])}</td></tr>`).join('');
+      const tips=[];
+      if(h.kg>0&&h.hargaRata<h.hppKg)tips.push('Harga jual rata-rata ('+rp(h.hargaRata)+'/kg) di bawah biaya per kg ('+rp(h.hppKg)+'). Musim ini rugi.');
+      if(h.kg>0&&h.rc>0&&h.rc<1.5&&h.rc>=1)tips.push('R/C di bawah 1,5: untung tipis. Tinjau biaya terbesar atau cari harga jual lebih baik.');
+      if(h.tb>0&&h.kg===0)tips.push('Belum ada panen tercatat. Catat hasil panen setelah dijual.');
+      const big=BIAYA.slice().sort((a,b)=>h.biaya[b[0]]-h.biaya[a[0]])[0];if(h.tb>0)tips.push('Biaya terbesar: '+big[1]+' ('+pct(h.biaya[big[0]]/h.tb)+' dari total biaya).');
+      det=`<div class="card" style="margin-top:12px"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">${esc(m.nama)} · ${esc(m.komoditas)} · ${num(m.luas)} ha</h3><button class="btn" style="margin-left:auto" data-act="ut-biaya" data-id="${esc(m.id)}">${ic('plus')}Catat Biaya</button><button class="btn pri" style="margin-left:8px" data-act="ut-panen" data-id="${esc(m.id)}">${ic('plus')}Catat Panen Terjual</button></div>
+      <div class="grid g4" style="margin-bottom:12px">${kpi('red','wallet','Total biaya',rp(h.tb))}${kpi('green','wallet','Pendapatan panen',rp(h.pend))}${kpi(h.laba>=0?'green':'red','trend','Laba musim',rp(h.laba))}${kpi('blue','trend','R/C',h.tb>0?dec(h.rc,2):'–')}</div>
+      <div class="grid g2"><div><table class="tbl"><thead><tr><th>Biaya</th><th class="r">Rp</th></tr></thead><tbody>${bs}<tr><td class="bold">Total</td><td class="r bold">${rp(h.tb)}</td></tr></tbody></table></div>
+      <div><table class="tbl"><thead><tr><th>Ukuran</th><th class="r">Nilai</th></tr></thead><tbody><tr><td>Hasil panen terjual</td><td class="r">${num(h.kg)} kg</td></tr><tr><td>Produktivitas</td><td class="r">${h.prod?num(h.prod)+' kg/ha':'–'}</td></tr><tr><td>Biaya per kg (HPP)</td><td class="r">${h.kg?rp(h.hppKg):'–'}</td></tr><tr><td>Harga jual rata-rata</td><td class="r">${h.kg?rp(h.hargaRata):'–'}</td></tr><tr><td>Titik impas harga</td><td class="r">${h.kg?rp(h.bepHarga)+'/kg':'–'}</td></tr><tr><td>Titik impas produksi</td><td class="r">${h.bepKg?num(h.bepKg)+' kg':'–'}</td></tr><tr><td>Laba per hektare</td><td class="r">${m.luas>0&&h.kg?rp(h.labaHa):'–'}</td></tr></tbody></table></div></div>
+      ${tips.length?`<div class="note" style="margin-top:10px"><b>Catatan otomatis (hitungan dari data Anda, bukan jaminan):</b><br>${tips.map(esc).join('<br>')}</div>`:''}</div>`;
+    }
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Buku Usahatani</h3><button class="btn pri" style="margin-left:auto" data-act="ut-new">${ic('plus')}Musim Tanam Baru</button></div>
+    <div class="note" style="margin-bottom:10px">Satu musim tanam = satu lahan dan satu komoditas. Catat biaya dan hasil panen terjual; sistem menghitung laba, R/C, biaya per kg, dan titik impas. Biaya masuk ke Laba Rugi usaha sebagai beban Usahatani.</div>
+    ${list.length?`<div class="field" style="max-width:360px"><label class="lbl" for="ut-sel">Pilih musim tanam</label><select class="in" id="ut-sel" data-chg="ut-pilih">${list.map(x=>`<option value="${esc(x.id)}" ${m&&x.id===m.id?'selected':''}>${esc(x.nama)} · ${esc(x.komoditas)}</option>`).join('')}</select></div>`:'<div class="note">Belum ada musim tanam. Tekan <b>Musim Tanam Baru</b>.</div>'}</div>${det}`;
+  }
+  ACT['ut-pilih']=t=>{ui.ut.sel=t.value;refresh()};
+  ACT['ut-new']=()=>openModal('Musim Tanam Baru',`<div class="row"><div class="field" style="flex:2"><label class="lbl" for="un-nama">Nama musim / lahan</label><input class="in" id="un-nama" placeholder="Contoh: Sawah Blok A MT1 2027"></div><div class="field"><label class="lbl" for="un-kom">Komoditas</label><input class="in" id="un-kom" placeholder="Padi, jagung, cabai"></div></div>
+  <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="un-luas">Luas (hektare)</label><input class="in" id="un-luas" type="number" min="0" step="0.01"></div><div class="field"><label class="lbl" for="un-tgl">Tanggal tanam</label><input class="in" id="un-tgl" type="date" value="${ymd()}"></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="un-ok">Simpan</button>`,'sm');
+  ACT['un-ok']=()=>{
+    const nama=($('#un-nama').value||'').trim(),kom=($('#un-kom').value||'').trim(),luas=+($('#un-luas').value||0),tgl=$('#un-tgl').value;
+    if(!nama)return toast('Nama musim wajib diisi',true);if(!kom)return toast('Komoditas wajib diisi',true);if(!(luas>0))return toast('Luas harus lebih dari 0',true);
+    const id='MT-'+String(S.usahatani.length+1).padStart(3,'0');S.usahatani.push({id,nama,komoditas:kom,luas,tgl});ui.ut.sel=id;try{AUD('Musim tanam baru',nama,id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Musim tanam '+id+' dibuat');
+  };
+  ACT['ut-biaya']=t=>{const id=t.dataset.id;openModal('Catat Biaya Usahatani',`<div class="row"><div class="field"><label class="lbl" for="ub-tgl">Tanggal</label><input class="in" id="ub-tgl" type="date" value="${ymd()}"></div><div class="field"><label class="lbl" for="ub-kat">Jenis biaya</label><select class="in" id="ub-kat">${BIAYA.map(b=>`<option value="${b[0]}">${b[1]}</option>`).join('')}</select></div></div>
+  <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="ub-nilai">Jumlah (Rp)</label><input class="in" id="ub-nilai" type="number" min="0" step="1"></div><div class="field"><label class="lbl" for="ub-met">Dibayar dari</label><select class="in" id="ub-met"><option>Tunai</option><option>Transfer</option></select></div></div>
+  <div class="field" style="margin-top:8px"><label class="lbl" for="ub-ket">Keterangan</label><input class="in" id="ub-ket" placeholder="Contoh: urea 5 sak"></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="ub-ok" data-id="${esc(id)}">Simpan</button>`,'sm')};
+  ACT['ub-ok']=t=>{
+    const m=musimOf(t.dataset.id);if(!m)return;const tgl=$('#ub-tgl').value,kat=$('#ub-kat').value,v=+($('#ub-nilai').value||0),met=$('#ub-met').value,ket=($('#ub-ket').value||'').trim();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);if(!ket)return toast('Isi keterangan',true);
+    const bal=cashBalance(),a=akunKas(met);if(v>(a==='kasTunai'?bal.tunai:bal.bank)+0.5)return toast('Saldo '+(a==='kasTunai'?'kas tunai':'bank')+' tidak cukup',true);
+    S.kas.push({id:noFor('Kas',tgl),tgl,tipe:'beban',arah:'keluar',nilai:v,metode:met,ket:'Usahatani '+m.nama+': '+ket,kat,musim:m.id});
+    if(!commit())return;closeModal();refresh();toast('Biaya dicatat');
+  };
+  ACT['ut-panen']=t=>{const id=t.dataset.id;openModal('Catat Panen Terjual',`<div class="row"><div class="field"><label class="lbl" for="up-tgl">Tanggal</label><input class="in" id="up-tgl" type="date" value="${ymd()}"></div><div class="field"><label class="lbl" for="up-kg">Berat terjual (kg)</label><input class="in" id="up-kg" type="number" min="0" step="0.01"></div><div class="field"><label class="lbl" for="up-harga">Harga per kg (Rp)</label><input class="in" id="up-harga" type="number" min="0" step="1"></div></div>
+  <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="up-met">Diterima di</label><select class="in" id="up-met"><option>Tunai</option><option>Transfer</option></select></div><div class="field" style="flex:2"><label class="lbl" for="up-ket">Pembeli / catatan</label><input class="in" id="up-ket" placeholder="Contoh: dijual ke pedagang desa"></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="up-ok" data-id="${esc(id)}">Simpan</button>`,'sm')};
+  ACT['up-ok']=t=>{
+    const m=musimOf(t.dataset.id);if(!m)return;const tgl=$('#up-tgl').value,kg=+($('#up-kg').value||0),h=+($('#up-harga').value||0),met=$('#up-met').value,ket=($('#up-ket').value||'').trim();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(kg>0))return toast('Berat harus lebih dari 0',true);if(!(h>0))return toast('Harga harus lebih dari 0',true);
+    const v=Math.round(kg*h),id=nextNo('JM-'+yymmdd(tgl)+'-');
+    S.jm.push({id,tgl,tipe:'umum',musim:m.id,kg,ket:'Penjualan panen '+m.nama+' '+num(kg)+' kg'+(ket?' · '+ket:''),lines:[{a:akunKas(met),d:v,k:0},{a:'pendTani',d:0,k:v}]});
+    try{AUD('Panen terjual',m.nama+' · '+rp(v),id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Panen dicatat: '+rp(v));
+  };
+
+  const _tab={ringkas:tabRingkas,beli:tabBeli,panjar:tabPanjar,tani:tabTani};
+  ACT['ut-tab']=t=>{ui.ut.tab=t.dataset.tab;refresh()};
+  PAGES.usaha=()=>{
+    const T=ui.ut,body=(_tab[T.tab]||tabRingkas)();
+    return {title:'Usahatani & Hasil Bumi',sub:'Untuk petani, kelompok tani, agen, pedagang hasil bumi, dan pabrik pengolahan',html:`<div class="tabs" role="tablist" style="margin-bottom:12px">${tabs.map(x=>`<button class="tab ${T.tab===x[0]?'on':''}" role="tab" aria-selected="${T.tab===x[0]}" data-act="ut-tab" data-tab="${x[0]}">${x[1]}</button>`).join('')}</div>${body}`};
+  };
+  window.UT={tabs,_tab,badge,fin,komList};window.utPanjarOf=panjarOf;window.utMusimHitung=musimHitung;
+})();
+
+/* ====== PENGOLAHAN (bahan baku → produk jadi, rendemen, biaya olah) & KELOMPOK TANI (anggota, simpanan, SHU) ====== */
+(function(){
+  if(typeof PAGES==='undefined'||!window.UT)return;
+  ['olah','kelompok','simpanan'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+  const {tabs,_tab,badge,fin}=window.UT;
+  const ymd=()=>todayISO();
+  const stokSku=()=>S.sku.filter(s=>s.kategori==='Hasil Bumi'||s.kategori==='Hasil Olahan');
+  const opt=(l,sel)=>l.map(s=>`<option value="${esc(s.sku)}" ${s.sku===sel?'selected':''}>${esc(s.nama)} (stok ${num(Math.max(0,D.inv[s.sku].qty))} kg)</option>`).join('');
+  const optAll=()=>S.sku.filter(s=>s.kategori==='Hasil Olahan'||s.kategori==='Hasil Bumi');
+
+  /* ---------- PENGOLAHAN ---------- */
+  function rendemenOf(o){
+    const kin=sum(o.inputs||[],i=>+i.qty),utama=(o.items||[])[0];
+    return kin>0&&utama?(+utama.qty)/kin:0;
+  }
+  function tabOlah(){
+    const L=S.olah.filter(o=>!o.batal).slice().reverse();
+    const per={};L.forEach(o=>{const k=(o.items[0]||{}).sku;if(!k)return;const x=per[k]||(per[k]={n:0,r:0});x.n++;x.r+=rendemenOf(o)});
+    const rows=L.slice(0,40).map(o=>{
+      const a=D.doc[o.no]||{},u=o.items[0],avg=per[u.sku]?per[u.sku].r/per[u.sku].n:0,r=rendemenOf(o),rendah=per[u.sku].n>=3&&r<avg*0.9;
+      const hppU=a.val&&u.qty?(a.val*((o.items.length>1&&o.items.some(i=>i.porsi!=null&&i.porsi!=='')?(+u.porsi||0)/sum(o.items,i=>+i.porsi||0):(+u.qty/sum(o.items,i=>+i.qty))))/u.qty):0;
+      return `<tr><td>${fmtTgl(o.tgl)}</td><td>${esc(o.no)}</td><td>${o.inputs.map(i=>esc((skuOf(i.sku)||{}).nama||i.sku)+' '+num(i.qty)+' kg').join(', ')}</td><td>${o.items.map(i=>esc((skuOf(i.sku)||{}).nama||i.sku)+' '+num(i.qty)+' kg').join(', ')}</td><td class="r">${pct(r)}${rendah?' '+badge('rendah','warn'):''}</td>${fin()?`<td class="r">${rp(hppU)}</td><td class="r">${rp(o.biaya||0)}</td>`:''}<td><button class="btn sm" data-act="ol-batal" data-no="${esc(o.no)}">Batalkan</button></td></tr>`}).join('');
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Pengolahan Hasil Pertanian</h3><button class="btn pri" style="margin-left:auto" data-act="ol-new">${ic('plus')}Catat Produksi</button></div>
+    <div class="note" style="margin-bottom:10px">Untuk pabrik penggilingan, pengering, pengemasan, dan sejenisnya. Bahan baku dikurangi dari stok, hasil produksi ditambahkan, dan biaya olah ikut masuk ke harga pokok hasil. Hasil sampingan (contoh dedak, sekam) boleh diberi bagian nilai sendiri. Hasil olahan didaftarkan lewat <b>Komoditas Baru</b> dengan jenis Hasil Olahan.</div>
+    ${rows?`<div class="scroll"><table class="tbl"><thead><tr><th>Tanggal</th><th>No</th><th>Bahan</th><th>Hasil</th><th class="r">Rendemen</th>${fin()?'<th class="r">HPP hasil utama/kg</th><th class="r">Biaya olah</th>':''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="note">Belum ada produksi tercatat.</div>'}</div>`;
+  }
+  function olRows(){
+    const kini=(window._olRow||1);
+    return `<div id="ol-in">${[0,1,2].map(i=>`<div class="row ol-in-r" style="margin-top:6px"><div class="field" style="flex:3"><label class="lbl">${i===0?'Bahan baku':'Bahan tambahan'}</label><select class="in ol-isku" data-inp="ol-hit"><option value="">– ${i===0?'pilih':'tidak ada'} –</option>${opt(stokSku().filter(s=>D.inv[s.sku].qty>0))}</select></div><div class="field"><label class="lbl">Jumlah (kg)</label><input class="in ol-iq" type="number" min="0" step="0.01" data-inp="ol-hit"></div></div>`).join('')}</div>
+    <div id="ol-out">${[0,1,2].map(i=>`<div class="row ol-out-r" style="margin-top:6px"><div class="field" style="flex:3"><label class="lbl">${i===0?'Hasil utama':'Hasil sampingan'}</label><select class="in ol-osku" data-inp="ol-hit"><option value="">– ${i===0?'pilih':'tidak ada'} –</option>${opt(S.sku.filter(s=>s.kategori==='Hasil Olahan'||s.kategori==='Hasil Bumi'))}</select></div><div class="field"><label class="lbl">Jumlah (kg)</label><input class="in ol-oq" type="number" min="0" step="0.01" data-inp="ol-hit"></div><div class="field"><label class="lbl">Bagian nilai (%)</label><input class="in ol-op" type="number" min="0" max="100" step="1" placeholder="otomatis" data-inp="ol-hit"></div></div>`).join('')}</div>`;
+  }
+  function olRead(){
+    const val=c=>[...document.querySelectorAll(c)];
+    const inputs=val('.ol-in-r').map(r=>({sku:r.querySelector('.ol-isku').value,qty:+(r.querySelector('.ol-iq').value||0)})).filter(x=>x.sku&&x.qty>0);
+    const items=val('.ol-out-r').map(r=>{const p=r.querySelector('.ol-op').value;return {sku:r.querySelector('.ol-osku').value,qty:+(r.querySelector('.ol-oq').value||0),harga:0,...(p!==''?{porsi:+p}:{})}}).filter(x=>x.sku&&x.qty>0);
+    return {inputs,items};
+  }
+  ACT['ol-hit']=()=>{
+    const {inputs,items}=olRead(),el=$('#ol-prev');if(!el)return;
+    const kin=sum(inputs,i=>i.qty);let C=0;inputs.forEach(i=>{C+=i.qty*D.inv[i.sku].avg});
+    const biaya=+($('#ol-biaya').value||0),tot=C+biaya,r=kin>0&&items[0]?items[0].qty/kin:0;
+    el.innerHTML=`Bahan <b>${num(kin)} kg</b> senilai <b>${rp(C)}</b> · Biaya olah <b>${rp(biaya)}</b> · Total nilai hasil <b>${rp(tot)}</b> · Rendemen hasil utama <b>${pct(r)}</b>${items[0]&&items[0].qty>0?' · HPP/kg (jika semua bagian ke hasil utama) '+rp(tot/items[0].qty):''}`;
+  };
+  ACT['ol-new']=()=>{
+    if(!stokSku().some(s=>D.inv[s.sku].qty>0))return toast('Belum ada stok bahan baku. Catat pembelian hasil bumi dulu.',true);
+    if(!S.sku.some(s=>s.kategori==='Hasil Olahan'))return toast('Daftarkan produk hasil olahan dulu (Komoditas Baru → jenis Hasil Olahan)',true);
+    openModal('Catat Produksi',`<div class="row"><div class="field"><label class="lbl" for="ol-tgl">Tanggal</label><input class="in" id="ol-tgl" type="date" value="${ymd()}"></div><div class="field"><label class="lbl" for="ol-biaya">Biaya olah total (Rp)</label><input class="in" id="ol-biaya" type="number" min="0" step="1" value="0" data-inp="ol-hit"></div><div class="field"><label class="lbl" for="ol-met">Dibayar dari</label><select class="in" id="ol-met"><option>Tunai</option><option>Transfer</option></select></div></div>${olRows()}<div class="field" style="margin-top:8px"><label class="lbl" for="ol-ket">Catatan</label><input class="in" id="ol-ket" placeholder="Contoh: giling batch 1"></div><div class="note" id="ol-prev" style="margin-top:8px">Isi bahan dan hasil untuk melihat hitungan.</div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="ol-ok">Simpan</button>`,'md');
+  };
+  ACT['ol-ok']=()=>{
+    const tgl=$('#ol-tgl').value,biaya=Math.max(0,+($('#ol-biaya').value||0)),met=$('#ol-met').value,ket=($('#ol-ket').value||'').trim(),{inputs,items}=olRead();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!inputs.length)return toast('Isi minimal satu bahan baku',true);if(!items.length)return toast('Isi minimal satu hasil',true);
+    const agg={};for(const i of inputs)agg[i.sku]=(agg[i.sku]||0)+i.qty;
+    for(const k in agg)if(agg[k]>D.inv[k].qty+1e-6)return toast('Stok '+skuOf(k).nama+' tidak cukup (tersedia '+num(Math.max(0,D.inv[k].qty))+' kg)',true);
+    if(sum(items,i=>i.qty)>sum(inputs,i=>i.qty)*1.0001)return toast('Total hasil melebihi total bahan. Periksa jumlahnya.',true);
+    if(items.some(i=>i.porsi!=null&&(i.porsi<0||i.porsi>100)))return toast('Bagian nilai harus 0 sampai 100',true);
+    if(items.some(i=>i.porsi!=null)&&items.some(i=>i.porsi==null))return toast('Bagian nilai: isi untuk semua hasil atau kosongkan semua',true);
+    if(items.some(i=>i.porsi!=null)&&!(sum(items,i=>+i.porsi)>0))return toast('Jumlah bagian nilai harus lebih dari 0',true);
+    if(biaya>0){const b=cashBalance(),a=akunKas(met);if(biaya>(a==='kasTunai'?b.tunai:b.bank)+0.5)return toast('Saldo '+(a==='kasTunai'?'kas tunai':'bank')+' tidak cukup untuk biaya olah',true)}
+    let n=S.olah.length+1,no;do{no='OLH-'+yymm(tgl)+'-'+String(n++).padStart(4,'0')}while(S.olah.some(o=>o.no===no));
+    S.olah.push({no,tgl,inputs,items,biaya,metode:met,ket,gd:lokAktif()});try{AUD('Produksi',no+' · '+items.map(i=>skuOf(i.sku).nama+' '+num(i.qty)+' kg').join(', '),no)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Produksi '+no+' dicatat');
+  };
+  ACT['ol-batal']=t=>{
+    const o=S.olah.find(x=>x.no===t.dataset.no);if(!o||o.batal)return;
+    o.batal=true;derive();
+    const neg=S.sku.find(s=>D.inv[s.sku].qty<-1e-6);
+    if(neg){o.batal=false;derive();return toast('Tidak bisa dibatalkan: hasil produksi sudah terjual / terpakai (stok '+neg.nama+' akan negatif)',true)}
+    try{AUD('Batal produksi',o.no,o.no)}catch(e){}
+    if(!commit()){o.batal=false;return}refresh();toast('Produksi dibatalkan');
+  };
+
+  /* ---------- KELOMPOK TANI ---------- */
+  const anggotaOf=id=>S.kelompok.find(a=>a.id===id);
+  const JENIS=[['pokok','Simpanan pokok'],['wajib','Simpanan wajib'],['sukarela','Simpanan sukarela']];
+  const aktifSp=x=>!x.batal&&!((S.jm||[]).find(e=>e.id===x.jm)||{}).batal;
+  const saldoSimp=id=>sum(S.simpanan.filter(x=>x.anggota===id&&aktifSp(x)),x=>x.arah==='masuk'?+x.nilai:-(+x.nilai));
+  function tabKelompok(){
+    const A=S.kelompok,tot=sum(A,a=>saldoSimp(a.id));
+    const rows=A.map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.nama)}</td><td>${esc(a.telp||'')}</td><td class="r">${a.luas?num(a.luas)+' ha':'–'}</td><td class="r">${rp(saldoSimp(a.id))}</td><td><button class="btn sm" data-act="kt-simp" data-id="${esc(a.id)}">Setor / Tarik</button></td></tr>`).join('');
+    const sh=shuHitung(+(ui.ut.shuTh||todayISO().slice(0,4)));
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Kelompok Tani · Anggota & Simpanan</h3><button class="btn pri" style="margin-left:auto" data-act="kt-new">${ic('plus')}Anggota Baru</button></div>
+    <div class="note" style="margin-bottom:10px">Total simpanan anggota: <b>${rp(tot)}</b> (tercatat sebagai kewajiban kepada anggota dan masuk ke kas). Pembelian saprodi bersama dan penjualan hasil bersama dicatat lewat menu Pembelian &amp; Penjualan seperti biasa; hubungkan anggota dengan pelanggan agar jasa transaksi terhitung.</div>
+    ${A.length?`<div class="scroll"><table class="tbl"><thead><tr><th>ID</th><th>Nama</th><th>Telepon</th><th class="r">Luas lahan</th><th class="r">Simpanan</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="note">Belum ada anggota.</div>'}</div>
+    <div class="card" style="margin-top:12px"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Sisa Hasil Usaha (SHU) · Tahun ${sh.th}</h3><div class="field" style="margin-left:auto;max-width:120px"><label class="lbl" for="shu-th">Tahun</label><input class="in" id="shu-th" type="number" value="${sh.th}" data-chg="kt-shu-th"></div></div>
+    <div class="note" style="margin-bottom:10px">Hitungan usulan untuk rapat anggota (aturan bagi yang berlaku ada di AD/ART kelompok Anda; angka persentase bisa diubah). SHU dihitung dari laba usaha setelah pajak tahun tersebut: <b>${rp(sh.shu)}</b>.</div>
+    <div class="row" style="margin-bottom:8px"><div class="field"><label class="lbl" for="shu-cad">Cadangan (%)</label><input class="in" id="shu-cad" type="number" min="0" max="100" value="${sh.cad}" data-chg="kt-shu-par"></div><div class="field"><label class="lbl" for="shu-sim">Jasa simpanan (%)</label><input class="in" id="shu-sim" type="number" min="0" max="100" value="${sh.pSim}" data-chg="kt-shu-par"></div><div class="field"><label class="lbl" for="shu-trx">Jasa transaksi (%)</label><input class="in" id="shu-trx" type="number" min="0" max="100" value="${sh.pTrx}" data-chg="kt-shu-par"></div></div>
+    ${sh.shu>0&&A.length?`<div class="scroll"><table class="tbl"><thead><tr><th>Anggota</th><th class="r">Simpanan akhir tahun</th><th class="r">Transaksi di toko/koperasi</th><th class="r">SHU</th></tr></thead><tbody>${sh.rows.map(r=>`<tr><td>${esc(r.a.nama)}</td><td class="r">${rp(r.simp)}</td><td class="r">${rp(r.trx)}</td><td class="r bold">${rp(r.shu)}</td></tr>`).join('')}<tr><td class="bold">Total dibagikan ke anggota</td><td></td><td></td><td class="r bold">${rp(sh.dibagi)}</td></tr><tr><td>Cadangan</td><td></td><td></td><td class="r">${rp(sh.cadangan)}</td></tr></tbody></table></div><div class="note" style="margin-top:8px">${sh.cad+sh.pSim+sh.pTrx!==100?'Perhatian: total persentase tidak 100 ('+(sh.cad+sh.pSim+sh.pTrx)+'). ':''}Bagian yang tidak terpakai (misal anggota tanpa transaksi) tetap menjadi cadangan.</div>`:`<div class="note">${sh.shu>0?'Tambah anggota dulu.':'Belum ada SHU positif pada tahun ini.'}</div>`}</div>`;
+  }
+  function shuHitung(th){
+    const par=S.settings.shuPar||{cad:25,pSim:25,pTrx:50},cad=+par.cad,pSim=+par.pSim,pTrx=+par.pTrx;
+    let lb=0;for(let m=1;m<=12;m++)lb+=met(th+'-'+String(m).padStart(2,'0')).lb;
+    const shu=Math.max(0,Math.round(lb)),A=S.kelompok,end=th+'-12-31';
+    const simp=A.map(a=>sum(S.simpanan.filter(x=>x.anggota===a.id&&aktifSp(x)&&x.tgl<=end),x=>x.arah==='masuk'?+x.nilai:-(+x.nilai)));
+    const trx=A.map(a=>a.mitra?sum(S.docs.filter(d=>d.jenis==='Jual'&&d.status!=='BATAL'&&d.mitra===a.mitra&&d.tgl.slice(0,4)==String(th)),d=>D.doc[d.no].total-(D.doc[d.no].retur||0)):0);
+    const ts=sum(simp,x=>Math.max(0,x)),tt=sum(trx,x=>x);
+    const rows=A.map((a,i)=>{const s=ts>0?shu*pSim/100*Math.max(0,simp[i])/ts:0,t=tt>0?shu*pTrx/100*trx[i]/tt:0;return {a,simp:simp[i],trx:trx[i],shu:Math.round(s+t)}});
+    const dibagi=sum(rows,r=>r.shu);
+    return {th,shu,cad,pSim,pTrx,rows,dibagi,cadangan:shu-dibagi};
+  }
+  ACT['kt-shu-th']=t=>{ui.ut.shuTh=t.value;refresh()};
+  ACT['kt-shu-par']=()=>{const v=id=>Math.max(0,Math.min(100,+($('#'+id).value||0)));S.settings.shuPar={cad:v('shu-cad'),pSim:v('shu-sim'),pTrx:v('shu-trx')};commit();refresh()};
+  ACT['kt-new']=()=>openModal('Anggota Baru',`<div class="row"><div class="field" style="flex:2"><label class="lbl" for="ka-nama">Nama anggota</label><input class="in" id="ka-nama"></div><div class="field"><label class="lbl" for="ka-telp">Telepon</label><input class="in" id="ka-telp"></div></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="ka-luas">Luas lahan (ha)</label><input class="in" id="ka-luas" type="number" min="0" step="0.01"></div><div class="field" style="flex:2"><label class="lbl" for="ka-mitra">Hubungkan dengan pelanggan (opsional)</label><select class="in" id="ka-mitra"><option value="">– tidak –</option>${S.mitra.filter(m=>m.jenis==='Pelanggan').map(m=>`<option value="${esc(m.id)}">${esc(m.nama)}</option>`).join('')}</select></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="ka-ok">Simpan</button>`,'sm');
+  ACT['ka-ok']=()=>{
+    const nama=($('#ka-nama').value||'').trim();if(!nama)return toast('Nama wajib diisi',true);if(S.kelompok.some(a=>a.nama.toLowerCase()===nama.toLowerCase()))return toast('Nama anggota sudah ada',true);
+    const mitra=$('#ka-mitra').value;if(mitra&&S.kelompok.some(a=>a.mitra===mitra))return toast('Pelanggan itu sudah terhubung ke anggota lain',true);
+    let n=S.kelompok.length+1,id;do{id='AGT-'+String(n++).padStart(3,'0')}while(anggotaOf(id));
+    S.kelompok.push({id,nama,telp:($('#ka-telp').value||'').trim(),luas:+($('#ka-luas').value||0)||0,mitra});
+    if(!commit())return;closeModal();refresh();toast('Anggota '+id+' ditambahkan');
+  };
+  ACT['kt-simp']=t=>{const a=anggotaOf(t.dataset.id);if(!a)return;openModal('Simpanan · '+a.nama,`<div class="note">Saldo simpanan saat ini: <b>${rp(saldoSimp(a.id))}</b></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="sp-tgl">Tanggal</label><input class="in" id="sp-tgl" type="date" value="${ymd()}"></div><div class="field"><label class="lbl" for="sp-arah">Jenis transaksi</label><select class="in" id="sp-arah"><option value="masuk">Setoran</option><option value="keluar">Penarikan</option></select></div></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="sp-jenis">Jenis simpanan</label><select class="in" id="sp-jenis">${JENIS.map(j=>`<option value="${j[0]}">${j[1]}</option>`).join('')}</select></div><div class="field"><label class="lbl" for="sp-nilai">Jumlah (Rp)</label><input class="in" id="sp-nilai" type="number" min="0" step="1"></div><div class="field"><label class="lbl" for="sp-met">Kas / bank</label><select class="in" id="sp-met"><option>Tunai</option><option>Transfer</option></select></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sp-ok" data-id="${esc(a.id)}">Simpan</button>`,'sm')};
+  ACT['sp-ok']=t=>{
+    const a=anggotaOf(t.dataset.id);if(!a)return;const tgl=$('#sp-tgl').value,arah=$('#sp-arah').value,jenis=$('#sp-jenis').value,v=+($('#sp-nilai').value||0),met=$('#sp-met').value;
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);
+    if(arah==='keluar'){if(v>saldoSimp(a.id)+0.5)return toast('Penarikan melebihi simpanan anggota ('+rp(saldoSimp(a.id))+')',true);const b=cashBalance(),k=akunKas(met);if(v>(k==='kasTunai'?b.tunai:b.bank)+0.5)return toast('Saldo kas/bank tidak cukup',true)}
+    const id=nextNo('JM-'+yymmdd(tgl)+'-'),k=akunKas(met),nm=(JENIS.find(j=>j[0]===jenis)||[])[1];
+    S.jm.push({id,tgl,tipe:'umum',ket:(arah==='masuk'?'Setoran ':'Penarikan ')+nm+' '+a.nama,lines:arah==='masuk'?[{a:k,d:v,k:0},{a:'simpananAnggota',d:0,k:v}]:[{a:'simpananAnggota',d:v,k:0},{a:k,d:0,k:v}]});
+    S.simpanan.push({id:'SP-'+id,jm:id,tgl,anggota:a.id,jenis,arah,nilai:v});
+    try{AUD('Simpanan anggota',a.nama+' · '+rp(v)+' '+arah,id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Simpanan dicatat');
+  };
+
+  tabs.push(['olah','Pengolahan'],['kelompok','Kelompok Tani']);
+  _tab.olah=tabOlah;_tab.kelompok=tabKelompok;
+  window.utShu=shuHitung;window.utRendemen=rendemenOf;
+})();
+
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
 function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
@@ -6098,8 +6413,8 @@ window.addEventListener('offline',()=>{if(OL.sess){OL.offline=true;olStatus('off
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&OL.sess)olPoll()});
 const ROLE_PAGES={admin:null,viewer:null,
  kasir:['dashboard','pos','stok','mitra','transaksi'],
- gudang:['dashboard','stok','gudang','velocity','transaksi','pesanan','mitra','agronomi'],
- keuangan:['dashboard','velocity','program','keuangan','laporan','transaksi','pesanan','mitra','stok']};
+ gudang:['dashboard','stok','gudang','velocity','transaksi','pesanan','mitra','agronomi','usaha'],
+ keuangan:['dashboard','velocity','program','keuangan','laporan','transaksi','pesanan','mitra','stok','usaha']};
 function olAllowed(pg){const a=ROLE_PAGES[OL.role];return !a||a.includes(pg)}
 function olMenu(){document.body.classList.toggle('nofin',!finOK());$$('.nav').forEach(a=>{a.style.display=olAllowed(a.dataset.nav)?'':'none'});$$('.qlink').forEach(b=>{if(!olAllowed('laporan'))b.style.display='none'})}
 let onlineBoot;
