@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2515"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2516"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
 @media (max-width:600px){
   #view .tabrow .tabs:has([data-act="dtab"]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;flex-basis:100%;overflow:visible}
   body:has(.dkbar:not(:empty)) #app{height:calc(100dvh - 44px)}
@@ -819,6 +819,7 @@ function ln(a,d,k){d=d||0;k=k||0;if(d<0){k+=-d;d=0}if(k<0){d+=-k;k=0}return {a,d
 function ppnRate(){return S.settings.ppn!==undefined?+S.settings.ppn:11}
 /* faktor nilai persediaan: pembelian ber-faktur pajak (PKP) dicatat tanpa PPN bila PPN masukan dikreditkan */
 function ppnMasukF(d){if(!S.settings.ppnJurnal||!S.settings.ppnMasukan)return 1;let o=d;if(d.jenis==='RetBeli')o=S.docs.find(x=>x.no===d.ref)||d;if(o.jenis!=='Beli'||!o.ppnM)return 1;return 1/(1+ppnRate()/100)}
+function netSalesAmount(total){return total-ppnPart(total)}
 function ppnPart(total){if(!S.settings.ppnJurnal)return 0;const r=S.settings.ppn!==undefined?+S.settings.ppn:11;return total-total/(1+r/100)}
 /* ====== pinjaman bank / KUR: jadwal angsuran otomatis ====== */
 function pinjJadwal(p){
@@ -888,8 +889,8 @@ function met(m){
   const o={omzet:0,hpp:0,beli:0,returBeli:0,returJual:0,beban:0,selisih:0,nTrx:0,bk:{}};
   for(const d of S.docs){
     if(d.status==='BATAL'||!inMonth(d.tgl,m))continue;const r=D.doc[d.no];
-    if(d.jenis==='Jual'){o.omzet+=r.total;o.hpp+=r.hpp;o.nTrx++}
-    else if(d.jenis==='RetJual'){o.omzet-=r.total;o.hpp-=r.hpp;o.returJual+=r.total}
+    if(d.jenis==='Jual'){o.omzet+=netSalesAmount(r.total);o.hpp+=r.hpp;o.nTrx++}
+    else if(d.jenis==='RetJual'){o.omzet-=netSalesAmount(r.total);o.hpp-=r.hpp;o.returJual+=r.total}
     else if(d.jenis==='Beli'){if(d.cat==='Saldo awal (Excel)')o.awal=(o.awal||0)+r.total;else o.beli+=r.total}
     else if(d.jenis==='RetBeli')o.returBeli+=r.total;
     else if(d.jenis==='Opname')o.selisih+=r.val;
@@ -913,7 +914,7 @@ function skuSales(m){
     const r=D.doc[d.no],sg=d.jenis==='Jual'?1:-1;
     d.items.forEach((it,i)=>{
       const x=R[it.sku]||(R[it.sku]={sku:it.sku,qty:0,omzet:0,hpp:0});
-      x.qty+=sg*it.qty;x.omzet+=sg*it.qty*it.harga*r.ratio;x.hpp+=sg*it.qty*(r.hppu[i]||0);
+      x.qty+=sg*it.qty;x.omzet+=sg*netSalesAmount(it.qty*it.harga*r.ratio);x.hpp+=sg*it.qty*(r.hppu[i]||0);
     });
   }
   return Object.values(R).map(x=>{const s=skuOf(x.sku)||{};return Object.assign(x,{nama:s.nama||x.sku,kat:s.kategori||'',laba:x.omzet-x.hpp,margin:x.omzet?(x.omzet-x.hpp)/x.omzet:0})});
@@ -6298,16 +6299,17 @@ img,svg,video,canvas{max-width:100%}
     const t0=td(),ev=cashEvents().filter(e=>e.kelas==='ops'&&e.tgl<=t0);
     if(!ev.length)return null;
     const first=ev.reduce((a,e)=>e.tgl<a?e.tgl:a,'9999');if(diffDays(t0,first)<28)return null;
-    const wk=[];for(let i=0;i<8;i++)wk.push(0);
-    ev.forEach(e=>{const d=diffDays(t0,e.tgl);if(d>=0&&d<56)wk[Math.floor(d/7)]+=e.nilai});
-    const avg=wk.reduce((a,b)=>a+b,0)/8,sd=Math.sqrt(wk.reduce((a,b)=>a+(b-avg)*(b-avg),0)/8);
+    const weeks=Math.min(8,Math.floor(diffDays(t0,first)/7)+1);
+    const wk=Array(weeks).fill(0);
+    ev.forEach(e=>{const d=diffDays(t0,e.tgl);if(d>=0&&d<weeks*7)wk[Math.floor(d/7)]+=e.nilai});
+    const avg=wk.reduce((a,b)=>a+b,0)/weeks,sd=Math.sqrt(wk.reduce((a,b)=>a+(b-avg)*(b-avg),0)/weeks);
     const b=cashBalance(),s0=b.tunai+b.bank,jad=[];
     (S.pinjaman||[]).filter(p=>!p.batal).forEach(p=>pinjJadwal(p).forEach(r=>{const d=diffDays(r.tgl,t0);if(d>0&&d<=91)jad.push({w:Math.ceil(d/7),v:r.total})}));
     const out=[];let minS=Infinity,minW=0,minLow=Infinity,lowW=0;
     for(let k=1;k<=13;k++){const ang=sum(jad.filter(j=>j.w<=k),j=>j.v),mid=s0+avg*k-ang,band=sd*Math.sqrt(k);
       out.push({k,tgl:addDays(t0,k*7),mid,lo:mid-band,hi:mid+band});
       if(mid<minS){minS=mid;minW=k}if(mid-band<minLow){minLow=mid-band;lowW=k}}
-    return {s0,avg,sd,out,minS,minW,minLow,lowW,ang:sum(jad,j=>j.v)};
+    return {s0,weeks,avg,sd,out,minS,minW,minLow,lowW,ang:sum(jad,j=>j.v)};
   }
   window.aiPrakiraan=prakiraan;
 
@@ -6336,7 +6338,7 @@ img,svg,video,canvas{max-width:100%}
     const f=_fin.apply(this,arguments)||[];
     try{
       const p=prakiraan();
-      if(p&&p.minS<0)f.push({key:'prakiraan:'+p.minW,sev:'tinggi',judul:'Kas diprakirakan minus dalam '+p.minW+' minggu',ket:'Dengan pola 8 minggu terakhir (kas rata-rata '+sg(p.avg)+' per minggu), saldo turun ke '+rpS(p.minS)+'. Siapkan tambahan modal, percepat penagihan, atau tunda belanja.',jenis:'tugas',payload:{mitra:'',judul:'Rencanakan kas: prakiraan minus minggu ke-'+p.minW}});
+      if(p&&p.minS<0)f.push({key:'prakiraan:'+p.minW,sev:'tinggi',judul:'Kas diprakirakan minus dalam '+p.minW+' minggu',ket:'Dengan pola '+p.weeks+' minggu terakhir (kas rata-rata '+sg(p.avg)+' per minggu), saldo turun ke '+rpS(p.minS)+'. Siapkan tambahan modal, percepat penagihan, atau tunda belanja.',jenis:'tugas',payload:{mitra:'',judul:'Rencanakan kas: prakiraan minus minggu ke-'+p.minW}});
       else if(p&&p.minLow<0)f.push({key:'prakiraan-resiko:'+p.lowW,sev:'sedang',judul:'Ada risiko kas minus dalam '+p.lowW+' minggu',ket:'Pada skenario kurang baik saldo bisa mencapai '+rpS(p.minLow)+'. Pantau penagihan piutang.',jenis:'tugas',payload:{mitra:'',judul:'Pantau risiko kas minggu ke-'+p.lowW}});
       anomali().forEach(x=>f.push(x));
     }catch(e){}
@@ -6383,7 +6385,7 @@ img,svg,video,canvas{max-width:100%}
     const need=()=>fin()?null:'Informasi keuangan hanya untuk peran yang berwenang. Peran Anda tidak mengaksesnya.';
     try{
       if(has(/\b(peringatan|masalah|perhatian|apa yang perlu)\b/)){const A=window.uxAlerts?window.uxAlerts(true):[];return A.length?'Ada '+A.length+' hal yang perlu perhatian:\n'+A.slice(0,8).map((a,i)=>(i+1)+'. '+a.t+' — '+a.d).join('\n'):'Tidak ada peringatan saat ini. Semua terlihat aman.'}
-      if(has(/\b(prakiraan|proyeksi|ramal|prediksi)\b.*\b(kas|uang|saldo)\b|\b(kas|uang|saldo)\b.*\b(prakiraan|proyeksi|ramal|prediksi|nanti|ke depan|3 bulan)\b/)){const e=need();if(e)return e;const p=prakiraan();if(!p)return 'Data belum cukup untuk prakiraan. Dibutuhkan minimal 4 minggu transaksi kas.';return 'Saldo kas+bank sekarang '+rp(p.s0)+'. Berdasarkan pola 8 minggu terakhir (kas rata-rata '+sg(p.avg)+' per minggu), perkiraan 13 minggu ke depan: terendah '+rp(p.minS)+' di minggu '+p.minW+', pada akhir minggu ke-13 sekitar '+rp(p.out[12].mid)+(p.ang?' (sudah memperhitungkan angsuran pinjaman '+rp(p.ang)+')':'')+'. Ini perkiraan tren sederhana, bukan jaminan.'}
+      if(has(/\b(prakiraan|proyeksi|ramal|prediksi)\b.*\b(kas|uang|saldo)\b|\b(kas|uang|saldo)\b.*\b(prakiraan|proyeksi|ramal|prediksi|nanti|ke depan|3 bulan)\b/)){const e=need();if(e)return e;const p=prakiraan();if(!p)return 'Data belum cukup untuk prakiraan. Dibutuhkan minimal 4 minggu transaksi kas.';return 'Saldo kas+bank sekarang '+rp(p.s0)+'. Berdasarkan pola '+p.weeks+' minggu terakhir (kas rata-rata '+sg(p.avg)+' per minggu), perkiraan 13 minggu ke depan: terendah '+rp(p.minS)+' di minggu '+p.minW+', pada akhir minggu ke-13 sekitar '+rp(p.out[12].mid)+(p.ang?' (sudah memperhitungkan angsuran pinjaman '+rp(p.ang)+')':'')+'. Ini perkiraan tren sederhana, bukan jaminan.'}
       if(has(/\b(laba|untung|rugi|profit)\b/)){const e=need();if(e)return e;const m=met(mo);return 'Periode '+fmtBln(mo)+': omzet '+rp(m.omzet)+', HPP '+rp(m.hpp)+', laba kotor '+rp(m.lk)+', '+(m.lo<0?'rugi operasional '+rp(-m.lo):'laba operasional '+rp(m.lo))+(m.omzet>0?' (margin '+dec(m.lo/m.omzet*100,1)+'%)':'')+'.'}
       if(has(/\b(omzet|penjualan)\b/)&&!has(/\bproduk|barang\b/)){const m=met(mo);return 'Omzet '+fmtBln(mo)+': '+rp(m.omzet)+' dari '+num(m.nTrx)+' transaksi.'}
       if(has(/\bpiutang\b/)){const e=need();if(e)return e;const P={};S.docs.forEach(d=>{if(d.jenis==='Jual'&&d.status!=='BATAL'&&D.doc[d.no]&&D.doc[d.no].sisa>0.5)P[d.mitra]=(P[d.mitra]||0)+D.doc[d.no].sisa});const top=Object.entries(P).sort((a,b)=>b[1]-a[1]).slice(0,3);return 'Total piutang pelanggan '+rp(D.piutang)+'.'+(top.length?' Terbesar: '+top.map(x=>mitraNama(x[0])+' '+rp(x[1])).join('; ')+'.':'')}
@@ -6428,7 +6430,7 @@ img,svg,video,canvas{max-width:100%}
       s+='</svg>';
       const bad=p.minS<0,warn=!bad&&p.minLow<0;
       const msg=bad?`<div class="note" style="border-left:4px solid #cf3a40;background:#fde8e6"><b>Waspada:</b> kas diprakirakan minus sekitar minggu ke-${p.minW} (${rpS(p.minS)}).</div>`:warn?`<div class="note" style="border-left:4px solid #e0961a;background:#fff4dc"><b>Hati-hati:</b> pada skenario kurang baik saldo bisa minus (${rpS(p.minLow)}) di minggu ke-${p.lowW}.</div>`:`<div class="note" style="border-left:4px solid #118c5e;background:#e2f5ec">Saldo diprakirakan tetap positif. Terendah ${rpS(p.minS)}.</div>`;
-      return wCard('Prakiraan Kas 13 Minggu (AI)','wallet',`<div class="wlegend"><span><i style="background:#0a1b44"></i>Perkiraan</span><span><i style="background:#1763e0;opacity:.3"></i>Rentang kemungkinan</span></div>${s}${msg}<div class="small muted" style="margin-top:6px">Memakai rata-rata arus kas operasional 8 minggu terakhir (${p.avg<0?'turun ':'naik '}${rpS(Math.abs(p.avg))}/minggu) dan jadwal angsuran pinjaman. Perkiraan tren sederhana, bukan jaminan.</div>`);
+      return wCard('Prakiraan Kas 13 Minggu (AI)','wallet',`<div class="wlegend"><span><i style="background:#0a1b44"></i>Perkiraan</span><span><i style="background:#1763e0;opacity:.3"></i>Rentang kemungkinan</span></div>${s}${msg}<div class="small muted" style="margin-top:6px">Memakai rata-rata arus kas operasional ${p.weeks} minggu terakhir (${p.avg<0?'turun ':'naik '}${rpS(Math.abs(p.avg))}/minggu) dan jadwal angsuran pinjaman. Perkiraan tren sederhana, bukan jaminan.</div>`);
     };
   }
 })();
