@@ -1,7 +1,8 @@
 <!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2512"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
 @media (max-width:600px){
   #view .tabrow .tabs:has([data-act="dtab"]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;flex-basis:100%;overflow:visible}
-  .dkbar{position:static!important;justify-content:flex-end;padding:4px 10px}
+  body:has(.dkbar:not(:empty)) #app{height:calc(100dvh - 44px)}
+  #dock .dkbar{position:fixed;bottom:4px;right:8px}
 }
 </style></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
