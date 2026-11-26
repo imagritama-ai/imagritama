@@ -1,4 +1,9 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2511"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2512"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"><style>
+@media (max-width:600px){
+  #view .tabrow .tabs:has([data-act="dtab"]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;flex-basis:100%;overflow:visible}
+  .dkbar{position:static!important;justify-content:flex-end;padding:4px 10px}
+}
+</style></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -707,6 +712,10 @@ function setLokAktif(id){try{localStorage.setItem(LOKKEY,id)}catch(e){}S.setting
 const stokLok=k=>S.gudang&&S.gudang.length>1?((D.gud[k]||{})[lokAktif()]||0):D.inv[k].qty;
 function stampGd(){ensureGd();const a=lokAktif();for(let i=S.gdN;i<S.docs.length;i++)if(!S.docs[i].gd)S.docs[i].gd=a;S.gdN=S.docs.length}
 function derive(){
+  // Cloud loads and restored backups can predate these modules.
+  for (const key of ['usahatani','panjarPetani','olah','kelompok','simpanan','cip','jasa','jasaTrx']) {
+    if (S[key] == null) S[key] = [];
+  }
   ensureGd();const gud={};S.sku.forEach(s=>{gud[s.sku]={}});const gq=(k,g,q)=>{if(!gud[k])return;gud[k][g]=(gud[k][g]||0)+q};const gdOf=d=>d.gd||S.gudang[0].id;
   const inv={},mov={},last={},dd={},hppMap={};
   S.sku.forEach(s=>{inv[s.sku]={qty:0,val:0,avg:0};mov[s.sku]=[];last[s.sku]=s.hpp0||0});
