@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1720"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1800"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -4619,6 +4619,93 @@ ACT['pos-pv-lanjut']=()=>{
 })();
 
 ;(function(){var s=document.createElement('style');s.id='pos-pratinjau-css';s.textContent="/* ===== SMART POS: pratinjau pesanan ===== */\nbutton.cschip.pv{background:var(--blue,#1763e0);color:#fff;border:0;cursor:pointer;min-height:26px}\n.pv .pvt td,.pv .pvt th{padding:6px 8px;font-size:14px}.pv .pvt td.c,.pv .pvt th.c{text-align:center}\n.pv .totbox .line{font-size:15px}.pv .totbox .grand{font-size:22px}\n";document.head.appendChild(s)})();
+/* ====== Header ringkas, omzet disembunyikan (klik untuk lihat), dan hak akses KASIR di Pembelian & Penjualan ====== */
+/* ---------- omzet di header: disembunyikan, klik untuk melihat ---------- */
+let hdrOmzetOn=false,hdrOmzetT=null;
+function hdrOmzetApply(){
+  const hr=document.getElementById('phr');if(!hr)return;
+  hr.querySelectorAll('.hstat').forEach(h=>{
+    const sm=h.querySelector('small'),b=h.querySelector('b');
+    if(!sm||!b||!/omzet/i.test(sm.textContent))return;
+    if(b.dataset.v===undefined)b.dataset.v=b.textContent;
+    const want=hdrOmzetOn?b.dataset.v:'Rp ••••••';
+    if(b.textContent!==want)b.textContent=want;
+    h.classList.add('omz');h.classList.toggle('omz-off',!hdrOmzetOn);
+    if(h.getAttribute('data-act')!=='hdr-omzet'){h.setAttribute('data-act','hdr-omzet');h.setAttribute('role','button');h.setAttribute('tabindex','0')}
+    h.setAttribute('aria-pressed',hdrOmzetOn?'true':'false');
+    h.title=hdrOmzetOn?'Klik untuk menyembunyikan omzet':'Klik untuk melihat omzet';
+  });
+}
+ACT['hdr-omzet']=()=>{
+  hdrOmzetOn=!hdrOmzetOn;clearTimeout(hdrOmzetT);
+  if(hdrOmzetOn)hdrOmzetT=setTimeout(()=>{hdrOmzetOn=false;hdrOmzetApply()},20000);
+  hdrOmzetApply();
+};
+(function(){
+  let obs=null,el=null;
+  setInterval(()=>{
+    const hr=document.getElementById('phr');
+    if(hr&&hr!==el){el=hr;if(obs)obs.disconnect();obs=new MutationObserver(()=>hdrOmzetApply());obs.observe(hr,{childList:true,subtree:true,characterData:true});hdrOmzetApply()}
+  },400);
+  document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.classList&&e.target.classList.contains('omz')){e.preventDefault();ACT['hdr-omzet']()}});
+  window.addEventListener('hashchange',()=>{hdrOmzetOn=false;clearTimeout(hdrOmzetT);setTimeout(hdrOmzetApply,60)});
+})();
+/* ---------- "Menjual dari" ikut baris tab (tidak lagi satu kartu penuh) ---------- */
+(function(){
+  const _p=PAGES.pos;
+  PAGES.pos=function(){
+    const r=_p.apply(this,arguments);
+    try{
+      let h=r.html;
+      const m=h.match(/^<div class="card"[^>]*>[\s\S]*?(<select class="in"[^>]*data-chg="pos-lok"[\s\S]*?<\/select>)[\s\S]*?<\/div><\/div>/);
+      if(m&&/<div class="tabrow">/.test(h)){
+        const chip='<label class="lokchip"><span>Menjual dari</span>'+m[1].replace(' style="max-width:300px"','')+'</label>';
+        h=h.slice(m[0].length);
+        h=h.replace('<div class="tabrow">','<div class="tabrow">'+chip);
+        r.html=h;
+      }
+    }catch(e){}
+    return r;
+  };
+})();
+/* ---------- KASIR di Pembelian & Penjualan: tanpa Umur Utang, Buku Besar, Jurnal, dan riwayat harga beli ---------- */
+function trxBatasKasir(){return typeof finOK==='function'&&!finOK()}
+(function(){
+  const _t=PAGES.transaksi;
+  PAGES.transaksi=function(){
+    const r=_t.apply(this,arguments);
+    if(trxBatasKasir()&&r&&r.html){
+      try{
+        const t=document.createElement('template');t.innerHTML=r.html;
+        const c=t.content;
+        c.querySelectorAll('[data-act="trx-buku"],[data-act="trx-jurnal"],[data-act="trx-margin"]').forEach(e=>e.remove());
+        c.querySelectorAll('[data-act="trx-aging"][data-m="Beli"]').forEach(e=>e.remove());
+        c.querySelectorAll('[data-act="trx-harga"]').forEach(e=>{const b=e.querySelector('b'),s=e.querySelector('span');if(b)b.textContent='Riwayat Harga Jual';if(s)s.textContent='Harga jual ke pelanggan per barang'});
+        r.html=t.innerHTML;
+      }catch(e){}
+    }
+    return r;
+  };
+  const tolak=()=>toast('Menu ini hanya untuk pemilik/keuangan',true);
+  const _ag=ACT['trx-aging'];ACT['trx-aging']=function(t){if(trxBatasKasir()&&t&&t.dataset&&t.dataset.m==='Beli')return tolak();return _ag.apply(this,arguments)};
+  ['trx-buku','trx-jurnal','trx-margin'].forEach(k=>{const o=ACT[k];if(o)ACT[k]=function(){if(trxBatasKasir())return tolak();return o.apply(this,arguments)}});
+  /* riwayat harga untuk kasir: hanya harga jual ke pelanggan, tanpa HPP dan harga beli */
+  const _hb=hargaBody;
+  hargaBody=function(k){
+    if(!trxBatasKasir())return _hb.apply(this,arguments);
+    const s=parseSku(k);if(!s)return '<div class="empty">Pilih produk untuk melihat riwayat harga jual.</div>';
+    const jual=[];
+    S.docs.filter(d=>d.status!=='BATAL'&&d.jenis==='Jual').sort((a,b)=>a.tgl<b.tgl?-1:1).forEach(d=>d.items.forEach(it=>{if(it.sku===s.sku)jual.push({tgl:d.tgl,no:d.no,mitra:d.mitra,qty:it.qty,harga:it.harga})}));
+    return '<div class="small muted">Harga jual katalog '+rp(s.harga)+' · stok '+num(D.inv[s.sku].qty)+'</div><h4 style="margin:10px 0 4px">Harga jual ke pelanggan</h4>'+(jual.length?'<div class="scroll" style="max-height:260px"><table class="tbl"><thead><tr><th>Tanggal</th><th>Faktur</th><th>Pelanggan</th><th class="r">Qty</th><th class="r">Harga</th></tr></thead><tbody>'+jual.slice(-30).reverse().map(x=>'<tr><td>'+fmtTgl(x.tgl)+'</td><td>'+esc(x.no)+'</td><td>'+esc(mitraNama(x.mitra))+'</td><td class="r">'+num(x.qty)+'</td><td class="r">'+num(x.harga)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="empty">Belum ada penjualan barang ini.</div>');
+  };
+  const _th=ACT['trx-harga'];
+  ACT['trx-harga']=function(){
+    _th.apply(this,arguments);
+    if(trxBatasKasir()){const o=document.getElementById('ov');if(o){const h=o.querySelector('h3,.mh,.mt,header');if(h&&/Riwayat Harga/.test(h.textContent))h.textContent='Riwayat Harga Jual'}}
+  };
+})();
+
+;(function(){var s=document.createElement('style');s.id='pos-header-css';s.textContent="/* ===== HEADER RINGKAS: satu baris, omzet disembunyikan, lokasi ikut baris tab ===== */\n.hstat.omz{cursor:pointer;user-select:none}\n.hstat.omz-off b{letter-spacing:1px;opacity:.75}\n.hstat.omz:hover{border-color:var(--blue,#1763e0)!important}\n.hstat.omz:focus-visible{outline:2px solid var(--blue,#1763e0);outline-offset:2px}\n.lokchip{display:inline-flex;align-items:center;gap:6px;background:var(--card,#fff);border:1px solid var(--line,#d9e2f1);border-radius:10px;padding:3px 8px;font-size:12px;font-weight:700;color:var(--ink,#13223f);white-space:nowrap}\n.lokchip select{max-width:190px;height:28px;padding:2px 6px;font-size:12.5px}\n@media (min-width:901px){\n header.top{flex-wrap:nowrap!important;gap:10px!important}\n header.top .brand small{display:none}\n header.top .ttl{flex:1 1 0!important;min-width:0!important;overflow:hidden}\n header.top .ttl h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n header.top .ttl p{display:none}\n header.top .hr{flex:none!important;display:flex;gap:6px;align-items:center}\n header.top .olbar{margin-left:0!important;gap:6px}\n header.top .olbar .olwho small{display:none}\n header.top .olbar .olupd{padding:3px 10px!important;min-height:28px!important;font-size:12px!important;box-shadow:none!important;animation:none!important}\n header.top .olbar .olupd svg{width:15px;height:15px}\n}\n@media (min-width:901px) and (max-width:1500px){\n header.top .hstat svg{display:none}\n header.top .olbar .olwho{display:none}\n}\n@media (max-width:900px){\n header.top .brand small{display:none}\n header.top .ttl p{display:none}\n}\n\n#cartcol>.row:has([data-act=\"pos-proses\"]){position:sticky;bottom:0;z-index:6;background:var(--card,#fff);padding:8px 0 4px;margin-top:4px!important;box-shadow:0 -6px 8px -8px rgba(10,27,68,.35)}\n#cartcol .totbox{gap:3px}#cartcol .dhint:empty{display:none}\n#cartcol .pay{gap:4px}#cartcol .pay label{padding:4px 8px;font-size:12px;gap:4px}\n@media (min-width:901px){.pos #cartcol>.scroll{min-height:90px}}\nbutton.cschip.st{width:98px!important}.cs{gap:4px!important}.cschip{padding:3px 7px}\n#cartcol .row:has([data-act=\"pos-proses\"]){flex-wrap:nowrap!important;gap:6px!important}\n#cartcol .row:has([data-act=\"pos-proses\"]) .btn{padding:6px 9px;font-size:12.5px;white-space:nowrap}\n#cartcol .row:has([data-act=\"pos-proses\"]) .btn svg{width:16px;height:16px}\n";document.head.appendChild(s)})();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
