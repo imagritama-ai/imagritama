@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2440"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2450"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5427,18 +5427,20 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
 
 /* ====== STOK: filter menurut Perusahaan (principal), untuk melayani petugas perusahaan yang menanyakan stok produknya ====== */
 (function(){
+  const norm=s=>String(s||'').toLowerCase().replace(/\s*\(\d+\)\s*$/,'').replace(/[^a-z0-9]+/g,' ').trim();
+  const cocok=s=>{const q=norm(ui.stok&&ui.stok.prinQ);if(!q)return true;
+    const p=typeof produkOf==='function'?produkOf(s.pid):null,pn=p&&p.prin?(S.principal.find(x=>x.id===p.prin)||{}).nama:'';
+    if(!pn)return /^belum/.test(q)||'belum ada perusahaan'.indexOf(q)===0;
+    return norm(pn).includes(q)};
   const _sl=stokList;
-  stokList=function(){
-    let l=_sl.apply(this,arguments);const f=ui.stok&&ui.stok.prin;
-    if(!f)return l;
-    return l.filter(s=>{const p=typeof produkOf==='function'?produkOf(s.pid):null;return f==='__kosong'?!(p&&p.prin):!!(p&&p.prin===f)});
-  };
+  stokList=function(){const l=_sl.apply(this,arguments);return norm(ui.stok&&ui.stok.prinQ)?l.filter(cocok):l};
   const _st=stokTable;
   stokTable=function(){
-    const h=_st.apply(this,arguments),f=ui.stok&&ui.stok.prin;
-    if(!f)return h;
-    const all=S.sku.filter(s=>{const p=produkOf(s.pid);return f==='__kosong'?!(p&&p.prin):!!(p&&p.prin===f)});
-    const nm=f==='__kosong'?'Produk belum ada perusahaan':((S.principal.find(x=>x.id===f)||{}).nama||f);
+    const h=_st.apply(this,arguments),q=norm(ui.stok&&ui.stok.prinQ);
+    if(!q)return h;
+    const all=S.sku.filter(cocok);
+    const names=[...new Set(all.map(s=>{const p=produkOf(s.pid);return p&&p.prin?(S.principal.find(x=>x.id===p.prin)||{}).nama:'(Belum ada perusahaan)'}))];
+    const nm=names.length===1?names[0]:names.length+' perusahaan cocok';
     const mn=all.filter(s=>stockStatus(s).t==='Menipis').length,hb=all.filter(s=>stockStatus(s).t==='Habis').length;
     return '<div class="note" style="margin-bottom:8px"><b>'+esc(nm)+'</b> · '+all.length+' SKU · '+(all.length-mn-hb)+' stok aman · <span style="color:#b54708">'+mn+' menipis</span> · <span style="color:#b42318">'+hb+' habis</span></div>'+h;
   };
@@ -5446,16 +5448,15 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
   PAGES.stok=function(){
     const p=_pg.apply(this,arguments);
     try{
-      const f=(ui.stok&&ui.stok.prin)||'';
       const cnt={};let kosong=0;S.sku.forEach(s=>{const pr=produkOf(s.pid);if(pr&&pr.prin)cnt[pr.prin]=(cnt[pr.prin]||0)+1;else kosong++});
-      const opts=S.principal.filter(x=>cnt[x.id]).sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>'<option value="'+esc(x.id)+'"'+(f===x.id?' selected':'')+'>'+esc(x.nama)+' ('+cnt[x.id]+')</option>').join('');
-      const fld='<div class="field"><label class="lbl" for="st-prin">Perusahaan</label><select class="in" id="st-prin" data-chg="stok-prin"><option value="">Semua perusahaan</option>'+opts+(kosong?'<option value="__kosong"'+(f==='__kosong'?' selected':'')+'>(Belum ada perusahaan) ('+kosong+')</option>':'')+'</select></div>';
+      const opts=S.principal.filter(x=>cnt[x.id]).sort((a,b)=>a.nama.localeCompare(b.nama)).map(x=>'<option value="'+esc(x.nama)+' ('+cnt[x.id]+')"></option>').join('')+(kosong?'<option value="(Belum ada perusahaan) ('+kosong+')"></option>':'');
+      const fld='<div class="field"><label class="lbl" for="st-prin">Perusahaan</label><input class="in" id="st-prin" list="st-prin-l" autocomplete="off" placeholder="Ketik nama perusahaan…" value="'+esc((ui.stok&&ui.stok.prinQ)||'')+'" data-inp="stok-prin" data-chg="stok-prin"><datalist id="st-prin-l">'+opts+'</datalist></div>';
       const m='<div class="field"><label class="lbl" for="st-st">Status</label>';
       if(p.html&&p.html.includes(m))p.html=p.html.replace(m,fld+m);
     }catch(e){}
     return p;
   };
-  ACT['stok-prin']=t=>{ui.stok.prin=t.value;ui.stok.page=1;rStok()};
+  ACT['stok-prin']=t=>{ui.stok.prinQ=t.value;ui.stok.page=1;rStok()};
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
