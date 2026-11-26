@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2310"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2320"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5195,6 +5195,41 @@ ACT['fm-ok']=()=>{
 ACT['fm-pilih']=()=>{if(!canImg())return toast('Akun ini tidak boleh mengubah foto produk',true);fmInput().click()};
 const fmFotoBody=fotoBody;
 fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn primary" data-act="fm-pilih">Unggah massal (file ZIP / banyak foto)</button><div class="small muted" style="margin-top:4px">Nama file harus memuat Product_ID, contoh IMT-INS-0001.png.</div></div>'+fmFotoBody()};
+
+/* ====== KASIR LEBIH LUAS & RAPI: menu kiri otomatis jadi ikon di Kasir, kartu tanpa foto tidak memakan ruang, HP: produk langsung terlihat ====== */
+(function(){
+  if(!document.getElementById('kasir-lega-css')){
+    const st=document.createElement('style');st.id='kasir-lega-css';
+    st.textContent=`
+/* kartu tanpa foto: buang ruang kosong untuk gambar */
+.pgrid .pc .pi:not(:has(img)){height:auto;min-height:0;margin:0;background:none;position:static}
+.pgrid .pc .pi:not(:has(img))>svg{display:none}
+.pgrid .pc .gb{position:static;align-self:flex-start;order:-1;margin-bottom:3px}
+.pgrid .pc .pi:not(:has(img)) .pcam{left:auto;bottom:auto;right:6px;top:6px;width:22px;height:22px;opacity:.55}
+.pgrid .pc .pi:not(:has(img)) .pcam svg{width:12px;height:12px}
+/* kartu dengan foto: foto sedikit lebih kecil, rapat */
+.pgrid .pc .pi:has(img){height:62px}.pgrid .pc .pi img{max-height:58px}
+.pgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-items:start}
+.pgrid .pc{padding:7px 8px}
+.pgrid .pc .nm{min-height:0;font-size:12.5px}
+@media (max-width:900px){
+ body.kasirlega .pglass,body.kasirlega .hr{display:none}
+ .cathead{flex-wrap:wrap}.cathead .qwrap{order:5;flex:1 1 100%}
+ .pgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-items:start}
+}`;
+    document.head.appendChild(st);
+  }
+  let auto=false,skip=false;
+  const KEY=(typeof SKEY!=='undefined')?SKEY:'imagritama_side_v1';
+  const tg=ACT['side-toggle'];
+  if(tg)ACT['side-toggle']=function(){skip=true;auto=false;return tg.apply(this,arguments)};
+  setInterval(()=>{try{
+    const on=!!document.querySelector('#view .pgrid'),b=document.body;
+    b.classList.toggle('kasirlega',on);
+    if(on&&!skip&&window.innerWidth>1100&&!b.classList.contains('sidec')){b.classList.add('sidec');auto=true}
+    if(!on){skip=false;if(auto){auto=false;let c=false;try{c=localStorage.getItem(KEY)==='1'}catch(e){}b.classList.toggle('sidec',c)}}
+  }catch(e){}},300);
+})();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
