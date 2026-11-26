@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0946"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0952"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -8119,6 +8119,48 @@ ACT['ls-pin-del']=()=>{if(!lpOwner())return;delete S.settings.posPinHash;AUD('PI
      +'<div class="note" style="margin-top:8px">Kasir hanya melihat warna status dan izin, tidak melihat HPP, laba, atau rentang persen. Rentang dan angka hanya tampil di tampilan Owner. Margin dihitung dari harga jual setelah diskon.</div></div>'+r.html;
     return r;
   };
+}
+
+/* ====== Pilot Paralel: daftar periksa dan catatan harian lama vs sistem baru (hanya pemilik) ====== */
+const PLT_CEK=[
+ ['c1','Data produk (SKU, harga jual, harga minimum) sudah sama dengan yang dipakai di toko'],
+ ['c2','Stok awal tiap produk sudah dihitung fisik dan cocok dengan sistem'],
+ ['c3','Daftar pelanggan dan pemasok sudah diisi dan saldo piutang/utang awal cocok'],
+ ['c4','Akun kasir sungguhan sudah dibuat dan dicoba (tidak melihat HPP dan laba)'],
+ ['c5','PIN pemilik sudah diatur di Pengaturan, Smart POS'],
+ ['c6','Satu penjualan tunai, satu transfer, dan satu kredit sudah dicoba dan struknya benar'],
+ ['c7','Satu retur penjualan dan satu pembatalan faktur sudah dicoba'],
+ ['c8','Total penjualan harian sistem baru sama dengan buku lama selama 7 hari berturut-turut'],
+ ['c9','Saldo kas dan bank di Keuangan sama dengan uang dan rekening sebenarnya'],
+ ['c10','Laba Rugi bulan berjalan sudah dibandingkan dengan hitungan akuntan'],
+ ['c11','Cadangan data (unduh JSON) sudah dibuat dan disimpan di tempat lain'],
+ ['c12','Akuntan sudah memberi jawaban soal perlakuan benefit, PPN masukan, dan barang gratis']
+];
+const pltS=()=>(S.pilot=S.pilot||{cek:{},log:[]});
+const pltJual=tgl=>sum(S.docs.filter(d=>d.jenis==='Jual'&&d.status!=='BATAL'&&d.tgl===tgl),d=>(D.doc[d.no]||{}).total||0);
+function pltHtml(){
+  const p=pltS(),done=PLT_CEK.filter(c=>p.cek[c[0]]).length,L=(p.log||[]).slice().sort((a,b)=>a.tgl<b.tgl?1:-1);
+  const rows=L.map(x=>{const baru=pltJual(x.tgl),sel=baru-(+x.lama||0);return '<tr><td>'+fmtTgl(x.tgl)+'</td><td class="r">'+rp(+x.lama||0)+'</td><td class="r">'+rp(baru)+'</td><td class="r" style="color:'+(Math.abs(sel)<1?'#067647':'#b42318')+'"><b>'+(Math.abs(sel)<1?'Cocok':rp(sel))+'</b></td><td class="small">'+esc(x.cat||'')+'</td><td><button class="btn sm ghost" data-act="plt-del" data-id="'+x.id+'" aria-label="Hapus baris">Hapus</button></td></tr>'}).join('');
+  const cocok=L.filter(x=>Math.abs(pltJual(x.tgl)-(+x.lama||0))<1).length;
+  return '<div class="card" style="margin-bottom:12px"><h3>Pilot Paralel: uji berdampingan dengan buku lama</h3>'
+   +'<div class="small muted">Jalankan sistem baru dan buku lama bersamaan beberapa minggu. Isi total penjualan buku lama tiap hari, sistem membandingkan dengan penjualan sistem baru.</div>'
+   +'<div style="margin:8px 0"><b>Daftar periksa: '+done+' dari '+PLT_CEK.length+' selesai</b></div>'
+   +PLT_CEK.map(c=>'<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px"><input type="checkbox" data-chg="plt-cek" data-k="'+c[0]+'"'+(p.cek[c[0]]?' checked':'')+'><span>'+esc(c[1])+'</span></label>').join('')
+   +'<div style="margin-top:12px"><b>Catatan harian</b> <span class="small muted">('+cocok+' dari '+L.length+' hari cocok)</span></div>'
+   +'<div class="row" style="gap:8px;margin:6px 0;align-items:flex-end"><div class="field"><label class="lbl" for="plt-t">Tanggal</label><input class="in" id="plt-t" type="date" value="'+todayISO()+'"></div><div class="field"><label class="lbl" for="plt-l">Total penjualan buku lama (Rp)</label><input class="in" id="plt-l" type="number" min="0" style="width:160px"></div><div class="field"><label class="lbl" for="plt-c">Catatan selisih</label><input class="in" id="plt-c" style="min-width:200px"></div><button class="btn pri" data-act="plt-add">Simpan catatan</button></div>'
+   +(L.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Tanggal</th><th class="r">Buku lama</th><th class="r">Sistem baru</th><th class="r">Selisih</th><th>Catatan</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty">Belum ada catatan harian.</div>')
+   +'<div class="note" style="margin-top:8px">Saran: beralih penuh setelah semua daftar selesai dan penjualan cocok 7 hari berturut-turut.</div></div>';
+}
+ACT['plt-cek']=el=>{if(!lpOwner())return;pltS().cek[el.dataset.k]=!!el.checked;if(!commit())return;refresh()};
+ACT['plt-add']=()=>{
+  if(!lpOwner())return;const t=String(($('#plt-t')||{}).value||''),l=($('#plt-l')||{}).value,c=String(($('#plt-c')||{}).value||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(t))return toast('Isi tanggal',true);if(l===''||!(+l>=0))return toast('Isi total penjualan buku lama',true);
+  const p=pltS();p.log=p.log.filter(x=>x.tgl!==t);p.log.push({id:uid(),tgl:t,lama:+l,cat:c});AUD('Pilot paralel',t+' · buku lama '+rp(+l));if(!commit())return;refresh();toast('Catatan tersimpan');
+};
+ACT['plt-del']=el=>{if(!lpOwner())return;const p=pltS();p.log=p.log.filter(x=>x.id!==el.dataset.id);if(!commit())return;refresh()};
+{
+  const _pg=PAGES.pengaturan;
+  PAGES.pengaturan=function(){const r=_pg.apply(this,arguments);if(lpOwner()&&r&&r.html)r.html=pltHtml()+r.html;return r};
 }
 
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
