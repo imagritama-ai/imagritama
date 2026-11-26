@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1350"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1430"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -4280,6 +4280,139 @@ let posBantuBuka=false,posSheet=false;
 })();
 
 (function(){try{if(document.getElementById('poscss'))return;const s=document.createElement('style');s.id='poscss';s.textContent="/* ===== SMART POS fokus: keranjang tetap terlihat, panel bantu dilipat, bilah keranjang di HP ===== */\n.posbantu{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}\n.pos .col3{display:none}.pos.bantu .col3{display:block}\n.pos{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}\n.pos.bantu{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.95fr)}\n.pos .posbantu{grid-column:1/-1}.pos.bantu .posbantu{grid-column:1/-1}\n.pos>.col3{grid-column:auto}\n.cartwrap{position:sticky;top:calc(var(--tabh,58px) + 4px);align-self:start;max-height:calc(100vh - var(--tabh,58px) - 90px);overflow:auto;border-radius:12px}\n.cartwrap>.card{margin:0}\n.sheet-x,.sheet-bd{display:none}\n@media (max-width:1500px){.pos.bantu{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}.pos.bantu>.col3{grid-column:1/-1}}\n@media (max-width:900px){\n .pos,.pos.bantu{grid-template-columns:minmax(0,1fr)}\n .pos>.col3{grid-column:auto}\n .cartwrap{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:88vh;z-index:90;border-radius:16px 16px 0 0;background:var(--bg,#f1f4fa);box-shadow:0 -10px 30px rgba(10,27,68,.3);transform:translateY(105%);transition:transform .22s ease;padding:8px 10px 14px;visibility:hidden}\n .sheet-open .cartwrap{transform:none;visibility:visible}\n .sheet-x{display:block;width:100%;margin:0 0 8px;padding:10px;border:0;border-radius:10px;background:#e2e8f2;font-weight:700;color:var(--ink,#0a1b44);cursor:pointer;font-size:14px}\n .sheet-open .sheet-bd{display:block;position:fixed;inset:0;background:rgba(10,27,68,.45);z-index:85}\n #view:has(.pos){padding-bottom:84px}\n body.sheet-on #cartbar{display:none!important}\n .pgrid .pc .btn,.pgrid .pc [data-act=\"pos-add\"]{min-width:44px;min-height:44px}\n}\n";document.head.appendChild(s)}catch(e){}})();
+
+/* ====== SMART POS: ringkasan keranjang, status tersembunyi, diskon dua arah, titik ribuan, ringkasan hemat, struk ====== */
+let posStatusOn=false,posStatusT=null;
+const posDigits=v=>String(v==null?'':v).replace(/\D/g,'');
+const posFmtInt=v=>{const d=posDigits(v);return d===''?'':d.replace(/\B(?=(\d{3})+(?!\d))/g,'.')};
+const posFmtPct=x=>(Math.round(x*100)/100).toString().replace('.',',')+'%';
+function posHemat(items,diskon){
+  const t=calcTotals(items,diskon);let sel=0;
+  items.forEach(it=>{const s=skuOf(it.sku);if(s)sel+=((+s.harga||0)-(+it.harga||0))*(+it.qty||0)});
+  const hp=Math.max(0,Math.round(sel)),hd=Math.round(t.dsc||0);
+  return {hp,hd,total:hp+hd};
+}
+function posHintDisk(tipe,raw){
+  const sub=posCalc().sub;
+  let v=tipe==='Rp'?(+posDigits(raw)||0):(parseFloat(String(raw).replace(',','.'))||0);
+  if(!(v>0)||!(sub>0))return '';
+  if(tipe==='%'){v=Math.min(100,v);return posFmtPct(v)+' = <b>'+rp(Math.round(sub*v/100))+'</b>'}
+  const a=Math.min(sub,v);
+  return rp(a)+' = <b>'+posFmtPct(a/sub*100)+'</b>'+(v>sub?' <span class="bad-t">(melebihi subtotal, dipotong '+rp(sub)+')</span>':'');
+}
+function posHematHtml(){
+  const p=P();if(!p.cart.length)return '';
+  const h=posHemat(p.cart,{tipe:p.dTipe,nilai:p.dNilai});if(!(h.total>0))return '';
+  const bag=[];if(h.hp>0)bag.push('potongan harga produk '+rp(h.hp));if(h.hd>0)bag.push('diskon total belanja '+rp(h.hd));
+  return `<div class="hemat" id="pos-hemat">Anda hemat <b>${rp(h.total)}</b>${bag.length>1?`<div class="small">${bag.join(' + ')}</div>`:`<div class="small">dari ${bag[0]}</div>`}</div>`;
+}
+/* ---------- struk: tambah baris hemat; tidak pernah memuat status/laba ---------- */
+(function(){
+  const _pd=posDocDraft;
+  posDocDraft=function(){const d=_pd.apply(this,arguments);try{d.hematProduk=posHemat(d.items,d.diskon).hp}catch(e){}return d};
+  const _st=strukText;
+  strukText=function(doc,extra){
+    const base=_st.apply(this,arguments);
+    try{
+      const W=34,pad=(a,b)=>a+' '.repeat(Math.max(1,W-a.length-b.length))+b;
+      const t=calcTotals(doc.items,doc.diskon),hp=Math.max(0,Math.round(+doc.hematProduk||0)),hd=Math.round(t.dsc||0),tot=hp+hd;
+      if(!(tot>0))return base;
+      const L=base.split('\n'),i=L.findIndex(x=>/^Metode\s/.test(x));
+      const add=[];
+      if(hp>0&&hd>0){add.push(pad('Hemat harga produk',num(hp)),pad('Hemat diskon total',num(hd)))}
+      add.push(pad('ANDA HEMAT',num(tot)));
+      if(i<0)return base;
+      L.splice(i,0,...add);return L.join('\n');
+    }catch(e){return base}
+  };
+})();
+/* ---------- status & nego cepat disembunyikan; kasir membuka dengan satu ketukan ---------- */
+(function(){
+  const _ls=lpStatusHtml,_ln=lpNegoHtml;
+  lpStatusHtml=function(){return posStatusOn?_ls.apply(this,arguments):''};
+  lpNegoHtml=function(){return posStatusOn?_ln.apply(this,arguments):''};
+  const _rc=resetCart;
+  resetCart=function(){posStatusOn=false;clearTimeout(posStatusT);return _rc.apply(this,arguments)};
+  window.addEventListener('hashchange',()=>{posStatusOn=false;clearTimeout(posStatusT)});
+  ACT['pos-status']=()=>{posStatusOn=!posStatusOn;if(!posStatusOn)clearTimeout(posStatusT);rCart()};
+  const _c=cartHTML;
+  cartHTML=function(){
+    let h=_c.apply(this,arguments);
+    try{
+      const p=P(),t=posCalc(),n=p.cart.reduce((a,c)=>a+(+c.qty||0),0);
+      let stc='<span class="muted">–</span>';
+      if(posStatusOn){
+        clearTimeout(posStatusT);posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},20000);
+        try{const E=lpEval();if(E&&E.lvl!=null)stc='<i style="background:'+LP_ST[E.lvl][2]+'"></i><b>'+esc(lpNama(E.lvl))+'</b>'}catch(e){}
+      }
+      const stbtn=posStatusOn
+        ?`<button class="cschip st on" data-act="pos-status" title="Sembunyikan status dan nego" aria-pressed="true">${stc}<span class="small muted">Sembunyikan</span></button>`
+        :`<button class="cschip st" data-act="pos-status" title="Tampilkan status dan nego cepat (hanya untuk kasir)" aria-pressed="false">Status ••• <span class="small">Lihat</span></button>`;
+      const sum=`<div class="cs" id="cartsum"><span class="cschip" title="Total quantity produk">Qty <b>${num(n)}</b> · ${p.cart.length} produk</span><span class="cschip tot" title="Total belanja setelah diskon"><b>${rp(t.total)}</b></span>${stbtn}</div>`;
+      h=h.replace('<div class="row" style="margin-bottom:6px">','<div class="row cartrow" style="margin-bottom:6px">');
+      h=h.replace(/(<h3 class="ch" style="margin:0">[\s\S]*?Keranjang Transaksi<\/h3>)/,'$1'+sum);
+      /* diskon dua arah + keterangan konversi */
+      h=h.replace(/<input class="in sm" type="number" min="0" value="([^"]*)" placeholder="0" data-chg="pos-dn" aria-label="Nilai diskon">/,(m,v)=>{
+        const rpMode=p.dTipe==='Rp';
+        return rpMode?`<input class="in sm" type="text" inputmode="numeric" autocomplete="off" data-rp="1" value="${posFmtInt(v)}" placeholder="0" data-chg="pos-dn" data-inp="pos-dn-live" aria-label="Nilai diskon">`
+          :`<input class="in sm" type="number" min="0" max="100" step="0.01" value="${v}" placeholder="0" data-chg="pos-dn" data-inp="pos-dn-live" aria-label="Nilai diskon">`});
+      h=h.replace('<div class="line grand">',`<div class="small muted dhint" id="pos-dhint">${posHintDisk(p.dTipe,p.dNilai)}</div><div class="line grand">`);
+      h=h.replace(/(<div class="line grand"><span>Total Bayar<\/span><span>[^<]*<\/span><\/div>)<\/div>/,'$1</div>'+posHematHtml());
+      /* titik ribuan */
+      h=h.replace(/<input class="pin" type="number" min="0" value="([^"]*)" data-chg="pos-price" data-i="(\d+)" aria-label="Harga">/g,(m,v,i)=>`<input class="pin" type="text" inputmode="numeric" autocomplete="off" data-rp="1" value="${posFmtInt(v)}" data-chg="pos-price" data-i="${i}" aria-label="Harga">`);
+      h=h.replace(/<input class="in" id="pos-diterima" type="number" min="0" value="([^"]*)" placeholder="([^"]*)" data-inp="pos-diterima">/,(m,v,ph)=>`<span class="rpin"><input class="in" id="pos-diterima" type="text" inputmode="numeric" autocomplete="off" data-rp="1" value="${posFmtInt(v)}" placeholder="${posFmtInt(ph)}" data-inp="pos-diterima"></span>`);
+      h=h.replace(/<input class="in" id="pos-dp" type="number" min="0" value="([^"]*)" data-chg="pos-dp">/,(m,v)=>`<span class="rpin"><input class="in" id="pos-dp" type="text" inputmode="numeric" autocomplete="off" data-rp="1" value="${posFmtInt(v)}" data-chg="pos-dp"></span>`);
+    }catch(e){}
+    return h;
+  };
+})();
+/* pemformat titik ribuan saat mengetik (menjaga posisi kursor) */
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t||!t.matches||!t.matches('input[data-rp]'))return;
+  const v=t.value,pos=t.selectionStart==null?v.length:t.selectionStart,before=v.slice(0,pos).replace(/\D/g,'').length,f=posFmtInt(v);
+  if(f===v)return;t.value=f;
+  let i=0,c=0;while(i<f.length&&c<before){if(/\d/.test(f[i]))c++;i++}
+  try{t.setSelectionRange(i,i)}catch(_){}
+},true);
+/* aksi yang membaca angka bertitik */
+ACT['pos-diterima']=t=>{
+  P().diterima=posDigits(t.value);const k=$('#pos-kembali');if(!k)return;
+  const d=(+P().diterima||0)-posCalc().total;
+  k.innerHTML=P().diterima===''?'':(d>=0?'Kembalian: <b>'+rp(d)+'</b>':'<span class="bad-t">Kurang '+rp(-d)+'</span>');
+};
+ACT['pos-price']=t=>{const c=P().cart[+t.dataset.i];if(!c)return;c.harga=Math.max(0,+posDigits(t.value)||0);rCart()};
+ACT['pos-dp']=t=>{P().dp=posDigits(t.value)};
+ACT['pos-dn']=t=>{const p=P();p.dNilai=p.dTipe==='Rp'?(+posDigits(t.value)||0):Math.max(0,Math.min(100,parseFloat(String(t.value).replace(',','.'))||0));rCart()};
+ACT['pos-dn-live']=t=>{const h=$('#pos-dhint');if(h)h.innerHTML=posHintDisk(P().dTipe,t.value)};
+ACT['pos-dt']=t=>{
+  const p=P(),tt=posCalc(),n=t.value;
+  if(n!==p.dTipe){if(tt.sub>0&&tt.dsc>0)p.dNilai=n==='Rp'?Math.round(tt.dsc):Math.round(tt.dsc/tt.sub*10000)/100;p.dTipe=n}
+  rCart();
+};
+/* katalog: pencarian dan kategori tetap terlihat, hanya daftar produk yang bergulir */
+(function(){
+  const _k=PAGES.kasir0;
+  PAGES.kasir0=function(){
+    const r=_k.apply(this,arguments);
+    try{
+      let h=r.html;
+      h=h.replace('<section class="card" aria-label="Katalog produk">','<section class="card catsec" aria-label="Katalog produk">');
+      h=h.replace(/(<input class="in" id="pos-q"[\s\S]*?)(<div class="pgrid" id="pgrid">)/,'<div class="catbar">$1</div>$2');
+      r.html=h;
+    }catch(e){}
+    return r;
+  };
+})();
+/* tinggi menu atas untuk elemen yang menempel (juga saat menu berupa display:contents di HP) */
+function posTabH2(){
+  const r=document.querySelector('#view>.tabrow'),t=document.querySelector('#view>.tabrow>.tabs,#view>.tabs');if(!t)return;
+  const h=(r&&getComputedStyle(r).display==='contents')?t.getBoundingClientRect().height+6:(r||t).getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--tabh',Math.ceil(h)+'px');
+}
+(function(){const _r=refresh;refresh=function(){_r.apply(this,arguments);setTimeout(posTabH2,80);setTimeout(posTabH2,700)};
+  window.addEventListener('resize',posTabH2);window.addEventListener('hashchange',()=>setTimeout(posTabH2,250))})();
+
+;(function(){var s=document.createElement('style');s.id='pos-ringkas-css';s.textContent="/* ===== SMART POS: ringkasan keranjang, hemat, titik ribuan, katalog bergulir sendiri ===== */\n.cartrow{flex-wrap:wrap;gap:6px 10px;align-items:center}\n.cs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}\n.cschip{display:inline-flex;gap:5px;align-items:center;padding:3px 9px;border-radius:999px;background:var(--blue-s,#e5efff);color:var(--ink,#13223f);font-size:12px;line-height:1.4;border:0;font-weight:600;white-space:nowrap}\n.cschip b{font-weight:800}.cschip.tot{background:var(--green-s,#e2f5ec);color:var(--green,#118c5e)}\nbutton.cschip.st{cursor:pointer;border:1px solid var(--line,#d9e2f1);background:var(--card,#fff);min-height:26px}\nbutton.cschip.st.on{border-color:var(--blue,#1763e0)}\n.cschip i{width:9px;height:9px;border-radius:50%;display:inline-block}\n.dhint{text-align:right;margin:-2px 0 4px;min-height:0}.dhint:empty{display:none}\n.hemat{margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--green-s,#e2f5ec);color:var(--green,#118c5e);font-size:14px;font-weight:600}\n.hemat .small{font-weight:500;opacity:.9}\n.rpin{position:relative;display:block}.rpin>input{padding-left:30px!important}\n.rpin::before{content:'Rp';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--mut,#5a6a87);pointer-events:none;z-index:1}\n.cart input.pin[data-rp]{width:96px}\n.catsec{display:flex;flex-direction:column}\n.catbar{flex:none}\n@media (min-width:901px){\n .catsec{position:sticky;top:calc(var(--tabh,58px) + 4px);height:calc(100vh - var(--tabh,58px) - 90px);min-height:420px;align-self:start}\n .catsec #pgrid{flex:1 1 auto;min-height:0;overflow:auto;padding:2px 4px 8px 0;margin-top:8px;align-content:start}\n .pos.bantu .catsec{position:relative;z-index:0}\n .pos.bantu>.col3{position:relative;z-index:1}\n}\n@media (max-width:900px){\n .catsec{overflow:visible!important}\n .catbar{position:sticky;top:calc(var(--tabh,48px) - 2px);z-index:20;background:var(--card,#fff);padding:8px 0 6px}\n}\n";document.head.appendChild(s)})();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
