@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2460"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2470"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5496,6 +5496,33 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
   };
   const _pg=PAGES.stok;
   PAGES.stok=function(){const p=_pg.apply(this,arguments);try{if(p.html)p.html=p.html.replace('placeholder="Nama, SKU, atau barcode"','placeholder="Nama, kategori (mis. benih), perusahaan, bahan aktif, SKU…"')}catch(e){}return p};
+})();
+
+/* ====== SMART POS: pencarian katalog mengenal sinonim (bibit=benih, racun serangga=insektisida, dst.) dan membaca bahan aktif, hama sasaran, alias, pemasok ====== */
+(function(){
+  if(typeof posFiltered!=='function'||typeof posHay!=='function')return;
+  const MAP=[[/\b(racun|pembasmi|obat) serangga\b/g,'insektisida'],[/\b(racun|pembasmi|obat) (rumput|gulma)\b/g,'herbisida'],[/\b(obat|racun) jamur\b/g,'fungisida'],
+    [/\b(bibit|seed|biji)\b/g,'benih'],[/\b(gulma|antigulma)\b/g,'herbisida'],[/\b(antijamur|jamur)\b/g,'fungisida'],[/\b(insek)\b/g,'insektisida'],[/\b(fertilizer|rabuk)\b/g,'pupuk'],[/\b(mulch)\b/g,'mulsa'],[/\b(sprayer|penyemprot|semprot)\b/g,'tangki']];
+  const sin=q=>{let s=String(q||'').toLowerCase();MAP.forEach(m=>{s=s.replace(m[0],m[1])});return s};
+  const _h=posHay;
+  posHay=function(s){
+    const h=_h.apply(this,arguments);
+    if(h.xs)return h;
+    try{
+      const p=s.pid&&typeof produkOf==='function'?produkOf(s.pid):null;let ex=[];
+      if(p){ex.push(p.bahan,p.target,p.jenis,(p.aliases||[]).join(' '));
+        const sm=typeof ppSupMap==='function'?ppSupMap():{};if(sm[p.id])ex.push(sm[p.id].nama)}
+      const t=posNorm(ex.filter(Boolean).join(' '));
+      if(t){h.all=h.all+' '+t;h.flat=h.all.replace(/ /g,'');h.words=h.all.split(' ')}
+    }catch(e){}
+    h.xs=1;return h;
+  };
+  const _f=posFiltered;
+  posFiltered=function(){
+    const p=P(),raw=p.q,e=sin(raw);
+    if(!raw||e===String(raw).toLowerCase())return _f.apply(this,arguments);
+    p.q=e;try{return _f.apply(this,arguments)}finally{p.q=raw}
+  };
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
