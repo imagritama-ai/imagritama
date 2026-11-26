@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2000"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2100"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -4723,7 +4723,7 @@ const knKata=s=>String(s||'').toLowerCase().split(/[\s@\/(),]+/).filter(Boolean)
       const p=produkOf(id)||{};if(r.bahan&&r.bahan.length&&(p.bahan||'').toLowerCase().split(/[,;+/]/).some(b=>b.trim().length>=5&&t.includes(b.trim())))return true;
       const w=knKata(p.nama).map(x=>x.replace(/[^a-z0-9]/g,'')).filter(Boolean);if(!w.length)return false;
       const hit=x=>t.includes(' '+x+' ');
-      const lain=w.slice(1).filter(x=>x.length>=4&&!/^\d/.test(x)).some(hit);
+      const lain=w.length>1&&t.includes(' '+w[0]+' '+w[1]+' ');
       if(KN_UMUM.has(w[0])&&!lain)return false;
       if(hamaKat&&!lain&&grpOf(p.kategori||'')==='Benih')return false;
       return true;
@@ -4731,6 +4731,350 @@ const knKata=s=>String(s||'').toLowerCase().split(/[\s@\/(),]+/).filter(Boolean)
     return r;
   };
 })();
+/* ====== KONSULTASI CERDAS v2: dugaan penyebab -> pertanyaan pembeda -> saran produk hanya dari data label ====== */
+/* Aturan: gejala sering punya banyak penyebab. Sistem tidak menebak satu produk; ia menyusun dugaan, bertanya, dan
+   hanya menyarankan produk yang label/data teknisnya menyebut sasaran yang sama. Dasar pengetahuan = panduan agronomi umum
+   (draf; cek dengan penyuluh/akuntan teknis toko), BUKAN diagnosis laboratorium. */
+
+/* ---------- 1. Komoditas (nama sehari-hari -> nama baku) ---------- */
+const KC_KOM=[
+  ['Cabai',['cabai rawit','cabe rawit','cabai merah','cabe merah','cabai','cabe','lombok','rawit']],
+  ['Tomat',['tomat']],['Bawang Putih',['bawang putih']],['Daun Bawang',['daun bawang','bawang daun','bawang prei','prei']],
+  ['Bawang Merah',['bawang merah','brambang','bawang']],
+  ['Kentang',['kentang']],['Kubis',['kubis','kobis','kol']],['Sawi',['sawi','caisim','caisin','pakcoy','pak choy','sawi hijau']],
+  ['Bayam',['bayam']],['Kangkung',['kangkung']],['Selada',['selada']],['Terong',['terong','terung']],
+  ['Mentimun',['mentimun','timun']],['Semangka',['semangka']],['Melon',['melon']],['Kacang Panjang',['kacang panjang']],
+  ['Buncis',['buncis']],['Kacang Tanah',['kacang tanah']],['Kedelai',['kedelai']],['Padi',['padi','sawah']],['Jagung',['jagung']],
+  ['Kakao',['kakao','cokelat tanaman']],['Kopi',['kopi']],['Kelapa Sawit',['kelapa sawit','sawit']],['Tebu',['tebu']],
+  ['Jeruk',['jeruk']],['Mangga',['mangga']],['Pisang',['pisang']],['Singkong',['singkong','ubi kayu']],['Tembakau',['tembakau']],['Karet',['karet']]
+];
+const KC_GRUP={Sawi:'sayuran daun',Bayam:'sayuran daun',Kangkung:'sayuran daun',Selada:'sayuran daun'};
+const KC_SYN=[];KC_KOM.forEach(k=>k[1].forEach(s=>KC_SYN.push([s,k[0]])));KC_SYN.sort((a,b)=>b[0].length-a[0].length);
+
+/* ---------- 2. Normalisasi kalimat ---------- */
+function kcN(t){
+  t=' '+String(t||'').toLowerCase().replace(/[^a-z0-9\s\-\/]/g,' ').replace(/\s+/g,' ')+' ';
+  t=t.replace(/\b(trhips|trips|thirps|thrip)\b/g,'thrips').replace(/\bantraknose\b/g,'antraknosa').replace(/\bpatek\b/g,'patek antraknosa')
+    .replace(/\bkutu loncat\b/g,'kutu loncat').replace(/\bmelintir\b/g,'terpelintir').replace(/\bngeriting\b/g,'keriting').replace(/\bbolong\b/g,'berlubang');
+  return t;
+}
+const KC_MULTI='kutu kebul|kutu daun|kutu putih|ulat grayak|ulat buah|ulat bawang|ulat kubis|lalat buah|penggerek batang|penggerek buah|wereng coklat|busuk daun|embun tepung|bercak daun';
+function kcNegasi(t){
+  const neg=[];
+  t=t.replace(new RegExp('\\b(?:tidak|bukan|tanpa|belum|nggak|gak|ga)\\s+(?:ada\\s+|terlihat\\s+|karena\\s+|kena\\s+|terserang\\s+)*('+KC_MULTI+')','g'),(m,c)=>{neg.push(c);return ' '});
+  t=t.replace(/\b(?:tidak|bukan|tanpa|belum|nggak|gak|ga)\s+(?:ada\s+|terlihat\s+|karena\s+|kena\s+|terserang\s+)*([a-z]+)/g,(m,c)=>{if(['tapi','ada','yang','hanya','begitu','terlalu','sampai'].includes(c))return m;neg.push(c);return ' '});
+  return {t,neg};
+}
+function kcKom(t){
+  for(const [s,n] of KC_SYN){if(new RegExp('(^|[^a-z])'+s.replace(/[-\/ ]/g,'[ -]')+'([^a-z]|$)').test(t)){
+    if(n==='Bawang Merah'&&/daun bawang|bawang daun|bawang putih/.test(t))continue;return n}}
+  return '';
+}
+
+/* ---------- 3. Basis pengetahuan penyebab (panduan umum) ---------- */
+/* t=jenis penyebab, kat=jenis produk yang relevan ('' = tidak ada obat), kuat/lemah=kata di label produk, sebut=disebut langsung = pasti,
+   tan=tanaman yang umum terserang (kosong=semua), ciri=ciri pembeda, tanya=[pertanyaan, kalimat tambahan bila "ya"], saran=penanganan non-kimia */
+const KC_SEBAB={
+ bercak_jamur:{n:'Bercak daun karena jamur (mis. Cercospora, Alternaria)',t:'jamur',kat:'Fungisida',kuat:['bercak daun'],lemah:['bercak','penyakit jamur','jamur','cendawan'],sebut:[],
+  tan:[],ciri:/bulat|oval|cincin|berpusat|abu|cokelat|lembap|hujan|menyebar pelan/,
+  tanya:[['Bercak bulat/oval dengan pusat abu-abu atau cokelat, makin banyak saat lembap?','bercak bulat oval berpusat cokelat saat lembap']],
+  saran:['Buang dan musnahkan daun yang bergejala berat.','Longgarkan jarak tanam dan hindari menyiram daun, terutama sore hari.','Rotasi tanaman dan bersihkan sisa tanaman sakit.']},
+ bercak_bakteri:{n:'Bercak bakteri (mis. Xanthomonas)',t:'bakteri',kat:'Fungisida',kuat:['bakteri','bercak bakteri','xanthomonas'],lemah:[],sebut:['xanthomonas','bercak bakteri'],
+  tan:[],ciri:/berair|basah|lendir|bau|halo|tepi kuning|bakteri|cepat setelah hujan|bersudut/,
+  tanya:[['Bercak tampak berair/basah, bersudut, dengan tepi kuning (halo)?','bercak berair bersudut tepi kuning']],
+  saran:['Bakteri tidak mati oleh fungisida biasa. Kurangi percikan air hujan/siraman dan jangan bekerja di kebun saat daun basah.','Musnahkan daun/tanaman bergejala dan gunakan benih sehat.'],
+  catatan:'Fungisida biasa tidak efektif untuk bakteri. Hanya produk yang labelnya menyebut bakteri yang boleh dipertimbangkan.'},
+ antraknosa:{n:'Antraknosa / patek (jamur Colletotrichum)',t:'jamur',kat:'Fungisida',kuat:['antraknosa','antraknose','patek'],lemah:['bercak','penyakit jamur','jamur','cendawan'],sebut:['antraknosa','patek'],
+  tan:['cabai','tomat','bawang merah','bawang putih','mangga','kakao','kopi','jeruk','semangka','mentimun','kacang panjang','terong','pisang'],ciri:/cekung|hitam|buah|titik hitam|mengering|melingkar|merah.*busuk|busuk.*buah|patek/,
+  tanya:[['Ada bercak cekung kecokelatan/menghitam di BUAH (bukan hanya di daun)?','buah bercak cekung menghitam'],['Ada titik-titik hitam kecil di tengah bercak?','titik hitam di tengah bercak']],
+  saran:['Petik dan musnahkan buah terserang; jangan dibuang ke bedengan.','Pakai mulsa agar buah tidak terkena percikan tanah; hindari menyiram dari atas.','Aplikasi pencegahan saat musim lembap/hujan, dengan bahan aktif bergantian.']},
+ busuk_daun:{n:'Busuk daun / hawar (Phytophthora)',t:'jamur',kat:'Fungisida',kuat:['busuk daun','hawar','phytophthora'],lemah:['penyakit jamur','jamur'],sebut:['busuk daun','phytophthora','hawar'],
+  tan:['tomat','kentang','cabai','mentimun','terong'],ciri:/busuk|basah|kabut|hujan|lembap|putih berbulu|abu-abu|menyebar cepat|kehitaman/,
+  tanya:[['Bercak seperti tersiram air panas, cepat melebar saat hujan/kabut, ada bulu putih di bawah daun?','bercak basah cepat melebar hujan bulu putih di bawah daun']],
+  saran:['Buang daun bawah yang sakit dan kurangi kelembapan kebun.','Aplikasi pencegahan sebelum musim hujan; jangan menunggu sampai parah.']},
+ embun_tepung:{n:'Embun tepung (jamur)',t:'jamur',kat:'Fungisida',kuat:['embun tepung','embun','powdery'],lemah:['penyakit jamur','jamur'],sebut:['embun tepung','powdery'],
+  tan:[],ciri:/tepung|putih|serbuk/,tanya:[['Ada lapisan putih seperti tepung yang bisa dihapus di permukaan daun?','lapisan putih seperti tepung di daun']],
+  saran:['Perbaiki sirkulasi udara dan hindari pupuk N berlebih.','Buang bagian yang terserang berat.']},
+ bulai:{n:'Bulai (jamur Peronosclerospora)',t:'jamur',kat:'Fungisida',kuat:['bulai'],lemah:[],sebut:['bulai'],tan:['jagung'],ciri:/garis|kuning|kerdil|tepung putih|pagi/,
+  tanya:[['Daun bergaris kuning-putih sejajar tulang daun dan tanaman kerdil, ada tepung putih di pagi hari?','daun bergaris kuning putih kerdil']],
+  saran:['Gunakan benih tahan bulai dan perlakuan benih; cabut serta musnahkan tanaman bergejala; atur rotasi dan tanam serempak.']},
+ blas:{n:'Blas (jamur Pyricularia)',t:'jamur',kat:'Fungisida',kuat:['blas'],lemah:[],sebut:['blas'],tan:['padi'],ciri:/belah ketupat|leher|patah|malai|blas/,
+  tanya:[['Bercak berbentuk belah ketupat di daun, atau leher malai patah?','bercak belah ketupat leher malai patah']],
+  saran:['Hindari N berlebihan, gunakan varietas tahan, aplikasi pencegahan pada fase rawan.']},
+ trotol_bawang:{n:'Bercak ungu / trotol (Alternaria) pada bawang',t:'jamur',kat:'Fungisida',kuat:['bercak ungu','trotol','alternaria'],lemah:['bercak','penyakit jamur'],sebut:['trotol','bercak ungu','alternaria'],
+  tan:['bawang merah','bawang putih','daun bawang'],ciri:/ungu|trotol|cekung|putih/,tanya:[['Bercak putih kecil berpusat ungu pada daun bawang?','bercak putih berpusat ungu di daun bawang']],
+  saran:['Atur jarak tanam, jaga drainase, aplikasi pencegahan saat lembap.']},
+ layu_fusarium:{n:'Layu Fusarium / busuk akar (jamur tanah)',t:'jamur',kat:'Fungisida',kuat:['fusarium','layu fusarium','busuk akar'],lemah:[],sebut:['fusarium'],tan:[],ciri:/pelan|bertahap|satu sisi|sebagian|pembuluh|berkas|cokelat|akar/,
+  tanya:[['Layu bertahap/sebelah, dan bila batang dipotong tampak berkas cokelat?','layu bertahap sebelah batang berkas cokelat']],
+  saran:['Cabut dan musnahkan tanaman layu, perbaiki drainase, rotasi tanaman, jangan mengalirkan air dari petak sakit.'],catatan:'Penyakit tanah lebih mudah dicegah daripada diobati. Cek dulu apakah label produk menyebut layu/busuk akar.'},
+ layu_bakteri:{n:'Layu bakteri (Ralstonia)',t:'bakteri',kat:'',kuat:[],lemah:[],sebut:['ralstonia'],tan:['cabai','tomat','kentang','terong','tembakau','pisang'],ciri:/mendadak|lendir|putih susu|keruh|tetap hijau|tiba tiba/,
+  tanya:[['Layu mendadak dengan daun masih hijau, dan batang dipotong lalu dicelup air keluar lendir putih?','layu mendadak daun masih hijau lendir putih']],
+  saran:['Tidak ada obat yang efektif. Cabut dan musnahkan tanaman (jangan dikompos), taburi kapur di lubangnya, rotasi dengan non-Solanaceae, perbaiki drainase.'],catatan:'Layu bakteri tidak bisa diobati dengan fungisida atau insektisida.'},
+ busuk_pangkal:{n:'Busuk pangkal batang / rebah kecambah (jamur tanah)',t:'jamur',kat:'Fungisida',kuat:['busuk pangkal','busuk batang','busuk akar','rebah kecambah'],lemah:[],sebut:['busuk pangkal','busuk batang','rebah kecambah'],tan:[],ciri:/pangkal|kerah|batang bawah|rebah|genang|miselium/,
+  tanya:[['Pangkal batang membusuk/berair atau ada benang jamur putih, biasanya di tanah becek?','pangkal batang busuk tanah becek']],
+  saran:['Perbaiki drainase, hindari penanaman terlalu dalam, buang tanaman sakit.']},
+ virus_kuning:{n:'Virus (mis. kuning keriting, ditularkan kutu kebul/thrips)',t:'virus',kat:'Insektisida',kuat:['kutu kebul','whitefly','bemisia'],lemah:[],sebut:[],
+  tan:['cabai','tomat','terong','kentang','mentimun','semangka','melon','kacang panjang','bawang merah'],ciri:/keriting|menggulung|kuning|kerdil|mosaik|belang|kutu kebul|putih terbang|tidak berbuah/,
+  tanya:[['Daun keriting/menguning, tanaman kerdil, dan ada kutu putih kecil terbang saat daun digoyang?','daun keriting kuning kerdil kutu putih kecil terbang']],
+  saran:['Virus tidak ada obatnya. Cabut dan musnahkan tanaman bergejala, pakai mulsa perak, tanam bibit sehat, dan kendalikan kutu kebul/thrips pembawanya.'],
+  catatan:'Virus tidak bisa diobati. Produk di bawah hanya untuk mengendalikan serangga pembawanya, bukan menyembuhkan tanaman yang sudah sakit.'},
+ thrips:{n:'Thrips (hama pengisap)',t:'hama',kat:'Insektisida',kuat:['thrips'],lemah:[],sebut:['thrips'],tan:[],ciri:/perak|keperakan|kecokelatan|menggulung ke bawah|keriting|bunga rontok|memanjang|terpelintir|kerdil/,
+  tanya:[['Daun tampak keperakan/kecokelatan, menggulung ke atas atau terpelintir, ada serangga sangat kecil memanjang saat bunga diketuk ke kertas putih?','daun keperakan terpelintir serangga kecil memanjang']],
+  saran:['Pasang perangkap lekat kuning/biru, mulsa perak, pantau tiap minggu, dan gantian bahan aktif agar tidak kebal.']},
+ kutu_kebul:{n:'Kutu kebul (Bemisia)',t:'hama',kat:'Insektisida',kuat:['kutu kebul','whitefly','bemisia'],lemah:[],sebut:['kutu kebul','whitefly','bemisia'],tan:[],ciri:/kutu kebul|putih kecil|terbang|jelaga|lengket|embun madu|bawah daun/,
+  tanya:[['Serangga putih kecil beterbangan dari bawah daun saat disentuh?','serangga putih kecil terbang dari bawah daun']],
+  saran:['Pasang perangkap lekat kuning, mulsa perak, jaga gulma inang, pantau bawah daun.']},
+ kutu_daun:{n:'Kutu daun (Aphid)',t:'hama',kat:'Insektisida',kuat:['kutu daun','aphid','aphis'],lemah:[],sebut:['kutu daun','aphid'],tan:[],ciri:/koloni|menggulung|lengket|semut|hijau kecil|bergerombol/,
+  tanya:[['Serangga kecil hijau/hitam bergerombol di pucuk atau bawah daun, ada semut?','serangga kecil bergerombol di pucuk ada semut']],
+  saran:['Pantau pucuk dan bawah daun, lindungi musuh alami, semprot air bertekanan bila baru sedikit.']},
+ kutu_putih:{n:'Kutu putih / kutu tepung (Mealybug)',t:'hama',kat:'Insektisida',kuat:['kutu putih','kutu tepung','pseudococcus'],lemah:[],sebut:['kutu tepung','mealybug'],tan:[],ciri:/tepung|kapas|menempel|pangkal|buah|batang/,
+  tanya:[['Kutu menempel diam seperti kapas/tepung putih di batang atau buah?','kutu seperti kapas putih menempel di batang']],
+  saran:['Buang bagian berat terserang, bersihkan semut yang memelihara kutu, pantau rutin.']},
+ tungau:{n:'Tungau (hama sangat kecil)',t:'hama',kat:'Insektisida',kuat:['tungau','akarisida','mite'],lemah:[],sebut:['tungau'],tan:[],ciri:/keriting ke bawah|kaku|mengecil|kecokelatan|mengkilap|kemarau|panas|tidak terlihat|sendok/,
+  tanya:[['Daun mengecil, kaku, menggulung ke bawah seperti sendok terbalik, serangganya hampir tidak terlihat?','daun mengecil kaku menggulung ke bawah']],
+  saran:['Tungau sulit terlihat mata biasa. Periksa dengan kaca pembesar dan pilih produk yang labelnya menyebut tungau/akarisida.']},
+ ulat_grayak:{n:'Ulat grayak / ulat daun',t:'hama',kat:'Insektisida',kuat:['ulat grayak','ulat tentara','spodoptera'],lemah:['ulat','perusak daun'],sebut:['ulat grayak','ulat tentara','spodoptera'],tan:[],ciri:/berlubang|jendela|digerogoti|larva|kotoran|dimakan|pucuk/,
+  tanya:[['Daun berlubang/digerogoti dan ada ulat atau kotoran hitam di pucuk?','daun berlubang ada ulat dan kotoran']],
+  saran:['Periksa pucuk pagi/sore, kumpulkan kelompok telur, tanam serempak, aplikasi saat larva masih kecil.']},
+ ulat_buah:{n:'Ulat buah / penggerek buah',t:'hama',kat:'Insektisida',kuat:['ulat buah','penggerek buah','helicoverpa','penggerek polong'],lemah:['penggerek','ulat'],sebut:['ulat buah','penggerek buah','helicoverpa'],tan:[],ciri:/buah berlubang|buah|polong|ulat dalam/,
+  tanya:[['Ada lubang kecil di buah dan ulat di dalamnya?','buah berlubang ada ulat di dalam']],
+  saran:['Pungut dan musnahkan buah berulat, pantau telur pada buah muda.']},
+ lalat_buah:{n:'Lalat buah (Bactrocera)',t:'hama',kat:'Insektisida',kuat:['lalat buah','bactrocera'],lemah:['lalat'],sebut:['lalat buah'],tan:[],ciri:/belatung|buah jatuh|busuk basah|matang|bintik tusukan/,
+  tanya:[['Buah matang/menguning membusuk basah dan ada belatung kecil putih di dalam?','buah busuk basah ada belatung putih']],
+  saran:['Pasang perangkap atraktan, pungut buah jatuh, benamkan atau musnahkan.']},
+ penggerek_batang:{n:'Penggerek batang',t:'hama',kat:'Insektisida',kuat:['penggerek batang'],lemah:['penggerek'],sebut:['penggerek batang','sundep','beluk'],tan:['padi','jagung','tebu'],ciri:/sundep|beluk|batang|titik tumbuh mati|lubang gerekan/,
+  tanya:[['Titik tumbuh/pucuk mati (sundep) atau malai putih hampa (beluk), atau lubang di batang?','pucuk mati sundep beluk lubang di batang']],
+  saran:['Tanam serempak, pantau kelompok telur, aplikasi pada awal serangan.']},
+ wereng:{n:'Wereng (hama padi)',t:'hama',kat:'Insektisida',kuat:['wereng','wereng coklat'],lemah:[],sebut:['wereng'],tan:['padi'],ciri:/pangkal batang|membakar|kering melingkar|hopperburn|menguning|kerdil/,
+  tanya:[['Tanaman mengering melingkar dari titik tertentu, dan serangga kecil di pangkal batang?','mengering melingkar serangga kecil di pangkal batang']],
+  saran:['Pantau pangkal batang, jangan pupuk N berlebih, atur jajar legowo, aplikasi bila melewati ambang.']},
+ ulat_bawang:{n:'Ulat bawang (Spodoptera exigua)',t:'hama',kat:'Insektisida',kuat:['ulat bawang'],lemah:['ulat','ulat grayak'],sebut:['ulat bawang'],tan:['bawang merah','bawang putih','daun bawang'],ciri:/transparan|bening|berlubang|tabung|larva|ulat/,
+  tanya:[['Daun bawang berlubang atau bening transparan dan ada ulat hijau kecil?','daun bawang berlubang bening ada ulat hijau']],
+  saran:['Periksa daun tiap 2-3 hari, kumpulkan kelompok telur dan larva, aplikasi sore hari.']},
+ uret_tanah:{n:'Hama tanah (uret, orong-orong, gangsir)',t:'hama',kat:'Insektisida',kuat:['uret','orong-orong','orong orong','gangsir','hama tanah','kutu akar'],lemah:[],sebut:['uret','orong-orong','orong orong','gangsir'],tan:[],ciri:/akar|terpotong|roboh|pangkal|rebah|tanah/,
+  tanya:[['Akar atau pangkal batang terpotong/dimakan, tanaman roboh, ada larva putih di tanah?','akar pangkal terpotong tanaman roboh larva putih di tanah']],
+  saran:['Olah tanah dan gali sekitar tanaman yang layu untuk mencari larva.']},
+ walang_sangit:{n:'Walang sangit (malai padi hampa)',t:'hama',kat:'Insektisida',kuat:['walang sangit'],lemah:[],sebut:['walang sangit'],tan:['padi'],ciri:/hampa|bulir|berbau|malai|serangga/,
+  tanya:[['Bulir padi hampa/berbintik dan ada serangga berbau saat berbunga-masak susu?','bulir hampa berbintik serangga berbau']],saran:['Bersihkan gulma pematang, aplikasi saat fase berbunga bila populasi tinggi.']},
+ nutrisi_n:{n:'Kekurangan nitrogen (N) / pemupukan kurang',t:'nutrisi',kat:'Pupuk',nama:/urea|\bza\b|npk|nitrogen|growmore|gandasil d/i,kuat:[],lemah:[],sebut:[],tan:[],ciri:/daun tua|merata|pucat|lambat|kerdil|menguning/,
+  tanya:[['Daun TUA menguning merata mulai dari bawah, tanaman pertumbuhan lambat?','daun tua menguning merata dari bawah pertumbuhan lambat']],
+  saran:['Cek jadwal dan dosis pemupukan, berikan susulan bertahap sesuai fase, dan cek pH/drainase tanah.']},
+ ca_boron:{n:'Kekurangan kalsium / boron (gangguan fisiologis)',t:'nutrisi',kat:'Pupuk',nama:/kalsium|calcium|boron|borax|\bca\b|gandasil b|mkp|kcl|kalium/i,kuat:[],lemah:[],sebut:[],tan:['cabai','tomat','terong','semangka','melon','kentang'],ciri:/ujung buah|busuk ujung|pucuk keriting|rontok|pecah|menghitam di ujung/,
+  tanya:[['Ujung buah menghitam/busuk kering tanpa lendir, atau pucuk mengecil dan keriting?','ujung buah menghitam kering pucuk mengecil']],
+  saran:['Jaga kelembapan tanah tetap rata (jangan kering-basah ekstrem), cukupi kalsium dan boron sesuai rekomendasi.']},
+ cekaman:{n:'Cekaman lingkungan (kekeringan, panas, hujan terus-menerus, tergenang)',t:'fisiologis',kat:'',kuat:[],lemah:[],sebut:[],tan:[],ciri:/panas|kemarau|hujan terus|kering|genang|dingin|mendadak/,
+  tanya:[['Gejala muncul setelah cuaca ekstrem (sangat panas/kering atau hujan terus)?','gejala muncul setelah cuaca ekstrem']],
+  saran:['Atur pengairan dan drainase, gunakan mulsa, hindari stres air saat berbunga.'],catatan:'Gangguan cuaca/lingkungan tidak diobati dengan pestisida.'},
+ gulma:{n:'Gulma (rumput, teki, daun lebar)',t:'gulma',kat:'Herbisida',kuat:['gulma','rumput','teki','daun lebar','alang','gulma berdaun lebar'],lemah:[],sebut:['gulma','rumput','teki','alang'],tan:[],ciri:/rumput|teki|daun lebar|alang|gulma/,
+  tanya:[['Tanamannya sudah tumbuh (berdiri) atau lahan masih kosong sebelum tanam?','lahan kosong sebelum tanam'],['Gulma jenis rumput, teki, atau berdaun lebar?','gulma rumput']],
+  saran:['Pada tanaman berdiri gunakan herbisida selektif yang labelnya menyebut tanaman itu; herbisida umum hanya untuk lahan kosong/pra-tanam.']}
+};
+/* gejala (kata sehari-hari) -> kandidat penyebab dengan bobot dasar */
+const KC_GEJALA=[
+ [/bercak|noda|totol/,[['bercak_jamur',3],['bercak_bakteri',2],['antraknosa',1.5],['trotol_bawang',2],['busuk_daun',1.5]]],
+ [/keriting|menggulung|mengkerut|terpelintir|kerdil|mosaik|belang/,[['virus_kuning',3],['thrips',2.5],['tungau',2.5],['kutu_kebul',2],['kutu_daun',1.5],['ca_boron',1]]],
+ [/menguning|kuning|pucat|klorosis/,[['nutrisi_n',3],['layu_fusarium',1.5],['kutu_daun',1.2],['wereng',1.5],['cekaman',1.5],['virus_kuning',1.5]]],
+ [/layu|lemas|terkulai/,[['layu_bakteri',2.5],['layu_fusarium',2.5],['busuk_pangkal',2],['uret_tanah',1.5],['cekaman',1.5]]],
+ [/berlubang|digerogoti|dimakan|dikunyah/,[['ulat_grayak',3],['ulat_bawang',2],['ulat_buah',1]]],
+ [/busuk|membusuk/,[['antraknosa',2],['busuk_daun',2],['busuk_pangkal',2],['lalat_buah',2],['ca_boron',1.5],['layu_bakteri',1]]],
+ [/rontok|gugur|gagal berbuah|tidak berbuah|bunga rontok/,[['cekaman',2.5],['ca_boron',2],['thrips',1.5],['virus_kuning',1]]],
+ [/lambat|kerdil|tidak subur|tidak tumbuh|kurus/,[['nutrisi_n',2.5],['virus_kuning',1.5],['uret_tanah',1.5],['cekaman',1.5]]],
+ [/gulma|rumput|teki|alang|babadotan|liar/,[['gulma',6]]],
+ [/putih seperti tepung|tepung putih|serbuk putih|lapisan putih/,[['embun_tepung',4],['kutu_putih',1.5]]],
+ [/lengket|jelaga|embun madu|semut/,[['kutu_kebul',3],['kutu_daun',3],['kutu_putih',2]]],
+ [/perak|keperakan/,[['thrips',3],['tungau',2]]],
+ [/\bulat\b/,[['ulat_grayak',3],['ulat_bawang',2.5],['ulat_buah',2.5]]],
+ [/\bkutu\b/,[['kutu_daun',2],['kutu_kebul',2],['kutu_putih',2]]],
+ [/kutu putih/,[['kutu_kebul',2.5],['kutu_putih',2.5]]],
+ [/buah berlubang|buah busuk berlubang|buah bolong|polong berlubang/,[['ulat_buah',3],['lalat_buah',2]]],
+ [/hampa|bulir kosong|malai hampa/,[['walang_sangit',2.5],['blas',2],['cekaman',1.5]]],
+ [/akar (?:putus|terpotong|dimakan)|roboh|rebah/,[['uret_tanah',3],['busuk_pangkal',2]]]
+];
+
+/* ---------- 4. Analisis ---------- */
+function kcTanOK(c,kom){
+  if(!c.tan||!c.tan.length||!kom)return 1;const k=kom.toLowerCase(),g=KC_GRUP[kom];
+  return c.tan.includes(k)||(g&&c.tan.includes(g))?1:0.15;
+}
+function kcAnalisis(tx0,opt){
+  opt=opt||{};
+  const neg0=kcNegasi(kcN(tx0)),t=neg0.t,kom=opt.kom||kcKom(t);
+  const r={kom,neg:neg0.neg,t,mode:'diagnosis',organ:(t.match(/\b(daun|buah|batang|akar|bunga|pucuk|umbi|polong|tongkol|malai|pangkal)\b/)||[])[1]||'',kat:'',cands:[],status:'kurang'};
+  const pre=/sebelum tanam|persiapan lahan|lahan kosong|pra.?tanam|bersihkan lahan|olah tanah/.test(t);r.pre=pre;
+  const fase=/(berbunga|generatif|berbuah|pembuahan)/.test(t)?'generatif':/(vegetatif|pertumbuhan awal|baru tanam|bibit)/.test(t)?'vegetatif':'';r.fase=fase;
+  /* mode khusus: benih / pupuk (kebutuhan, bukan keluhan) */
+  const keluhan=KC_GEJALA.some(g=>g[0].test(t.replace(/pupuk/g,'')))||Object.values(KC_SEBAB).some(c=>c.sebut.some(s=>t.includes(' '+s)));
+  if(/\b(benih|bibit)\b/.test(t)&&!/\b(bercak|layu|busuk|ulat|kutu|hama|penyakit)\b/.test(t)){r.mode='benih';r.kat='Benih';r.status=kom?'jelas':'kurang';return r}
+  if(/\bpupuk\b/.test(t)&&!/\b(bercak|ulat|kutu|hama|penyakit|layu|busuk)\b/.test(t)){r.mode='pupuk';r.kat='Pupuk';r.status='jelas';return r}
+  const sk={};const tambah=(id,w,ket)=>{sk[id]=sk[id]||{id,skor:0,ket:[],pasti:false};sk[id].skor+=w;if(ket&&!sk[id].ket.includes(ket))sk[id].ket.push(ket)};
+  for(const [id,c] of Object.entries(KC_SEBAB)){
+    if(c.sebut.some(s=>t.includes(' '+s)||t.includes(s+' '))&&!neg0.neg.includes(c.sebut.find(s=>t.includes(s))||'~')){tambah(id,10,'Anda menyebut langsung: '+(c.sebut.find(s=>t.includes(s))||id));sk[id].pasti=true}
+  }
+  const tg=t.replace(/\bpupuk\b/g,' ');
+  KC_GEJALA.forEach(([re,lst])=>{const m=tg.match(re);if(m)lst.forEach(([id,w])=>tambah(id,w,'Gejala: "'+m[0].trim()+'"'))});
+  Object.values(sk).forEach(x=>{const c=KC_SEBAB[x.id];if(!x.pasti){const mm=c.ciri?(t.match(new RegExp(c.ciri.source,'g'))||[]).map(z=>z.trim()).filter((z,i,A)=>A.indexOf(z)===i):[];const ci=Math.min(3,mm.length);x.skor+=ci*0.8;if(ci)x.ket.push('Ciri cocok: '+mm.slice(0,3).join(', '))}
+    x.skor*=kcTanOK(c,kom);if(kcTanOK(c,kom)<1)x.tanTdk=true;
+    if(opt.pilih===x.id){x.skor+=100;x.pasti=true;x.ket.unshift('Dipilih oleh kasir')}
+    if(opt.kat&&c.kat!==opt.kat)x.skor*=0.05});
+  if(opt.pilih&&!sk[opt.pilih]&&KC_SEBAB[opt.pilih])sk[opt.pilih]={id:opt.pilih,skor:100,ket:['Dipilih oleh kasir'],pasti:true};
+  if(opt.kat&&!Object.values(sk).some(x=>KC_SEBAB[x.id].kat===opt.kat&&x.skor>=1)){/* kasir memilih jenis tanpa ada dugaan -> kandidat umum sesuai jenis */
+    Object.entries(KC_SEBAB).filter(([id,c])=>c.kat===opt.kat&&kcTanOK(c,kom)===1).slice(0,5).forEach(([id])=>tambah(id,1.5,'Jenis masalah dipilih kasir'))}
+  r.cands=Object.values(sk).filter(x=>x.skor>=1&&!neg0.neg.some(n=>KC_SEBAB[x.id].kuat.concat(KC_SEBAB[x.id].sebut).some(k=>k===n||k.includes(n)&&n.length>=5))).sort((a,b)=>b.skor-a.skor).slice(0,5);
+  const a=r.cands[0],b=r.cands[1];
+  if(!a)r.status='kurang';
+  else if(a.pasti||(a.skor>=4&&(!b||a.skor>=1.6*b.skor)))r.status='jelas';
+  else r.status='dugaan';
+  if(a){const c=KC_SEBAB[a.id];r.kat=r.status==='jelas'||r.status==='dugaan'?c.kat:'';
+    /* bila beberapa dugaan teratas beda jenis produk, jangan kunci satu jenis */
+    if(r.status==='dugaan'&&r.cands.slice(0,3).some(x=>KC_SEBAB[x.id].kat!==c.kat))r.kat=''}
+  return r;
+}
+
+/* ---------- 5. Pencocokan produk (hanya dari data label) ---------- */
+const kcNL=s=>kcN(s).trim();
+function kcOpts(p){return String((p&&p.target)||'').split(/[,;&]|\bdan\b|\bserta\b/).map(x=>kcNL(x)).filter(x=>x.length>=3)}
+function kcProduk(c,r){
+  const info=KC_SEBAB[c.id],rows=[],habis=[],buang={tanpaData:0,tidakCocok:0,umum:0};
+  if(!info||!info.kat)return {rows,habis,buang,info};
+  const semua=S.sku.filter(s=>grpOf(s.kategori)===info.kat);
+  const kom=r.kom;
+  if(info.kat==='Pupuk'){
+    const pool=semua.filter(s=>info.nama.test(s.nama));
+    pool.forEach(s=>{const q=(D.inv[s.sku]||{}).qty||0;const row={sku:s.sku,tier:2,alasan:'Dipilih dari nama/jenis pupuk; cek komposisi di label (bukan hasil uji tanah)'};if(q>0)rows.push(row);else habis.push(s.nama)});
+    rows.sort((a,b)=>D.inv[b.sku].qty-D.inv[a.sku].qty);return {rows,habis,buang,info};
+  }
+  const pool0=info.kat==='Herbisida'&&!r.pre?semua.filter(s=>!/Umum/.test(s.kategori)):semua;
+  if(info.kat==='Herbisida'&&!r.pre)buang.umum=semua.length-pool0.length;
+  const kuat=info.kuat.map(kcNL),lemah=info.lemah.map(kcNL);
+  for(const s of pool0){
+    const p=produkOf(s.pid)||{},sp=spekOf(s.pid)||{},opts=kcOpts(p);
+    if(!opts.length){buang.tanpaData++;continue}
+    let strong='',weak='';
+    for(const o of opts){
+      if(!strong&&kuat.some(k=>o===k||o.includes(k)||(k.includes(o)&&o.length>=6)))strong=o;
+      if(!weak&&lemah.some(k=>o===k||o.includes(k)))weak=o;
+    }
+    if(!strong&&!weak){buang.tidakCocok++;continue}
+    let crop=kom&&typeof ktCropHit==='function'?ktCropHit(kom,p,sp):'belum';
+    /* label menyebut daftar tanaman ("... pada cabe, jagung, kubis") tetapi tanaman ini tidak ada di daftar -> jangan disarankan */
+    if(kom&&crop!=='ya'){const syn=((KC_KOM.find(k=>k[0]===kom)||[0,[kom.toLowerCase()]])[1]).concat([kom.toLowerCase()]);
+      const lst=String(p.target||'').toLowerCase().match(/\bpada\s+(.+)$/);
+      if(lst&&!syn.some(w=>lst[1].includes(w))&&!(kom==='Cabai'&&/cabe|cabai/.test(lst[1])))crop='tidak'}
+    if(crop==='tidak'){buang.tidakCocok++;continue}
+    const ver=sp.status==='Terverifikasi',q=(D.inv[s.sku]||{}).qty||0;
+    const t1=ver&&crop==='ya'&&!!strong;
+    const alasan='Label menyebut: '+(strong||weak)+(strong?'':' (cocok secara umum saja)')+'; '+(kom?(crop==='ya'||crop==='teks'?'tanaman '+kom.toLowerCase()+' tercantum':'tanaman '+kom.toLowerCase()+' belum dipastikan'):'tanaman belum disebut')+(ver?'':'; data masih draf');
+    const row={sku:s.sku,tier:t1?1:2,umum:!strong,alasan};
+    if(q>0)rows.push(row);else habis.push(s.nama);
+  }
+  rows.sort((a,b)=>a.tier-b.tier||(a.umum?1:0)-(b.umum?1:0)||(D.inv[b.sku].qty-D.inv[a.sku].qty));
+  return {rows,habis,buang,info};
+}
+function kcSemua(r){
+  const a=r.kc;if(!a)return {};
+  if(a.mode==='benih'){
+    const syn=(KC_KOM.find(k=>k[0]===a.kom)||[0,[]])[1];
+    const rows=S.sku.filter(s=>grpOf(s.kategori)==='Benih'&&(D.inv[s.sku]||{}).qty>0&&syn.some(w=>(s.nama+' '+s.kategori).toLowerCase().includes(w))).map(s=>({sku:s.sku,tier:2,alasan:'Nama/kategori produk cocok dengan '+a.kom.toLowerCase()+' (varietas dan daya tumbuh: cek label kemasan)'}));
+    return {benih:{rows,habis:[],buang:{},info:{n:'Benih '+(a.kom||'')}}};
+  }
+  if(a.mode==='pupuk'){
+    const gen=a.fase==='generatif',reN=gen?/mkp|kno3|kcl|kalium|npk|phonska|ponska|16-16-16|15-15-15|0-52|13-0-46|boron|kalsium/i:/urea|\bza\b|npk|nitrogen|growmore|gandasil d|phonska|ponska/i;
+    const rows=S.sku.filter(s=>grpOf(s.kategori)==='Pupuk'&&(D.inv[s.sku]||{}).qty>0&&reN.test(s.nama)).sort((x,y)=>D.inv[y.sku].qty-D.inv[x.sku].qty).slice(0,8).map(s=>({sku:s.sku,tier:2,alasan:'Dipilih dari nama/jenis pupuk untuk fase '+(gen?'berbunga/berbuah (K, P, Ca tinggi)':'pertumbuhan daun (N tinggi)')+'; cek komposisi di label'}));
+    return {pupuk:{rows,habis:[],buang:{},info:{n:'Pupuk '+(gen?'fase generatif':'fase vegetatif/umum')}}};
+  }
+  const out={};
+  const pakai=a.status==='jelas'?a.cands.slice(0,1):a.cands.filter(x=>x.skor>=Math.max(2,a.cands[0].skor*0.6)).slice(0,3);
+  pakai.forEach(c=>{out[c.id]=kcProduk(c,a)});
+  return out;
+}
+
+/* ---------- 6. Hubungan ke mesin lama ---------- */
+(function(){
+  const _pk=parseKonsul;
+  parseKonsul=function(t0){
+    const r=_pk.apply(this,arguments);
+    try{
+      const K=SMS().kon,a=kcAnalisis(t0,{pilih:K&&K.kcPilih});
+      r.kc=a;r.kom=a.kom||r.kom;r.kat=a.kat||'';
+      r.masalah=a.mode==='benih'?OPT_BENIH:a.mode==='pupuk'?'Kebutuhan pupuk':(a.cands[0]&&(a.status!=='kurang')?KC_SEBAB[a.cands[0].id].n+(a.status==='dugaan'?' (dugaan)':''):'');
+      if(a.mode!=='diagnosis'||a.status!=='kurang')r.kom=a.kom;
+    }catch(e){console.error('kc',e)}
+    return r;
+  };
+  const _ks=konsulHTML;
+  konsulHTML=function(){
+    let h=_ks.apply(this,arguments);const r=SMS().kon.parsed;
+    if(r&&r.kc&&r.kc.status!=='jelas'&&!r.pids.length)h=h.replace('Informasi cukup untuk rekomendasi.',r.kc.status==='dugaan'?'Penyebab masih dugaan: jawab pertanyaan pembeda di bawah agar saran lebih tepat.':'Informasi belum cukup: pilih tanaman dan gejala di bawah.');
+    return h;
+  };
+  const _kh=konHasil;
+  konHasil=function(r){
+    if(!r||!r.kc||r.pids.length)return _kh.apply(this,arguments);
+    try{
+      let a=r.kc;
+      /* kasir mengubah komoditas/jenis lewat isian manual -> hitung ulang */
+      if(r.kom!==a.kom||(r.kat&&r.kat!==a.kat&&a.mode==='diagnosis')){const K=SMS().kon;a=r.kc=kcAnalisis(K.teks,{kom:r.kom,kat:r.kat,pilih:K.kcPilih})}
+      const g=kcSemua(r);ui.kc={g};const sk=[];ui.kt={info:{},c:{buang:{}}};Object.values(g).forEach(x=>{x.rows.forEach(w=>{if(!ui.kt.info[w.sku]||w.tier<ui.kt.info[w.sku].tier)ui.kt.info[w.sku]=w});Object.entries(x.buang||{}).forEach(([k,v])=>{ui.kt.c.buang[k]=(ui.kt.c.buang[k]||0)+v})});
+      Object.values(g).forEach(x=>x.rows.slice(0,6).forEach(w=>{if(!sk.includes(w.sku))sk.push(w.sku)}));
+      return sk.slice(0,10);
+    }catch(e){console.error('kc',e);return _kh.apply(this,arguments)}
+  };
+  const _ht=konHasilHTML;
+  konHasilHTML=function(){
+    const K=SMS().kon,r=K.parsed;
+    if(!r||!r.kc||r.pids.length)return _ht.apply(this,arguments);
+    try{return kcHTML(r,K)}catch(e){console.error('kc',e);return _ht.apply(this,arguments)}
+  };
+  ACT['kc-tambah']=t=>{const K=SMS().kon;K.teks=(K.teks+' '+(t.dataset.t||'')).trim();K.kcPilih=null;K.parsed=parseKonsul(K.teks);K.hasil=konHasil(K.parsed);rKon()};
+  ACT['kc-pilih']=t=>{const K=SMS().kon;K.kcPilih=t.dataset.id;K.parsed=parseKonsul(K.teks);K.hasil=konHasil(K.parsed);rKon()};
+  ACT['kc-lepas']=()=>{const K=SMS().kon;K.kcPilih=null;K.parsed=parseKonsul(K.teks);K.hasil=konHasil(K.parsed);rKon()};
+  const _cl=ACT['kon-clear'];ACT['kon-clear']=function(){SMS().kon.kcPilih=null;return _cl.apply(this,arguments)};
+})();
+
+/* ---------- 7. Tampilan ---------- */
+const KC_JENIS={jamur:['Jamur','warn'],bakteri:['Bakteri','warn'],virus:['Virus','bad'],hama:['Hama','warn'],nutrisi:['Nutrisi','mute'],fisiologis:['Cuaca/lingkungan','mute'],gulma:['Gulma','mute']};
+function kcHTML(r,K){
+  const a=r.kc,g=ui.kc&&ui.kc.g||{};let h='';
+  const stBadge=a.status==='jelas'?badge('ok','Penyebab cukup jelas'):a.status==='dugaan'?badge('warn','Masih dugaan: perlu dipastikan'):badge('mute','Informasi belum cukup');
+  h+='<div style="margin-top:12px"><div class="small bold">Analisis keluhan '+stBadge+'</div>';
+  if(a.neg&&a.neg.length)h+='<div class="small muted" style="margin-top:4px">Dikecualikan karena Anda menulis "tidak/bukan": '+a.neg.map(esc).join(', ')+'</div>';
+  if(a.mode==='diagnosis'&&a.cands.length){
+    h+='<div class="scroll" style="margin-top:6px"><table class="tbl"><thead><tr><th>#</th><th>Dugaan penyebab</th><th>Jenis</th><th>Dasar dugaan</th><th></th></tr></thead><tbody>'+a.cands.map((x,i)=>{const c=KC_SEBAB[x.id],j=KC_JENIS[c.t]||['','mute'];
+      return '<tr><td>'+(i+1)+'</td><td><b>'+esc(c.n)+'</b>'+(x.tanTdk?'<div class="small muted">Biasanya bukan pada '+esc(a.kom.toLowerCase())+', skor diturunkan</div>':'')+'</td><td>'+badge(j[1],j[0])+'</td><td class="small">'+x.ket.slice(0,3).map(esc).join('<br>')+'</td><td>'+(K.kcPilih===x.id?'<button class="btn sm ghost" data-act="kc-lepas">Lepas pilihan</button>':'<button class="btn sm ghost" data-act="kc-pilih" data-id="'+x.id+'">Ini penyebabnya</button>')+'</td></tr>'}).join('')+'</tbody></table></div>';
+    const top=KC_SEBAB[a.cands[0].id];
+    if(top.catatan)h+='<div class="note" style="margin-top:8px"><b>Perhatian</b>: '+esc(top.catatan)+'</div>';
+    const qs=[];a.cands.slice(0,3).forEach(x=>KC_SEBAB[x.id].tanya.forEach(q=>{if(!qs.some(z=>z[0]===q[0]))qs.push(q)}));
+    if(a.status!=='jelas'&&qs.length)h+='<div class="small bold" style="margin-top:10px">Tanyakan ke pelanggan, lalu ketuk bila jawabannya "ya" (analisis diperbarui):</div><div class="chips" style="margin:6px 0">'+qs.slice(0,5).map(q=>'<button class="chip" data-act="kc-tambah" data-t="'+esc(q[1])+'">'+esc(q[0])+'</button>').join('')+'</div>';
+    if(top.saran&&top.saran.length)h+='<div class="small bold" style="margin-top:8px">Penanganan tanpa bahan kimia (untuk dugaan teratas)</div><ul class="small" style="margin:4px 0 0 18px">'+top.saran.slice(0,3).map(s=>'<li>'+esc(s)+'</li>').join('')+'</ul>';
+  }
+  if(a.mode==='diagnosis'&&!a.cands.length){
+    const kom=['Cabai','Tomat','Padi','Jagung','Bawang Merah','Kubis'],gej=['daun bercak','daun keriting','daun menguning','tanaman layu','daun berlubang ada ulat','buah busuk','bunga rontok','gulma/rumput'];
+    h+='<div class="empty" style="margin-top:8px"><b>Belum bisa dianalisis.</b> Keluhannya belum cukup jelas'+(a.kom?'':', dan tanamannya belum disebut')+'. Sistem tidak akan menebak produk.</div>';
+    if(!a.kom)h+='<div class="small bold" style="margin-top:8px">Tanaman apa?</div><div class="chips" style="margin:6px 0">'+kom.map(k=>'<button class="chip" data-act="kc-tambah" data-t="'+k+'">'+k+'</button>').join('')+'</div>';
+    h+='<div class="small bold" style="margin-top:6px">Gejala yang terlihat?</div><div class="chips" style="margin:6px 0">'+gej.map(k=>'<button class="chip" data-act="kc-tambah" data-t="'+esc(k)+'">'+esc(k)+'</button>').join('')+'</div>';
+  }
+  h+='</div>';
+  /* produk */
+  const ids=Object.keys(g);let adaProduk=false;
+  ids.forEach(id=>{const x=g[id],c=x.info||{};const lbl=a.mode==='diagnosis'?(a.status==='jelas'?'Saran produk dari stok toko':'Jika penyebabnya "'+esc(c.n)+'"'):'Saran produk dari stok toko: '+esc(c.n);
+    if(!c.kat&&a.mode==='diagnosis'){h+='<div style="margin-top:12px"><div class="small bold">'+esc(lbl)+'</div><div class="empty">Untuk penyebab ini tidak ada produk obat yang tepat. Lihat penanganan di atas.</div></div>';return}
+    if(x.rows.length){adaProduk=true;h+='<div style="margin-top:12px"><div class="small bold" style="margin-bottom:6px">'+lbl+'</div>'+(c.catatan?'<div class="note" style="margin-bottom:6px">'+esc(c.catatan)+'</div>':'')+kcTabel(x.rows.slice(0,6))+'</div>'}
+    else h+='<div style="margin-top:12px"><div class="small bold">'+lbl+'</div><div class="empty"><b>Belum ada produk yang bisa disarankan dengan yakin.</b> Belum ada produk di stok yang labelnya tercatat cocok. Sarankan pelanggan bertanya ke penyuluh atau pemilik toko; jangan menebak produk.</div></div>';
+    const eks=[];if(x.buang&&x.buang.umum)eks.push(x.buang.umum+' herbisida umum (mematikan semua tanaman) tidak disarankan untuk tanaman berdiri. Tulis "sebelum tanam" bila untuk lahan kosong.');
+    if(x.buang&&x.buang.tanpaData)eks.push(x.buang.tanpaData+' produk '+esc((c.kat||'').toLowerCase())+' di stok belum punya data sasaran dari label, jadi tidak bisa dinilai.');
+    if(x.habis&&x.habis.length)eks.push('Label cocok tetapi stok habis: '+x.habis.slice(0,4).map(esc).join(', ')+'.');
+    if(eks.length)h+='<div class="small muted" style="margin-top:6px">'+eks.join(' ')+'</div>'});
+  if(adaProduk)h+='<div class="row" style="margin-top:10px"><button class="btn pri" data-act="kon-simpan">'+ic('save')+'Simpan ke riwayat pelanggan</button></div>';
+  h+='<div class="small muted" style="margin-top:10px"><b>Cara sistem memilih saran</b>: produk hanya disarankan bila label/data teknisnya menyebut sasaran yang sama. <b>Sesuai label</b> = data sudah diverifikasi; <b>Perlu dicek</b> = data masih draf atau tanamannya belum jelas; <b>Cocok umum saja</b> = hanya cocok secara umum, jangan diandalkan. Produk tanpa data label tidak disarankan; jangan menebak.</div>';
+  h+='<div class="note" style="margin-top:10px">Ini panduan awal dari kamus gejala umum dan data label toko, <b>bukan diagnosis laboratorium</b>. Konfirmasi penyebab dengan melihat tanaman. Dosis, izin edar, dan tenggang panen mengikuti label kemasan yang berlaku.</div>';
+  try{if(typeof pkRujukHTML==='function')h+=pkRujukHTML(K.teks)}catch(e){}
+  return h;
+}
+function kcTabel(rows){
+  return '<div class="scroll"><table class="tbl"><thead><tr><th>Produk / SKU</th><th>Kemasan</th><th class="r">Harga</th><th class="r">Stok</th><th>Dasar saran</th><th></th></tr></thead><tbody>'+rows.map(w=>{const s=skuOf(w.sku);
+    const bd=w.tier===1?badge('ok','Sesuai label'):w.umum?badge('mute','Cocok umum saja'):badge('warn','Perlu dicek');
+    return '<tr><td><b>'+esc(s.nama)+'</b><br><span class="small muted">'+esc(s.pid)+' · '+esc(s.sku)+'</span></td><td>'+packLabel(s)+'</td><td class="r">'+rp(s.harga)+'</td><td class="r">'+nd(D.inv[w.sku].qty)+'</td><td class="small">'+bd+' '+esc(w.alasan)+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="kon-sim" data-sku="'+esc(w.sku)+'">'+ic('calc')+'Simulasikan</button> <button class="btn sm ghost" data-act="kon-bdg" data-sku="'+esc(w.sku)+'">'+ic('scale')+'Bandingkan</button> <button class="btn sm ghost" data-act="kon-cart" data-sku="'+esc(w.sku)+'">'+ic('plus')+'Keranjang</button></td></tr>'}).join('')+'</tbody></table></div>';
+}
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
 function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
