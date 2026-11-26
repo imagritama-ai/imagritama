@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0154"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0817"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -7576,6 +7576,229 @@ ACT['bk-ke-keuangan']=()=>{ui.keu.tab='benefit';ui.keu.page=1;location.hash='#ke
   PAGES.hpp=function(){
     const r=_h.apply(this,arguments);
     if(HJS.tab==='benefit'&&r&&r.html){const i=r.html.indexOf('</div>')+6;r.html=r.html.slice(0,i)+bkTunjuk()+bpHtml()}
+    return r;
+  };
+}
+
+/* ====== Program Belanja Lintas Pemasok + benefit per baris + HPP Efektif ======
+   Perencanaan di Harga Beli Pemasok > "Program & HPP efektif" (tidak mengubah pembukuan).
+   Pencairan di Keuangan > Benefit Pemasok (satu-satunya tempat yang membuat jurnal). */
+const plList=()=>S.pl||(S.pl=[]);
+const PLS={f:null,bf:null};
+const plBentukLbl={tunai:'Tunai / cashback / poin cair',barang:'Barang untuk toko',pribadi:'Pribadi (tour, hadiah pribadi)'};
+const plPerLbl={hpp:'Pengurang HPP',pendLain:'Pendapatan lain',luar:'Di luar pembukuan toko'};
+function plPerOpsi(bentuk){return bentuk==='tunai'?['hpp','pendLain','luar']:bentuk==='barang'?['pendLain','luar']:['luar']}
+function plPerDefault(bentuk){return bentuk==='tunai'?akunBenefit():bentuk==='barang'?'pendLain':'luar'}
+const plId=()=>{let n=plList().length+1,id;do{id='PL-'+String(n++).padStart(3,'0')}while(plList().some(p=>p.id===id));return id};
+const plP=id=>plList().find(p=>p.id===id);
+function plSkuSet(p){return new Set(p.skus||[])}
+function plDocs(p){
+  const set=plSkuSet(p),sup=(p.pemasok&&p.pemasok.length)?new Set(p.pemasok):null,r=[];
+  for(const d of S.docs){if(d.jenis!=='Beli'||d.status==='BATAL')continue;if(d.tgl<p.dari||d.tgl>p.sampai)continue;if(sup&&!sup.has(d.mitra))continue;
+    for(const it of d.items||[])if(set.has(it.sku))r.push({d,it})}
+  return r;
+}
+function plBelanja(p){return plDocs(p).reduce((a,x)=>a+(+x.it.qty||0)*(+x.it.harga||0),0)}
+function plHargaBeli(p,sku){
+  let q=0,v=0;for(const x of plDocs(p))if(x.it.sku===sku){q+=+x.it.qty||0;v+=(+x.it.qty||0)*(+x.it.harga||0)}
+  if(q>0)return {h:v/q,sumber:'rata-rata pembelian'};
+  const h=hbList().filter(h=>h.sku===sku).sort((a,b)=>String(b.tgl).localeCompare(String(a.tgl)))[0];
+  return h&&+h.harga>0?{h:+h.harga,sumber:'daftar harga'}:{h:0,sumber:''};
+}
+function plHitung(p){
+  const B=(p.benefit||[]).filter(b=>b.status!=='Gugur');
+  const tunai=sum(B.filter(b=>b.bentuk==='tunai'),b=>+b.nilai||0),barang=sum(B.filter(b=>b.bentuk==='barang'),b=>+b.nilai||0),pribadi=sum(B.filter(b=>b.bentuk==='pribadi'),b=>+b.nilai||0);
+  const bel=plBelanja(p),tgt=+p.target||0,pembagi=Math.max(tgt,bel);
+  return {tunai,barang,pribadi,bel,tgt,pembagi,tercapai:tgt>0&&bel>=tgt,pct:tgt>0?bel/tgt:0,
+    rA:pembagi>0?tunai/pembagi:0,rB:pembagi>0?(tunai+barang)/pembagi:0};
+}
+function plEfektif(p){
+  const H=plHitung(p);
+  return (p.skus||[]).map(sku=>{const s=skuOf(sku)||{},hb=plHargaBeli(p,sku),pes=+(p.pesaing||{})[sku]||0;
+    const A=hb.h*(1-H.rA),Bv=hb.h*(1-H.rB);
+    return {sku,nama:s.nama||sku,jual:+s.harga||0,beli:hb.h,sumber:hb.sumber,A,B:Bv,pes,mA:pes?pes-A:null,mB:pes?pes-Bv:null};
+  });
+}
+/* ---------- tampilan ---------- */
+function plBnRow(p,b,can){
+  const per=b.bentuk==='pribadi'?'Tidak dibukukan':(plPerLbl[b.perlakuan]||'–');
+  return '<tr><td class="small">'+esc(b.id)+'</td><td>'+esc(b.nama)+'<div class="small muted">dari '+esc(b.pemberi||'–')+(b.syarat?' · '+esc(b.syarat):'')+'</div></td><td class="small">'+esc(plBentukLbl[b.bentuk]||b.bentuk)+'</td><td class="r">'+rp(b.nilai)+'</td><td class="small">'+(b.tgl?fmtTgl(b.tgl):'–')+'</td><td class="small">'+esc(per)+'</td><td>'+badge(b.status==='Cair'?'ok':b.status==='Gugur'?'bad':'warn',b.status)+'</td><td style="white-space:nowrap">'+(can&&b.status==='Menunggu'?'<button class="btn sm ghost" data-act="pl-bn-form" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">Ubah</button><button class="btn sm ghost" data-act="pl-bn-del" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">Hapus</button>':'')+'</td></tr>';
+}
+function plCard(p,can){
+  const H=plHitung(p),E=plEfektif(p),pr=Math.min(1,H.pct);
+  const bar='<div style="background:var(--gray-s);border-radius:99px;height:8px;overflow:hidden;min-width:120px"><div style="width:'+(pr*100)+'%;height:100%;background:var(--'+(H.tercapai?'green':'blue')+')"></div></div>';
+  const pct=v=>(v*100).toFixed(2).replace('.',',')+'%';
+  const pem=(p.pemasok&&p.pemasok.length)?p.pemasok.map(mitraNama).join(', '):'semua pemasok';
+  return '<div class="card" style="margin-bottom:14px"><div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">'+esc(p.nama)+' <span class="small muted">'+esc(p.id)+'</span></h3><span style="margin-left:auto"></span>'
+   +(can?'<button class="btn sm" data-act="pl-form" data-id="'+esc(p.id)+'">Ubah program</button><button class="btn sm ghost" data-act="pl-del" data-id="'+esc(p.id)+'">Hapus</button>':'')+'</div>'
+   +'<div class="small muted" style="margin:4px 0 10px">Pemberi: '+esc(p.principal||'–')+' · '+fmtTgl(p.dari)+' s/d '+fmtTgl(p.sampai)+' · '+esc(pem)+' · '+num((p.skus||[]).length)+' produk</div>'
+   +'<div class="grid g4" style="margin-bottom:10px">'+kpi('blue','wallet','Target belanja',rp(H.tgt))+kpi(H.tercapai?'green':'amber','check','Belanja tercatat',rp(H.bel),(H.pct*100).toFixed(1).replace('.',',')+'% dari target')+kpi('green','wallet','Benefit tunai',rp(H.tunai),pct(H.rA)+' dari belanja')+kpi('amber','wallet','Benefit barang toko',rp(H.barang),pct(H.rB-H.rA)+' tambahan')+'</div>'
+   +'<div style="margin-bottom:10px">'+bar+'</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>ID</th><th>Benefit</th><th>Bentuk</th><th class="r">Nilai</th><th>Rencana cair</th><th>Perlakuan</th><th>Status</th><th></th></tr></thead><tbody>'
+   +((p.benefit||[]).map(b=>plBnRow(p,b,can)).join('')||'<tr><td colspan="8" class="empty">Belum ada benefit. Tambahkan satu per satu.</td></tr>')
+   +'</tbody></table></div>'+(can?'<div style="margin-top:8px"><button class="btn sm pri" data-act="pl-bn-form" data-p="'+esc(p.id)+'">'+ic('plus')+'Tambah benefit</button></div>':'')
+   +(H.pribadi>0?'<div class="note" style="margin-top:8px">Benefit pribadi '+rp(H.pribadi)+' tidak ikut dihitung dan tidak masuk pembukuan toko. Konsultasikan perlakuan pajaknya.</div>':'')
+   +'<h3 style="margin:14px 0 6px">HPP efektif per produk</h3><div class="note" style="margin-bottom:8px">Benefit dibagi ke produk menurut <b>nilai belanja</b> (pembagi: '+rp(H.pembagi)+'). <b>Skenario A</b> = hanya benefit tunai ('+pct(H.rA)+'). <b>Skenario B</b> = tunai + barang toko ('+pct(H.rB)+'). '+(H.tercapai?'Target sudah tercapai.':'Target belum tercapai, jadi angka ini <b>perkiraan bila target tercapai</b>.')+' Ini angka bantu untuk harga, bukan pembukuan: HPP di laporan baru berkurang saat benefit dicairkan.</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th class="r">Harga beli</th><th class="r">HPP efektif A</th><th class="r">HPP efektif B</th><th class="r">Harga jual toko</th><th class="r">Harga pesaing</th><th class="r">Sisa untung vs pesaing (B)</th></tr></thead><tbody>'
+   +(E.map(e=>'<tr><td>'+esc(e.nama)+'<div class="small muted">'+esc(e.sku)+(e.sumber?' · '+e.sumber:'')+'</div></td><td class="r">'+(e.beli?rp(e.beli):'–')+'</td><td class="r">'+(e.beli?rp(e.A):'–')+'</td><td class="r"><b>'+(e.beli?rp(e.B):'–')+'</b></td><td class="r">'+(e.jual?rp(e.jual):'–')+'</td><td class="r">'+(can?'<input class="in" type="number" min="0" style="width:110px;text-align:right" value="'+(e.pes||'')+'" data-chg="pl-pes" data-p="'+esc(p.id)+'" data-sku="'+esc(e.sku)+'" aria-label="Harga pesaing '+esc(e.nama)+'">':(e.pes?rp(e.pes):'–'))+'</td><td class="r">'+(e.pes&&e.beli?'<span style="color:var(--'+(e.mB<0?'red':'green')+')">'+rp(e.mB)+'</span>':'–')+'</td></tr>').join('')||'<tr><td colspan="7" class="empty">Belum ada produk di program ini.</td></tr>')
+   +'</tbody></table></div></div>';
+}
+function plHtml(){
+  const can=finOK()&&!(typeof OL!=='undefined'&&OL.readonly),L=plList();
+  return '<div class="note" style="margin-bottom:10px"><b>Program belanja lintas pemasok.</b> Satu program bisa memuat banyak benefit dengan pemberi, bentuk, nilai, dan tanggal cair yang berbeda. Menyusun program di sini <b>tidak mengubah pembukuan</b>. Pencairan dilakukan di <b>Keuangan → Benefit Pemasok</b>.</div>'
+   +(can?'<div style="margin-bottom:12px"><button class="btn pri" data-act="pl-form">'+ic('plus')+'Buat program baru</button></div>':'')
+   +(L.map(p=>plCard(p,can)).join('')||'<div class="card"><div class="empty">Belum ada program. Buat program untuk melihat HPP efektif tiap produk.</div></div>');
+}
+/* ---------- formulir program ---------- */
+function plChips(){const el=$('#pl-chips');if(el)el.innerHTML=(PLS.f.skus||[]).map(k=>'<span class="b b-info" style="margin:2px">'+esc((skuOf(k)||{}).nama||k)+' <a href="#" data-act="pl-rmsku" data-sku="'+esc(k)+'" aria-label="Hapus" style="margin-left:4px">×</a></span>').join('')||'<span class="small muted">Belum ada produk</span>'}
+ACT['pl-form']=t=>{
+  if(!hbBolehUbah())return;const p=t&&t.dataset&&t.dataset.id?plP(t.dataset.id):null;
+  PLS.f={id:p?p.id:null,skus:p?[...(p.skus||[])]:[]};
+  const sup=hbPemasok();
+  openModal(p?'Ubah program · '+p.id:'Program belanja baru',
+   '<div class="row"><div class="field" style="min-width:100%"><label class="lbl" for="pl-n">Nama program</label><input class="in" id="pl-n" value="'+esc(p?p.nama:'')+'" placeholder="mis. FMC Sub Distributor Nov–Des 2026"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="pl-pr">Pemberi program (principal / distributor)</label><input class="in" id="pl-pr" value="'+esc(p?p.principal||'':'')+'"></div>'
+   +'<div class="field"><label class="lbl" for="pl-d">Mulai</label><input class="in" type="date" id="pl-d" value="'+esc(p?p.dari:todayISO())+'"></div><div class="field"><label class="lbl" for="pl-s">Selesai</label><input class="in" type="date" id="pl-s" value="'+esc(p?p.sampai:todayISO())+'"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="pl-t">Target nilai belanja (Rp)</label><input class="in" type="number" min="1" id="pl-t" value="'+(p?p.target:'')+'"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl">Belanja dihitung dari pemasok (kosongkan semua = semua pemasok)</label><div style="display:flex;flex-wrap:wrap;gap:10px">'+sup.map(m=>'<label style="display:flex;gap:6px"><input type="checkbox" class="pl-sup" value="'+esc(m.id)+'"'+(p&&(p.pemasok||[]).includes(m.id)?' checked':'')+'> '+esc(m.nama)+'</label>').join('')+'</div></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="pl-q">Produk dalam program</label><div class="row" style="gap:6px"><input class="in" id="pl-q" list="pl-dl" placeholder="Ketik kode atau nama produk" style="flex:1"><button type="button" class="btn" data-act="pl-addsku">Tambah</button></div><datalist id="pl-dl">'+S.sku.map(s=>'<option value="'+esc(s.sku+' · '+s.nama)+'">').join('')+'</datalist><div id="pl-chips" style="margin-top:6px"></div></div></div>',
+   '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="pl-ok">Simpan</button>','md');
+  plChips();
+};
+ACT['pl-addsku']=()=>{
+  const q=String($('#pl-q').value||'').trim();if(!q)return;const kode=q.split(' · ')[0].trim().toLowerCase();
+  let s=S.sku.find(x=>x.sku.toLowerCase()===kode)||S.sku.find(x=>x.nama.toLowerCase()===q.toLowerCase());
+  if(!s){const c=S.sku.filter(x=>(x.nama+' '+x.sku).toLowerCase().includes(q.toLowerCase()));if(c.length===1)s=c[0]}
+  if(!s)return toast('Produk tidak ditemukan atau lebih dari satu. Pilih dari daftar yang muncul.',true);
+  if(!PLS.f.skus.includes(s.sku))PLS.f.skus.push(s.sku);$('#pl-q').value='';plChips();
+};
+ACT['pl-rmsku']=t=>{PLS.f.skus=PLS.f.skus.filter(k=>k!==t.dataset.sku);plChips()};
+ACT['pl-ok']=()=>{
+  if(!hbBolehUbah())return;
+  const nama=String($('#pl-n').value||'').trim(),dari=$('#pl-d').value,sampai=$('#pl-s').value,target=+$('#pl-t').value;
+  if(!nama)return toast('Nama program wajib diisi',true);if(!dari||!sampai||sampai<dari)return toast('Periode tidak valid',true);
+  if(!(target>0))return toast('Target belanja harus lebih dari 0',true);if(!PLS.f.skus.length)return toast('Pilih minimal satu produk',true);
+  const bak=JSON.stringify(S);
+  try{
+    const pemasok=[...document.querySelectorAll('.pl-sup:checked')].map(e=>e.value);
+    let p=PLS.f.id?plP(PLS.f.id):null;
+    if(!p){p={id:plId(),benefit:[],pesaing:{}};plList().push(p)}
+    Object.assign(p,{nama,principal:String($('#pl-pr').value||'').trim(),dari,sampai,target,pemasok,skus:[...PLS.f.skus]});
+    AUD('Program belanja disimpan',p.id+' '+p.nama,p.id);
+    if(!commit()){S=JSON.parse(bak);derive();return}
+    closeModal();refresh();toast('Program disimpan');
+  }catch(e){try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message,true)}
+};
+ACT['pl-del']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.id);if(!p)return;
+  if((p.benefit||[]).some(b=>b.status==='Cair'))return toast('Program ini punya benefit yang sudah cair. Batalkan pencairannya dulu di Keuangan.',true);
+  openModal('Hapus program?','<p>Program <b>'+esc(p.nama)+'</b> dan semua baris benefitnya akan dihapus. Pembukuan tidak berubah karena belum ada yang cair.</p>','<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="pl-del-ok" data-id="'+esc(p.id)+'">Hapus</button>','sm');
+};
+ACT['pl-del-ok']=t=>{
+  if(!hbBolehUbah())return;const i=plList().findIndex(p=>p.id===t.dataset.id);if(i<0)return;const p=plList()[i];
+  if((p.benefit||[]).some(b=>b.status==='Cair'))return;
+  plList().splice(i,1);AUD('Program belanja dihapus',p.id+' '+p.nama,p.id);if(!commit())return;closeModal();refresh();toast('Program dihapus');
+};
+ACT['pl-pes']=el=>{
+  if(!hbBolehUbah())return;const p=plP(el.dataset.p);if(!p)return;p.pesaing=p.pesaing||{};const v=+el.value;
+  if(v>0)p.pesaing[el.dataset.sku]=v;else delete p.pesaing[el.dataset.sku];if(!commit())return;refresh();
+};
+/* ---------- formulir benefit ---------- */
+function plPerHtml(bentuk,sel){return plPerOpsi(bentuk).map(k=>'<option value="'+k+'"'+(sel===k?' selected':'')+'>'+plPerLbl[k]+'</option>').join('')}
+ACT['pl-bn-form']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p);if(!p)return;const b=t.dataset.id?(p.benefit||[]).find(x=>x.id===t.dataset.id):null;
+  PLS.bf={p:p.id,id:b?b.id:null};const bentuk=b?b.bentuk:'tunai';
+  openModal(b?'Ubah benefit · '+b.id:'Tambah benefit · '+p.nama,
+   '<div class="row"><div class="field" style="min-width:100%"><label class="lbl" for="bl-n">Nama benefit</label><input class="in" id="bl-n" value="'+esc(b?b.nama:'')+'" placeholder="mis. Cash Back, Dispenser, Tour Bali"></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="bl-p">Pemberi</label><input class="in" id="bl-p" value="'+esc(b?b.pemberi||'':'')+'" placeholder="mis. PT Santani Agro Persada"></div>'
+   +'<div class="field"><label class="lbl" for="bl-b">Bentuk</label><select class="in" id="bl-b" data-chg="pl-bentuk">'+Object.keys(plBentukLbl).map(k=>'<option value="'+k+'"'+(bentuk===k?' selected':'')+'>'+plBentukLbl[k]+'</option>').join('')+'</select></div>'
+   +'<div class="field"><label class="lbl" for="bl-v">Nilai (Rp, perkiraan bila barang)</label><input class="in" type="number" min="1" id="bl-v" value="'+(b?b.nilai:'')+'"></div>'
+   +'<div class="field"><label class="lbl" for="bl-t">Rencana cair / diterima</label><input class="in" type="date" id="bl-t" value="'+esc(b?b.tgl||'':'')+'"></div>'
+   +'<div class="field"><label class="lbl" for="bl-r">Perlakuan pembukuan</label><select class="in" id="bl-r">'+plPerHtml(bentuk,b?b.perlakuan:plPerDefault(bentuk))+'</select></div>'
+   +'<div class="field" style="min-width:100%"><label class="lbl" for="bl-s">Syarat (opsional)</label><input class="in" id="bl-s" value="'+esc(b?b.syarat||'':'')+'" placeholder="mis. setelah faktur lunas"></div></div>'
+   +'<div class="note">Perlakuan menentukan jurnal saat dicairkan. Pengurang HPP: menurunkan HPP. Pendapatan lain: dicatat sebagai pendapatan di luar penjualan. Di luar pembukuan: hanya dicatat sebagai pengingat. Pilihan ini usulan, bukan nasihat akuntan.</div>',
+   '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="pl-bn-ok">Simpan</button>','md');
+};
+ACT['pl-bentuk']=el=>{const r=$('#bl-r');if(r)r.innerHTML=plPerHtml(el.value,plPerDefault(el.value))};
+ACT['pl-bn-ok']=()=>{
+  if(!hbBolehUbah())return;const p=plP(PLS.bf&&PLS.bf.p);if(!p)return;
+  const nama=String($('#bl-n').value||'').trim(),nilai=+$('#bl-v').value,bentuk=$('#bl-b').value;let per=$('#bl-r').value;
+  if(!nama)return toast('Nama benefit wajib diisi',true);if(!(nilai>0))return toast('Nilai harus lebih dari 0',true);
+  if(!plPerOpsi(bentuk).includes(per))per=plPerDefault(bentuk);
+  const bak=JSON.stringify(S);
+  try{
+    p.benefit=p.benefit||[];let b=PLS.bf.id?p.benefit.find(x=>x.id===PLS.bf.id):null;
+    if(!b){let n=p.benefit.length+1;while(p.benefit.some(x=>x.id==='B'+n))n++;b={id:'B'+n,status:'Menunggu'};p.benefit.push(b)}
+    if(b.status!=='Menunggu')return toast('Benefit yang sudah cair atau gugur tidak bisa diubah',true);
+    Object.assign(b,{nama,pemberi:String($('#bl-p').value||'').trim(),bentuk,nilai,tgl:$('#bl-t').value||'',perlakuan:per,syarat:String($('#bl-s').value||'').trim()});
+    AUD('Benefit program disimpan',p.id+' '+b.id+' '+nama+' '+rp(nilai),p.id);
+    if(!commit()){S=JSON.parse(bak);derive();return}
+    closeModal();refresh();toast('Benefit disimpan');
+  }catch(e){try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message,true)}
+};
+ACT['pl-bn-del']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p);if(!p)return;const b=(p.benefit||[]).find(x=>x.id===t.dataset.id);if(!b||b.status!=='Menunggu')return;
+  p.benefit=p.benefit.filter(x=>x!==b);AUD('Benefit program dihapus',p.id+' '+b.id+' '+b.nama,p.id);if(!commit())return;refresh();toast('Benefit dihapus');
+};
+/* ---------- pencairan (Keuangan > Benefit Pemasok) ---------- */
+function plSemuaBn(){const r=[];plList().forEach(p=>(p.benefit||[]).forEach(b=>r.push({p,b})));return r}
+function plKeuHtml(can){
+  const L=plSemuaBn().sort((a,b)=>String(a.b.tgl||'9999').localeCompare(String(b.b.tgl||'9999')));
+  const tunggu=sum(L.filter(x=>x.b.status==='Menunggu'),x=>+x.b.nilai||0),cair=sum(L.filter(x=>x.b.status==='Cair'),x=>+x.b.nilaiCair||0);
+  return '<div class="card" style="margin-top:14px"><h3 style="margin:0 0 6px">Benefit program belanja</h3><div class="grid g4" style="margin-bottom:10px">'+kpi('amber','wallet','Menunggu cair',rp(tunggu))+kpi('green','check','Sudah cair',rp(cair))+'</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>Program</th><th>Benefit</th><th class="r">Nilai</th><th>Rencana</th><th>Perlakuan</th><th>Status</th><th></th></tr></thead><tbody>'
+   +(L.map(({p,b})=>{const aksi=!can?'':(b.status==='Menunggu'?'<button class="btn sm pri" data-act="pl-cair" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">'+(b.bentuk==='pribadi'||b.perlakuan==='luar'?'Tandai diterima':'Cairkan')+'</button><button class="btn sm ghost" data-act="pl-gugur" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">Gugur</button>':b.status==='Cair'?'<button class="btn sm ghost" data-act="pl-undo" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">Batalkan</button>':'');
+     return '<tr><td>'+esc(p.nama)+'<div class="small muted">'+esc(p.id)+'</div></td><td>'+esc(b.nama)+'<div class="small muted">dari '+esc(b.pemberi||'–')+' · '+esc(plBentukLbl[b.bentuk]||'')+'</div></td><td class="r">'+rp(b.status==='Cair'?b.nilaiCair:b.nilai)+'</td><td class="small">'+(b.tgl?fmtTgl(b.tgl):'–')+'</td><td class="small">'+esc(b.bentuk==='pribadi'?'Tidak dibukukan':plPerLbl[b.perlakuan]||'')+'</td><td>'+badge(b.status==='Cair'?'ok':b.status==='Gugur'?'bad':'warn',b.status)+(b.tglCair?'<div class="small muted">'+fmtTgl(b.tglCair)+'</div>':'')+(b.jm?'<div class="small muted">'+esc(b.jm)+'</div>':'')+'</td><td style="white-space:nowrap">'+aksi+'</td></tr>'}).join('')||'<tr><td colspan="7" class="empty">Belum ada benefit program belanja.</td></tr>')
+   +'</tbody></table></div></div>';
+}
+ACT['pl-cair']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p),b=p&&(p.benefit||[]).find(x=>x.id===t.dataset.id);if(!b||b.status!=='Menunggu')return;
+  const jur=b.bentuk!=='pribadi'&&b.perlakuan!=='luar';
+  openModal('Cairkan benefit · '+p.id+' '+b.id,'<p><b>'+esc(b.nama)+'</b> dari '+esc(b.pemberi||'–')+'</p><div class="row"><div class="field"><label class="lbl" for="pc-t">Tanggal diterima</label><input class="in" type="date" id="pc-t" value="'+todayISO()+'"></div><div class="field"><label class="lbl" for="pc-n">Nilai diterima (Rp)</label><input class="in" type="number" min="1" id="pc-n" value="'+Math.round(b.nilai)+'"></div>'
+   +(b.bentuk==='tunai'&&jur?'<div class="field"><label class="lbl" for="pc-m">Diterima lewat</label><select class="in" id="pc-m"><option>Transfer</option><option>Tunai</option></select></div>':'')+'</div>'
+   +'<div class="note" style="margin-top:8px">'+(jur?(b.bentuk==='tunai'?'Jurnal: Kas/Bank bertambah, '+(b.perlakuan==='hpp'?'HPP berkurang':'Pendapatan lain bertambah')+'.':'Jurnal: Aset tetap & peralatan bertambah, Pendapatan lain bertambah (nilai wajar barang).'):'Tidak ada jurnal. Benefit ini hanya ditandai sudah diterima.')+'</div>',
+   '<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="pl-cair-ok" data-p="'+esc(p.id)+'" data-id="'+esc(b.id)+'">Simpan</button>','md');
+};
+ACT['pl-cair-ok']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p),b=p&&(p.benefit||[]).find(x=>x.id===t.dataset.id);if(!b||b.status!=='Menunggu')return;
+  const tgl=$('#pc-t').value,n=+$('#pc-n').value;if(!tgl)return toast('Tanggal wajib diisi',true);if(!(n>0))return toast('Nilai harus lebih dari 0',true);
+  const bak=JSON.stringify(S);
+  try{
+    b.jm=null;
+    if(b.bentuk!=='pribadi'&&b.perlakuan!=='luar'){
+      S.jm=S.jm||[];const id=nextNo('JM-'+yymmdd(tgl)+'-'),m=$('#pc-m')?$('#pc-m').value:'Transfer';
+      const lines=b.bentuk==='tunai'?[{a:akunKas(m),d:n,k:0},{a:b.perlakuan==='hpp'?'hpp':'pendLain',d:0,k:n}]:[{a:'aset',d:n,k:0},{a:'pendLain',d:0,k:n}];
+      S.jm.push({id,tgl,tipe:'umum',ket:'Benefit program '+p.id+' · '+b.nama+' (dari '+(b.pemberi||'pemasok')+')',lines});b.jm=id;
+    }
+    b.status='Cair';b.nilaiCair=n;b.tglCair=tgl;
+    AUD('Benefit program dicairkan',p.id+' '+b.id+' '+b.nama+' '+rp(n),p.id);
+    if(!commit()){S=JSON.parse(bak);derive();return}
+    closeModal();refresh();toast('Benefit dicatat sebagai diterima'+(b.jm?' dan masuk pembukuan':''));
+  }catch(e){try{S=JSON.parse(bak);derive()}catch(_){}toast('Gagal: '+e.message+'. Data dikembalikan.',true)}
+};
+ACT['pl-gugur']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p),b=p&&(p.benefit||[]).find(x=>x.id===t.dataset.id);if(!b||b.status!=='Menunggu')return;
+  b.status='Gugur';AUD('Benefit program gugur',p.id+' '+b.id+' '+b.nama,p.id);if(!commit())return;refresh();toast('Benefit ditandai gugur. HPP efektif dihitung ulang tanpa benefit ini.');
+};
+ACT['pl-undo']=t=>{
+  if(!hbBolehUbah())return;const p=plP(t.dataset.p),b=p&&(p.benefit||[]).find(x=>x.id===t.dataset.id);if(!b||b.status!=='Cair')return;
+  if(b.jm){const e=(S.jm||[]).find(x=>x.id===b.jm);if(e)e.batal=true}
+  AUD('Pencairan benefit program dibatalkan',p.id+' '+b.id+' '+rp(b.nilaiCair),p.id);
+  b.status='Menunggu';b.jm=null;delete b.nilaiCair;delete b.tglCair;
+  if(!commit())return;refresh();toast('Pencairan dibatalkan. Jurnal terkait dibatalkan.');
+};
+/* ---------- pasang ke halaman ---------- */
+{
+  const _bk=bkHtml;
+  bkHtml=function(){return _bk.apply(this,arguments)+plKeuHtml(finOK()&&!(typeof OL!=='undefined'&&OL.readonly))};
+  const _p=PAGES.hargabeli;
+  PAGES.hargabeli=function(){
+    const r=_p.apply(this,arguments),T=HBS;
+    const i=r.html.indexOf('</div>');
+    const tab='<button class="tab '+(T.tab==='program'?'on':'')+'" data-act="hb-tab" data-t="program">Program &amp; HPP efektif ('+num(plList().length)+')</button>';
+    if(T.tab==='program'){
+      const head=r.html.slice(0,i);r.html=head+tab+'</div>'+plHtml();
+    }else r.html=r.html.slice(0,i)+tab+r.html.slice(i);
     return r;
   };
 }
