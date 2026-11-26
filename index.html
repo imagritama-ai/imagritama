@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2450"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2460"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5457,6 +5457,45 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
     return p;
   };
   ACT['stok-prin']=t=>{ui.stok.prinQ=t.value;ui.stok.page=1;rStok()};
+})();
+
+/* ====== STOK: pencarian cerdas (kategori, perusahaan, bahan aktif, sinonim, salah ketik ringan, beberapa kata sekaligus) ====== */
+(function(){
+  const SIN=[['benih','bibit','seed','biji'],['insektisida','insek','racun serangga','pembasmi serangga'],['fungisida','jamur','antijamur'],['herbisida','gulma','racun rumput','pembasmi rumput'],['pupuk','fertilizer','rabuk'],['mulsa','mulch'],['tangki','sprayer','semprot','penyemprot'],['plant health','zpt','perangsang']];
+  const nz=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const lev=(a,b,m)=>{if(Math.abs(a.length-b.length)>m)return m+1;let p=[];for(let j=0;j<=b.length;j++)p[j]=j;
+    for(let i=1;i<=a.length;i++){let c=[i],mn=i;for(let j=1;j<=b.length;j++){c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));if(c[j]<mn)mn=c[j]}if(mn>m)return m+1;p=c}return p[b.length]};
+  const alts=t=>{const g=SIN.find(x=>x.some(w=>w===t||(t.length>=4&&w.startsWith(t))));return g?g.map(nz):[t]};
+  let cacheKey='',cache={};
+  const hay=s=>{
+    const p=(typeof produkOf==='function'&&s.pid)?produkOf(s.pid):null;let pn='',pm='';
+    try{pn=p&&p.prin&&typeof ppPrinNama==='function'?ppPrinNama(p):'';const sm=typeof ppSupMap==='function'?ppSupMap():{};pm=p&&sm[p.id]?sm[p.id].nama:''}catch(e){}
+    const nama=nz(s.nama+' '+(p?p.nama:'')+' '+((p&&p.aliases)||[]).join(' '));
+    const lain=nz([s.sku,s.old,s.barcode,s.kategori,s.pid,p&&p.bahan,p&&p.target,p&&p.jenis,p&&p.registrasi,pn,pm,s.kemasan].join(' '));
+    return {nama,lain,words:(nama+' '+lain).split(' ').filter(Boolean)};
+  };
+  const skor=(h,toks)=>{let tot=0;
+    for(const t of toks){let best=0;
+      for(const a of alts(t)){
+        if(h.nama.includes(a))best=Math.max(best,(' '+h.nama).includes(' '+a)?4:3);
+        else if(h.lain.includes(a))best=Math.max(best,(' '+h.lain).includes(' '+a)?2:1.5);
+        else if(a.length>=4){const m=a.length>=8?2:1;if(h.words.some(w=>w.length>=3&&(a.length>4||w[0]===a[0])&&(lev(a,w,m)<=m||(w.length>a.length&&lev(a,w.slice(0,a.length),m)<=m))))best=Math.max(best,.8)}
+      }
+      if(!best)return 0;tot+=best}
+    return tot};
+  const _sl=stokList;
+  stokList=function(){
+    const T=ui.stok,q=nz(T.q).replace(/\b(racun|pembasmi|obat) serangga\b/g,'insektisida').replace(/\b(racun|pembasmi|obat) (rumput|gulma)\b/g,'herbisida').replace(/\b(obat|racun) jamur\b/g,'fungisida');
+    if(!q)return _sl.apply(this,arguments);
+    const raw=T.q;T.q='';let base;try{base=_sl.apply(this,arguments)}finally{T.q=raw}
+    const toks=q.split(' ').filter(Boolean);
+    const sc=new Map();base.forEach(s=>{const v=skor(hay(s),toks);if(v>0)sc.set(s.sku,v)});
+    const l=base.filter(s=>sc.has(s.sku));
+    if(!T.sort||T.sort==='nama')l.sort((a,b)=>(sc.get(b.sku)-sc.get(a.sku))||String(a.nama).localeCompare(String(b.nama))*(T.dir||1));
+    return l;
+  };
+  const _pg=PAGES.stok;
+  PAGES.stok=function(){const p=_pg.apply(this,arguments);try{if(p.html)p.html=p.html.replace('placeholder="Nama, SKU, atau barcode"','placeholder="Nama, kategori (mis. benih), perusahaan, bahan aktif, SKU…"')}catch(e){}return p};
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
