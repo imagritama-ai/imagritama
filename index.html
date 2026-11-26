@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2510"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2511"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -6211,7 +6211,7 @@ ${box(860,110,90,64,'Laba',fin()?rpS(m.lo):'•••',['#e2f5ec','#118c5e'])}${
       html:`<div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab${ui.peta.tab===k?' on':''}" role="tab" data-act="ui-set" data-o="peta" data-k="tab" data-v="${k}">${l}</button>`).join('')}</div>${body}`};
   };
   if(!NAV.some(n=>n[0]==='peta')){const i=NAV.findIndex(n=>n[0]==='laporan');NAV.splice(i<0?NAV.length:i,0,['peta','Peta Bisnis','sitemap'])}
-  if(typeof ROLE_PAGES!=='undefined')Object.keys(ROLE_PAGES).forEach(k=>{if(Array.isArray(ROLE_PAGES[k])&&!ROLE_PAGES[k].includes('peta'))ROLE_PAGES[k].push('peta')});
+  setTimeout(()=>{try{if(typeof ROLE_PAGES!=='undefined')Object.keys(ROLE_PAGES).forEach(k=>{if(Array.isArray(ROLE_PAGES[k])&&!ROLE_PAGES[k].includes('peta'))ROLE_PAGES[k].push('peta')})}catch(e){}},0);
 
   /* ---------- gaya: modern, rapi, semua perangkat ---------- */
   if(!document.getElementById('ux-css')){const st=document.createElement('style');st.id='ux-css';st.textContent=`
