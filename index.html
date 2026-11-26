@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2470"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2480"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5525,6 +5525,23 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
   };
 })();
 
+/* ====== KEUANGAN: peringatan bila saldo kas tunai atau bank negatif ====== */
+(function(){
+  if(typeof PAGES==='undefined'||!PAGES.keuangan||typeof cashBalance!=='function')return;
+  const _k=PAGES.keuangan;
+  PAGES.keuangan=function(){
+    const r=_k.apply(this,arguments);
+    try{
+      if(!r||typeof r.html!=='string'||(typeof finOK==='function'&&!finOK()))return r;
+      const c=cashBalance(),neg=[];
+      if(c.tunai<-0.5)neg.push('Kas tunai '+rp(c.tunai));
+      if(c.bank<-0.5)neg.push('Bank '+rp(c.bank));
+      if(neg.length)r.html='<div class="note" role="alert" style="margin-bottom:10px;border-left:4px solid #c0392b;background:#fde8e6"><b>Saldo negatif:</b> '+neg.join(' · ')+'. Biasanya ada pembayaran atau transfer yang dicatat melebihi saldo, atau setoran/pelunasan yang belum dicatat. Periksa mutasi di bawah atau catat setoran modal bila memang ada.</div>'+r.html;
+    }catch(e){}
+    return r;
+  };
+})();
+
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
 function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
@@ -6510,7 +6527,7 @@ function simIsi(src){
 }
 ACT['sim-menu']=()=>{if(!simOK())return toast('Mode Simulasi hanya untuk admin',true);
   openModal('Mulai Mode Simulasi',`<p class="small muted">Di mode ini semua yang Anda lakukan (penjualan, pembelian, retur, stok, laporan, Office AI) hanya latihan. <b>Tidak ada yang dikirim ke server</b>, dan data asli tetap aman. Menutup atau memuat ulang halaman otomatis kembali ke data asli.</p>
-  <div class="grid" style="gap:8px"><button class="btn pri full" data-act="sim-go" data-src="contoh">Data contoh lengkap (penjualan 6 bulan)</button><button class="btn full" data-act="sim-go" data-src="asli">Salinan data asli saat ini</button><button class="btn full" data-act="sim-go" data-src="kosong">Mulai bersih (stok awal dari Excel, tanpa penjualan)</button><hr style="width:100%;border:0;border-top:1px solid var(--line,#ddd)"><b class="small">Simulasi toko 5 tahun (Des 2026 – Des 2031)</b><button class="btn full" data-act="sim5" data-sk="B">Skenario B · Dasar + strategi AI (realistis)</button><button class="btn full" data-act="sim5" data-sk="D">Skenario D · Program margin + KUR</button><button class="btn full" data-act="sim5" data-sk="A">Skenario A · Pasif (tanpa strategi)</button><button class="btn full" data-act="sim-berkas">Muat berkas simulasi 5 tahun (.json)</button><input type="file" id="sim-file" accept=".json,application/json" style="display:none"></div>`,'<button class="btn" data-act="close">Batal</button>','sm')};
+  <div class="grid" style="gap:8px"><button class="btn pri full" data-act="sim-go" data-src="contoh">Data contoh lengkap (penjualan 6 bulan)</button><button class="btn full" data-act="sim-go" data-src="asli">Salinan data asli saat ini</button><button class="btn full" data-act="sim-go" data-src="kosong">Mulai bersih (stok awal dari Excel, tanpa penjualan)</button><hr style="width:100%;border:0;border-top:1px solid var(--line,#ddd)"><b class="small">Simulasi toko 5 tahun (1 Des 2026 – 31 Des 2031)</b><button class="btn full" data-act="sim5" data-sk="B">Skenario B · Dasar + strategi AI (realistis)</button><button class="btn full" data-act="sim5" data-sk="D">Skenario D · Program margin + KUR</button><button class="btn full" data-act="sim5" data-sk="A">Skenario A · Pasif (tanpa strategi)</button><button class="btn full" data-act="sim-berkas">Muat berkas simulasi 5 tahun (.json)</button><input type="file" id="sim-file" accept=".json,application/json" style="display:none"></div>`,'<button class="btn" data-act="close">Batal</button>','sm')};
 ACT['sim-go']=t=>{closeModal();simMulai(t.dataset.src);toast('Mode Simulasi aktif. Semua perubahan hanya latihan.')};
 function simMuatBerkas(txt){
   let o=JSON.parse(txt);if(o&&o.data&&!o.docs)o=o.data;
@@ -6632,7 +6649,7 @@ const SC=cfg.skenario;               // 'A' pasif, 'B' dasar+AI, 'C' ekspansi
 const AI=SC!=='A', EXP=SC==='C'||SC==='D'||SC==='E', MARGIN=SC==='D'||SC==='E', FAST=SC==='E';
 const R=rng(cfg.seed||11), RX=rng(777);   // RX = kejadian luar (sama di semua skenario)
 const nrm=r=>{let u=0,v=0;while(!u)u=r();v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
-const D0=Date.UTC(2026,11,1),NDAY=1826;
+const D0=Date.UTC(2026,11,1),NDAY=1857;
 const dstr=i=>new Date(D0+i*864e5).toISOString().slice(0,10);
 const yymmdd=t=>t.slice(2,4)+t.slice(5,7)+t.slice(8,10);
 const ymOf=t=>t.slice(0,7);
@@ -6802,7 +6819,7 @@ function buy(day,tgl,ym){
   if(C>maxSpend){const f=maxSpend/C;orders.sort((a,b)=>a.cover-b.cover);let acc=0;for(const o of orders){const nq=Math.floor(o.q*f/ (AI?1:1));o.q=nq>0?nq:0}note('pembelian dipangkas karena kas/kredit (minggu)');}
   const bySup={};for(const o of orders){if(o.q<=0)continue;const sp=sup[o.s.sku]||'SUP-0001';(bySup[sp]=bySup[sp]||[]).push({sku:o.s.sku,qty:o.q,harga:o.c})}
   const arrive=day+3;let roomLeft=room,cashLeft=avail;
-  for(const sp in bySup){
+  for(const sp in (arrive>=NDAY?{}:bySup)){ /* tidak memesan bila barang baru tiba setelah tanggal akhir simulasi */
     const items=bySup[sp];const v=items.reduce((a,i)=>a+i.qty*i.harga,0);
     items.forEach(i=>incoming.push({sku:i.sku,q:i.qty,day:arrive,harga:i.harga}));
     const at=dstr(Math.min(arrive,NDAY));
@@ -6957,13 +6974,13 @@ for(let day=0;day<NDAY;day++){
 }
 cur.cashEnd=cash;cur.stock=stockVal();cur.ar=arOut;cur.ap=apOut;cur.idx=idx;
 const wallMs=Date.now()-T0;
-return {skenario:SC,openVal,reserve,modal,docs:S.docs.length,kas:S.kas.length,jm:(S.jm||[]).length,engineCash:cash,engineStock:stockVal(),engineAR:arOut,engineAP:apOut,loanLeft:(S.pinjaman||[]).reduce((a,p)=>{const j=pinjJadwal(p).filter(r=>r.tgl<='2031-12-01');return a+(j.length?j[j.length-1].sisa:p.pokok)},0),issues,mon:MON,wallMs};
+return {skenario:SC,openVal,reserve,modal,docs:S.docs.length,kas:S.kas.length,jm:(S.jm||[]).length,engineCash:cash,engineStock:stockVal(),engineAR:arOut,engineAP:apOut,loanLeft:(S.pinjaman||[]).reduce((a,p)=>{const j=pinjJadwal(p).filter(r=>r.tgl<='2031-12-31');return a+(j.length?j[j.length-1].sisa:p.pokok)},0),issues,mon:MON,wallMs};
 };
 
 /* ====== Simulasi 5 tahun: mesin dijalankan langsung di aplikasi (tanpa berkas) ====== */
 const SIM5={A:'Pasif (tanpa strategi)',B:'Dasar + strategi AI (realistis)',D:'Program margin + KUR + ekspansi bertahap',E:'Jalur ambisius (pertumbuhan cepat)'};
 function sim5Jalan(sk){
-  window.SIM_TODAY='2031-12-01';
+  window.SIM_TODAY='2031-12-31';
   const r=simRun({skenario:sk});
   ui.trx.sel=null;try{resetCart()}catch(e){}
   derive();ui.period=periodList()[0];
@@ -6977,7 +6994,7 @@ ACT['sim5']=t=>{
   const live=typeof isLive==='function'&&isLive();
   if(live)return toast('Mulai Mode Simulasi dulu (Pengaturan) agar data asli tidak berubah',true);
   if(typeof OL!=='undefined'&&OL.sim){sim5Jalan(sk);return}
-  openModal('Muat simulasi 5 tahun?','<p>Data di browser ini akan <b>diganti</b> dengan data simulasi (Des 2026 – Des 2031). Data di server tidak berubah. Lanjutkan?</p>',`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sim5-ok" data-sk="${sk}">Ya, muat</button>`,'sm');
+  openModal('Muat simulasi 5 tahun?','<p>Data di browser ini akan <b>diganti</b> dengan data simulasi (1 Des 2026 – 31 Des 2031). Data di server tidak berubah. Lanjutkan?</p>',`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sim5-ok" data-sk="${sk}">Ya, muat</button>`,'sm');
 };
 ACT['sim5-ok']=t=>{closeModal();setTimeout(()=>sim5Jalan(t.dataset.sk),50)};
 
@@ -6988,7 +7005,7 @@ ACT['sim5']=t=>{
   if(!live)return _sim50(t);
   closeModal();
   if(typeof simOK==='function'&&!simOK())return toast('Mode Simulasi hanya untuk admin',true);
-  openModal('Jalankan simulasi 5 tahun?','<p>Aplikasi akan masuk ke <b>Mode Simulasi</b> dan memuat data simulasi (Des 2026 – Des 2031). <b>Data asli tidak berubah dan tidak ada yang dikirim ke server.</b> Untuk kembali, klik tombol di spanduk kuning atau muat ulang halaman.</p>',`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sim5-live" data-sk="${sk}">Ya, jalankan</button>`,'sm');
+  openModal('Jalankan simulasi 5 tahun?','<p>Aplikasi akan masuk ke <b>Mode Simulasi</b> dan memuat data simulasi (1 Des 2026 – 31 Des 2031). <b>Data asli tidak berubah dan tidak ada yang dikirim ke server.</b> Untuk kembali, klik tombol di spanduk kuning atau muat ulang halaman.</p>',`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="sim5-live" data-sk="${sk}">Ya, jalankan</button>`,'sm');
 };
 ACT['sim5-live']=t=>{
   const sk=t.dataset.sk;closeModal();
