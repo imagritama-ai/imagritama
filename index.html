@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2300"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2310"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5164,17 +5164,18 @@ async function fmSiap(files){
   toast('Membaca foto…');
   try{
     let L=[];for(const f of files){if(/\.zip$/i.test(f.name)||/zip/.test(f.type))L=L.concat(await fmZip(f));else if(/^image\//.test(f.type))L.push(f)}
-    const ids=new Set(S.produk.map(p=>p.id)),cocok={},tak=[];
-    for(const f of L){const id=fmNama(f.name);if(id&&ids.has(id)&&!cocok[id])cocok[id]=f;else tak.push(f.name)}
+    const ids=new Set(S.produk.map(p=>p.id)),cocok={},tak=[],sudah=[];
+    for(const f of L){const id=fmNama(f.name);
+      if(id&&ids.has(id)){if(imgOf(id)){if(!sudah.includes(id))sudah.push(id)}else if(!cocok[id])cocok[id]=f}
+      else tak.push(f.name)}
     const pids=Object.keys(cocok);
-    if(!pids.length){openModal('Unggah Foto Massal','<p>Tidak ada foto yang cocok. Nama file harus memuat Product_ID, misalnya <b>IMT-INS-0001.png</b>.</p>'+(tak.length?'<div class="small muted">Tidak cocok: '+tak.slice(0,10).map(esc).join(', ')+'</div>':''),'<button class="btn" data-act="close">Tutup</button>');return}
+    if(!pids.length){openModal('Unggah Foto Massal','<p>Tidak ada foto baru yang bisa dipasang.'+(sudah.length?' '+sudah.length+' produk sudah punya foto, jadi dilewati.':' Nama file harus memuat Product_ID, misalnya <b>IMT-INS-0001.png</b>.')+'</p>'+(tak.length?'<div class="small muted">Tidak cocok: '+tak.slice(0,10).map(esc).join(', ')+'</div>':''),'<button class="btn" data-act="close">Tutup</button>');return}
     const hasil={};let k=0;
     for(const id of pids){const d=await fmProses(cocok[id]);if(d)hasil[id]=d;k++;if(k%20===0)toast('Memproses foto '+k+' dari '+pids.length+'…')}
     fmPlan=hasil;const n=Object.keys(hasil).length;
-    const timpa=Object.keys(hasil).filter(id=>S.gambar&&S.gambar[id]).length;
     const mb=Object.values(hasil).reduce((a,b)=>a+b.length,0)/1048576;
     openModal('Unggah Foto Massal',
-      '<div class="note"><b>'+n+'</b> foto cocok dengan produk (ukuran total sekitar '+mb.toFixed(2).replace('.',',')+' MB).'+(timpa?' <b>'+timpa+'</b> di antaranya akan menimpa foto yang sudah Anda pasang sebelumnya.':'')+'</div>'
+      '<div class="note"><b>'+n+'</b> foto akan dipasang ke produk yang belum punya gambar (ukuran total sekitar '+mb.toFixed(2).replace('.',',')+' MB).'+(sudah.length?' <b>'+sudah.length+'</b> produk sudah punya gambar, jadi tidak diganti.':'')+'</div>'
       +(tak.length?'<div class="small muted" style="margin-top:8px">'+tak.length+' file dilewati karena Product_ID-nya tidak ada di daftar barang: '+tak.slice(0,8).map(esc).join(', ')+(tak.length>8?', …':'')+'</div>':'')
       +'<div class="small muted" style="margin-top:8px">Data produk, harga, dan transaksi tidak berubah. Hanya foto yang dipasang.</div>',
       '<button class="btn" data-act="close">Batal</button><button class="btn primary" data-act="fm-ok">Pasang '+n+' foto</button>');
@@ -5183,10 +5184,11 @@ async function fmSiap(files){
 ACT['fm-ok']=()=>{
   if(!canImg())return toast('Akun ini tidak boleh mengubah foto produk',true);
   if(!fmPlan)return;
-  const baru=Object.assign({},S.gambar||{},fmPlan);
+  const tambah={};Object.keys(fmPlan).forEach(id=>{if(!imgOf(id))tambah[id]=fmPlan[id]});/* pengaman: tidak pernah menimpa foto yang sudah ada */
+  const baru=Object.assign({},S.gambar||{},tambah);
   const mb=Object.values(baru).reduce((a,b)=>a+String(b).length,0)/1048576;
   if(mb>4)return toast('Total foto terlalu besar ('+mb.toFixed(1)+' MB). Kurangi jumlah foto.',true);
-  S.gambar=baru;const n=Object.keys(fmPlan).length;fmPlan=null;
+  S.gambar=baru;const n=Object.keys(tambah).length;fmPlan=null;
   if(commit()===false)return;
   closeModal&&closeModal();refresh();toast(n+' foto produk dipasang');
 };
