@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2490"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261127-2500"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -678,9 +678,9 @@ const grpOf=k=>GRP[k]||'Lainnya';
 const GRPS=['Insektisida','Fungisida','Herbisida','Pupuk','Benih','Plant Health','Lainnya'];
 const satuan=s=>/box/i.test(s.kemasan)&&!/pcs/i.test(s.kemasan)?'box':/dus/i.test(s.kemasan)&&!/pcs/i.test(s.kemasan)?'dus':/unit/i.test(s.kemasan)?'unit':'pcs';
 const akunKas=m=>m==='Tunai'?'kasTunai':'bank';
-const BASE_AKUN=[['kasTunai','Kas tunai','Aset','1-1100',1],['bank','Bank','Aset','1-1200',1],['piutang','Piutang usaha','Aset','1-1300',1],['persediaan','Persediaan','Aset','1-1400',1],['aset','Aset tetap & peralatan','Aset','1-2100',1],['akumPeny','Akumulasi penyusutan','Aset','1-2900',-1],['utang','Utang usaha','Kewajiban','2-1100',-1],['ppnKeluar','PPN keluaran (utang pajak)','Kewajiban','2-1200',-1],['ppnMasuk','PPN masukan (dapat dikreditkan)','Aset','1-1500',1],['modal','Modal & saldo awal','Ekuitas','3-1100',-1],['prive','Prive','Ekuitas','3-1900',1],['penjualan','Penjualan neto','Pendapatan','4-1100',-1],['pendLain','Pendapatan lain','Pendapatan','4-9000',-1],['pendTani','Pendapatan penjualan hasil panen','Pendapatan','4-2100',-1],['simpananAnggota','Simpanan anggota kelompok','Kewajiban','2-3100',-1],['panjarTani','Panjar / kasbon petani & mitra','Aset','1-1350',1],['hpp','HPP','HPP','5-1100',1],['beban','Beban operasional lainnya','Beban','6-1100',1],['penyusutan','Beban penyusutan','Beban','6-2000',1],['selisih','Selisih persediaan','Beban','6-9000',1],['utangBank','Utang bank / pinjaman','Kewajiban','2-2100',-1],['bebanPiutang','Beban piutang tak tertagih','Beban','6-3000',1],['bebanBunga','Beban bunga pinjaman','Beban','6-3100',1],['bebanPajak','Pajak final dibayar','Beban','6-4000',1]];
+const BASE_AKUN=[['kasTunai','Kas tunai','Aset','1-1100',1],['bank','Bank','Aset','1-1200',1],['piutang','Piutang usaha','Aset','1-1300',1],['persediaan','Persediaan','Aset','1-1400',1],['aset','Aset tetap & peralatan','Aset','1-2100',1],['akumPeny','Akumulasi penyusutan','Aset','1-2900',-1],['utang','Utang usaha','Kewajiban','2-1100',-1],['ppnKeluar','PPN keluaran (utang pajak)','Kewajiban','2-1200',-1],['ppnMasuk','PPN masukan (dapat dikreditkan)','Aset','1-1500',1],['modal','Modal & saldo awal','Ekuitas','3-1100',-1],['prive','Prive','Ekuitas','3-1900',1],['penjualan','Penjualan neto','Pendapatan','4-1100',-1],['pendLain','Pendapatan lain','Pendapatan','4-9000',-1],['pendTani','Pendapatan penjualan hasil panen','Pendapatan','4-2100',-1],['simpananAnggota','Simpanan anggota kelompok','Kewajiban','2-3100',-1],['panjarTani','Panjar / kasbon petani & mitra','Aset','1-1350',1],['piutangJasa','Piutang jasa','Aset','1-1320',1],['asetCIP','Aset dalam pembangunan','Aset','1-2200',1],['utangAset','Utang pembelian aset','Kewajiban','2-2100',-1],['pendJasa','Pendapatan jasa','Pendapatan','4-2200',-1],['hpp','HPP','HPP','5-1100',1],['beban','Beban operasional lainnya','Beban','6-1100',1],['penyusutan','Beban penyusutan','Beban','6-2000',1],['selisih','Selisih persediaan','Beban','6-9000',1],['utangBank','Utang bank / pinjaman','Kewajiban','2-2100',-1],['bebanPiutang','Beban piutang tak tertagih','Beban','6-3000',1],['bebanBunga','Beban bunga pinjaman','Beban','6-3100',1],['bebanPajak','Pajak final dibayar','Beban','6-4000',1]];
 /* kategori beban operasional: tiap kategori = akun sendiri di jurnal & laporan */
-const BEBAN_KAT=[['gaji','Gaji & upah karyawan','6-1110',/gaji|upah|honor|lembur|thr|bonus karyawan/i],['sewa','Sewa tempat usaha','6-1120',/sewa|kontrak(an)? (toko|gudang|tempat)/i],['listrik','Listrik, air & internet','6-1130',/listrik|pln|token|air |pdam|internet|wifi|wi-fi/i],['transport','Transport, BBM & ongkos kirim','6-1140',/bensin|bbm|solar|pertalite|transport|ongkir|ongkos|kirim|parkir|tol\b|kendaraan/i],['pemasaran','Pemasaran & promosi','6-1150',/iklan|promo|brosur|spanduk|demo plot|pemasaran|marketing|banner/i],['perlengkapan','Perlengkapan & ATK','6-1160',/atk|kertas|alat tulis|perlengkapan|plastik|kantong|label|nota|tinta|printer/i],['perbaikan','Perbaikan & pemeliharaan','6-1170',/perbaikan|servis|service|reparasi|pemeliharaan|renovasi|maintenance/i],['komunikasi','Pulsa, telepon & administrasi bank','6-1180',/pulsa|telepon|telpon|admin bank|biaya admin|materai|meterai|provisi|biaya transfer/i],['izin','Perizinan, retribusi & iuran','6-1190',/izin|perizinan|retribusi|iuran|keamanan|sampah|pbb|npwp|sertifikat/i],['asuransi','Asuransi','6-1195',/asuransi/i],['susut','Kerusakan, hilang & kedaluwarsa','6-1198',/rusak|hilang|kedaluwarsa|expired|kadaluarsa|susut/i],['taniSaprodi','Usahatani: benih, pupuk & obat','6-1210',/^\b\B$/],['taniTenaga','Usahatani: upah tenaga kerja','6-1220',/^\b\B$/],['taniLahan','Usahatani: sewa lahan, air & alat','6-1230',/^\b\B$/],['taniPanen','Usahatani: panen & pascapanen','6-1240',/^\b\B$/]];
+const BEBAN_KAT=[['gaji','Gaji & upah karyawan','6-1110',/gaji|upah|honor|lembur|thr|bonus karyawan/i],['sewa','Sewa tempat usaha','6-1120',/sewa|kontrak(an)? (toko|gudang|tempat)/i],['listrik','Listrik, air & internet','6-1130',/listrik|pln|token|air |pdam|internet|wifi|wi-fi/i],['transport','Transport, BBM & ongkos kirim','6-1140',/bensin|bbm|solar|pertalite|transport|ongkir|ongkos|kirim|parkir|tol\b|kendaraan/i],['pemasaran','Pemasaran & promosi','6-1150',/iklan|promo|brosur|spanduk|demo plot|pemasaran|marketing|banner/i],['perlengkapan','Perlengkapan & ATK','6-1160',/atk|kertas|alat tulis|perlengkapan|plastik|kantong|label|nota|tinta|printer/i],['perbaikan','Perbaikan & pemeliharaan','6-1170',/perbaikan|servis|service|reparasi|pemeliharaan|renovasi|maintenance/i],['komunikasi','Pulsa, telepon & administrasi bank','6-1180',/pulsa|telepon|telpon|admin bank|biaya admin|materai|meterai|provisi|biaya transfer/i],['izin','Perizinan, retribusi & iuran','6-1190',/izin|perizinan|retribusi|iuran|keamanan|sampah|pbb|npwp|sertifikat/i],['asuransi','Asuransi','6-1195',/asuransi/i],['susut','Kerusakan, hilang & kedaluwarsa','6-1198',/rusak|hilang|kedaluwarsa|expired|kadaluarsa|susut/i],['taniSaprodi','Usahatani: benih, pupuk & obat','6-1210',/^\b\B$/],['taniTenaga','Usahatani: upah tenaga kerja','6-1220',/^\b\B$/],['taniLahan','Usahatani: sewa lahan, air & alat','6-1230',/^\b\B$/],['taniPanen','Usahatani: panen & pascapanen','6-1240',/^\b\B$/],['jasaluar','Jasa & sewa pihak ketiga','6-1250',/jasa|sewa alat|sewa traktor|ongkos giling|borongan/i]];
 BEBAN_KAT.forEach(([k,n,c])=>BASE_AKUN.push(['b_'+k,n,'Beban',c,1]));
 const katAkun=k=>{if(k&&k.kat&&AKUN['b_'+k.kat])return 'b_'+k.kat;if(k&&k.kat==='lain')return 'beban';const t=String((k&&k.ket)||'').replace(/^Beban operasional:\s*/i,'');const f=BEBAN_KAT.find(x=>x[3].test(t));return f?'b_'+f[0]:'beban'};
 const akunBenefit=()=>S.settings&&S.settings.benefitAkun==='pendLain'?'pendLain':'hpp';
@@ -772,7 +772,15 @@ function derive(){
 /* ====== aset tetap: penyusutan garis lurus ====== */
 const addMonth=(ym,n)=>{let [y,m]=ym.split('-').map(Number);m+=n;while(m>12){m-=12;y++}while(m<1){m+=12;y--}return y+'-'+p2(m)};
 function depSchedule(a){
-  const base=Math.max(0,(+a.harga||0)-(+a.residu||0)),n=Math.max(1,+a.umur||1),per=Math.round(base/n),out=[];let acc=0;
+  const n=Math.max(0,Math.round(+a.umur||0)),out=[];
+  if(a.metode==='tanpa'||n<1)return out;
+  const res=+a.residu||0,base=Math.max(0,(+a.harga||0)-res);let acc=0;
+  if(a.metode==='saldo'){
+    const r=Math.min(1,2/(n/12))/12;let bv=+a.harga||0;
+    for(let i=1;i<=n;i++){const ym=addMonth(a.tgl.slice(0,7),i);let v=i===n?bv-res:Math.round(bv*r);v=Math.max(0,Math.min(v,bv-res));if(v<=0)break;bv-=v;acc+=v;out.push({ym,tgl:monthEnd(ym),v,acc})}
+    return out;
+  }
+  const per=Math.round(base/n);
   for(let i=1;i<=n;i++){const ym=addMonth(a.tgl.slice(0,7),i),v=i===n?base-acc:Math.min(per,base-acc);if(v<=0)break;acc+=v;out.push({ym,tgl:monthEnd(ym),v,acc})}
   return out;
 }
@@ -793,7 +801,7 @@ function cashEvents(){
   for(const pe of pinjEntries()){ev.push({tgl:pe.tgl,akun:'bank',nilai:pe.kas,kelas:'fin',ket:pe.ket,ref:pe.ref,metode:'Transfer',tipe:'pinj'})}
   for(const k of S.kas)ev.push({tgl:k.tgl,akun:akunKas(k.metode),nilai:(k.arah==='masuk'?1:-1)*k.nilai,kelas:k.tipe==='investasi'?'inv':(k.tipe==='modal'||k.tipe==='prive')?'fin':'ops',ket:k.ket,ref:k.id,metode:k.metode,tipe:k.tipe});
   for(const e of S.jm||[]){if(e.batal)continue;const cash=e.lines.filter(l=>l.a==='kasTunai'||l.a==='bank'),oth=e.lines.filter(l=>l.a!=='kasTunai'&&l.a!=='bank');
-    const kelas=!oth.length?'trf':(AKUN_TIPE[oth[0].a]==='Ekuitas'?'fin':AKUN_TIPE[oth[0].a]==='Aset'?'inv':'ops');
+    const kelas=!oth.length?'trf':(oth[0].a==='utangAset'?'inv':AKUN_TIPE[oth[0].a]==='Ekuitas'?'fin':AKUN_TIPE[oth[0].a]==='Aset'?'inv':'ops');
     for(const l of cash){const v=(+l.d||0)-(+l.k||0);if(v)ev.push({tgl:e.tgl,akun:l.a,nilai:v,kelas,ket:e.ket,ref:e.id,metode:l.a==='kasTunai'?'Tunai':'Transfer',tipe:'jm'})}}
   return ev.sort((a,b)=>a.tgl<b.tgl?-1:a.tgl>b.tgl?1:0);
 }
@@ -877,7 +885,7 @@ function met(m){
     else if(d.jenis==='Opname')o.selisih+=r.val;
   }
   for(const k of S.kas)if(k.tipe==='beban'&&inMonth(k.tgl,m)){o.beban+=+k.nilai;const ka=katAkun(k);o.bk[ka]=(o.bk[ka]||0)+ +k.nilai}
-  o.peny=0;o.pend=0;for(const e of journal())if((e.src==='jm'||e.src==='dep'||e.src==='wo'||e.src==='pjm')&&inMonth(e.tgl,m))for(const l of e.lines){const t=AKUN_TIPE[l.a];if(t==='Beban'){if(l.a==='penyusutan')o.peny+=l.d-l.k;else{o.beban+=l.d-l.k;o.bk[l.a]=(o.bk[l.a]||0)+l.d-l.k}}else if(t==='Pendapatan')o.pend+=l.k-l.d;else if(l.a==='hpp')o.hpp+=l.d-l.k}
+  o.peny=0;o.pend=0;for(const e of journal())if((e.src==='jm'||e.src==='dep'||e.src==='wo'||e.src==='pjm')&&inMonth(e.tgl,m))for(const l of e.lines){const t=AKUN_TIPE[l.a];if(t==='Beban'){if(l.a==='penyusutan')o.peny+=l.d-l.k;else{o.beban+=l.d-l.k;o.bk[l.a]=(o.bk[l.a]||0)+l.d-l.k}}else if(t==='Pendapatan'){o.pend+=l.k-l.d;if(l.a==='pendJasa')o.pendJasa=(o.pendJasa||0)+l.k-l.d}else if(l.a==='hpp')o.hpp+=l.d-l.k}
   o.lk=o.omzet-o.hpp;o.biaya=o.beban+o.peny-o.selisih;o.lo=o.lk-o.biaya+o.pend;o.margin=o.omzet?o.lk/o.omzet:0;
   o.pajak=o.omzet*(+S.settings.pajak||0)/100;o.lb=o.lo-o.pajak;
   return o;
@@ -1242,7 +1250,7 @@ function invAt(date){
 }
 function posisi(to){
   const t=trial(null,to),bal=a=>t[a].saldo,sm=tp=>AKUN_ORDER.filter(a=>AKUN_TIPE[a]===tp).reduce((x,a)=>x+bal(a),0);
-  const kas=bal('kasTunai')+bal('bank'),piutang=bal('piutang'),persediaan=bal('persediaan');
+  const kas=bal('kasTunai')+bal('bank'),piutang=bal('piutang')+(t.piutangJasa?bal('piutangJasa'):0),persediaan=bal('persediaan');
   const asset=sm('Aset'),aset=asset-kas-piutang-persediaan,utang=-sm('Kewajiban');
   const labaKum=-(sm('Pendapatan')+sm('HPP')+sm('Beban'));
   const modal=-sm('Ekuitas');
@@ -2356,7 +2364,8 @@ function lrRows(m){const ks=Object.keys(m.bk||{}).filter(k=>Math.abs(m.bk[k])>0.
   if(ks.length){R.push(['Beban operasional',-m.beban]);ks.forEach(k=>R.push([AKUN[k],-m.bk[k],0,1]))}else R.push(['Beban operasional',-m.beban]);
   if(Math.abs(m.peny)>0.5)R.push(['Penyusutan aset',-m.peny]);
   if(Math.abs(m.selisih)>0.5)R.push(['Selisih persediaan',m.selisih]);
-  if(Math.abs(m.pend)>0.5)R.push(['Pendapatan lain',m.pend]);
+  if(Math.abs(m.pendJasa||0)>0.5)R.push(['Pendapatan jasa',m.pendJasa]);
+  if(Math.abs(m.pend-(m.pendJasa||0))>0.5)R.push(['Pendapatan lain',m.pend-(m.pendJasa||0)]);
   R.push(['Laba operasional',m.lo,1],['Pajak final (est.)',-m.pajak],['Laba bersih (est.)',m.lb,1]);return R}
 const TIPE_KAS={beban:['Beban operasional','keluar'],investasi:['Investasi / peralatan','keluar'],modal:['Tambah modal','masuk'],prive:['Prive (ambil pribadi)','keluar'],pajak:['Setoran pajak (PPh final)','keluar']};
 function inRange(tgl){return inMonth(tgl,curMonth())}
@@ -2364,7 +2373,7 @@ const KEU_EXT={};
 PAGES.keuangan=()=>{
   const T=ui.keu,mo=curMonth(),end=periodEnd(),from=perFrom();
   const bal=cashBalance(),cf=cashFlow(mo),m=met(mo);
-  const tabs=[['kas','Kas & Bank'],['lr','Laba Rugi & Posisi'],['bs','Neraca'],['neraca','Neraca Saldo'],['bb','Buku Besar'],['jurnal','Jurnal Umum'],['jm','Jurnal Manual & Transfer'],['aset','Aset Tetap'],['pinjaman','Pinjaman'],['rek','Rekonsiliasi Bank'],['ang','Anggaran'],['coa','Bagan Akun'],['tutup','Tutup Buku']];
+  const tabs=[['kas','Kas & Bank'],['lr','Laba Rugi & Posisi'],['bs','Neraca'],['neraca','Neraca Saldo'],['bb','Buku Besar'],['jurnal','Jurnal Umum'],['jm','Jurnal Manual & Transfer'],['aset','Aset Tetap'],['aset2','Investasi & Jasa'],['pinjaman','Pinjaman'],['rek','Rekonsiliasi Bank'],['ang','Anggaran'],['coa','Bagan Akun'],['tutup','Tutup Buku']];
   let body='';
   if(T.tab==='kas'){
     const ev=cashEvents().filter(e=>inRange(e.tgl)).reverse(),per=15;T.page=clamp(T.page,1,Math.max(1,Math.ceil(ev.length/per)));
@@ -3150,7 +3159,7 @@ ACT['trf-ok']=()=>{
 };
 
 /* ---- Aset Tetap ---- */
-const KAT_ASET={Peralatan:48,Kendaraan:96,Bangunan:240,'Komputer & elektronik':48,'Furnitur & rak':96};
+const KAT_ASET={'Alsintan (traktor, pompa, mesin)':96,'Tanaman menghasilkan (kebun)':240,'Ternak produktif':60,'Kolam & tambak':120,Peralatan:48,Kendaraan:96,Bangunan:240,'Komputer & elektronik':48,'Furnitur & rak':96};
 KEU_EXT.aset=()=>{
   const today=todayISO(),rows=(S.aset||[]).map(a=>{const sc=depSchedule(a),done=sc.filter(r=>r.tgl<=today&&(!a.lepas||r.tgl<=a.lepas.tgl)),acc=a.lepas?a.harga:(done.length?done[done.length-1].acc:0);return {a,per:sc[0]?sc[0].v:0,acc,nb:a.lepas?0:a.harga-acc,done:done.length,n:sc.length}});
   const aktif=rows.filter(r=>!r.a.lepas),th=sum(aktif,r=>r.a.harga),ta=sum(aktif,r=>r.acc),mo=(curMonth()?perTo().slice(0,7):today.slice(0,7)),bm=sum(depEntries().filter(e=>e.tgl.slice(0,7)===mo),e=>e.v);
@@ -3158,7 +3167,7 @@ KEU_EXT.aset=()=>{
   return `<div class="grid g4" style="margin-bottom:12px">${kpi('blue','box','Harga perolehan',rp(th))}${kpi('amber','trend','Akumulasi penyusutan',rp(ta))}${kpi('green','wallet','Nilai buku',rp(th-ta))}${kpi('red','cal','Penyusutan bulan '+mo,rp(bm))}</div>
   <div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Daftar Aset Tetap</h3><button class="btn pri" style="margin-left:auto" data-act="as-new">${ic('plus')}Daftarkan Aset</button></div>
   <div class="scroll"><table class="tbl"><thead><tr><th>Kode</th><th>Aset</th><th>Perolehan</th><th class="r">Harga</th><th class="r">Umur</th><th class="r">Susut/bln</th><th class="r">Akumulasi</th><th class="r">Nilai buku</th><th>Status</th></tr></thead><tbody>
-  ${rows.map(r=>`<tr><td>${esc(r.a.id)}</td><td>${esc(r.a.nama)}</td><td>${fmtTgl(r.a.tgl)}</td><td class="r">${rp(r.a.harga)}</td><td class="r">${r.a.umur} bln</td><td class="r">${rp(r.per)}</td><td class="r">${rp(r.acc)}</td><td class="r">${rp(r.nb)}</td><td>${r.a.lepas?badge('mute','Dilepas '+fmtTgl(r.a.lepas.tgl)):r.done>=r.n?badge('info','Habis disusutkan'):badge('ok',r.done+'/'+r.n+' bln')}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Belum ada aset terdaftar.</td></tr>'}</tbody></table></div>
+  ${rows.map(r=>`<tr><td>${esc(r.a.id)}</td><td>${esc(r.a.nama)}</td><td>${fmtTgl(r.a.tgl)}</td><td class="r">${rp(r.a.harga)}</td><td class="r">${r.a.umur} bln</td><td class="r">${rp(r.per)}</td><td class="r">${rp(r.acc)}</td><td class="r">${rp(r.nb)}</td><td>${r.a.lepas?badge('mute','Dilepas '+fmtTgl(r.a.lepas.tgl)):r.a.metode==='tanpa'?badge('info','Tidak disusutkan'):r.done>=r.n?badge('info','Habis disusutkan'):badge('ok',r.done+'/'+r.n+' bln')}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">Belum ada aset terdaftar.</td></tr>'}</tbody></table></div>
   <div class="note" style="margin-top:8px">Metode garis lurus. Penyusutan dijurnal otomatis tiap akhir bulan (Beban penyusutan / Akumulasi penyusutan) mulai bulan setelah perolehan.${unreg>0?` Ada investasi ${rp(unreg)} yang dicatat lewat Catat Kas dan belum didaftarkan, jadi belum disusutkan.`:''}</div></div>`;
 };
 ACT['as-new']=()=>openModal('Daftarkan Aset Tetap',`<div class="row"><div class="field" style="flex:2"><label class="lbl" for="as-nama">Nama aset</label><input class="in" id="as-nama" placeholder="Contoh: Etalase kaca"></div><div class="field"><label class="lbl" for="as-kat">Kategori</label><select class="in" id="as-kat" data-chg="as-kat">${Object.keys(KAT_ASET).map(k=>`<option>${k}</option>`).join('')}</select></div></div><div class="row"><div class="field"><label class="lbl" for="as-tgl">Tanggal perolehan</label><input class="in" type="date" id="as-tgl" value="${todayISO()}"></div><div class="field"><label class="lbl" for="as-harga">Harga perolehan</label><input class="in" type="number" min="0" id="as-harga"></div><div class="field"><label class="lbl" for="as-umur">Umur (bulan)</label><input class="in" type="number" min="1" id="as-umur" value="48"></div><div class="field"><label class="lbl" for="as-res">Nilai sisa</label><input class="in" type="number" min="0" id="as-res" value="0"></div></div><div class="field" style="max-width:260px"><label class="lbl" for="as-met">Dibayar dari</label><select class="in" id="as-met"><option>Tunai</option><option>Transfer</option></select></div><div class="note">Pembayaran otomatis tercatat sebagai kas keluar (investasi).</div>`,'<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="as-ok">Simpan Aset</button>');
@@ -5576,7 +5585,7 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
     const tb=BIAYA.reduce((a,b)=>a+biaya[b[0]],0),luas=+m.luas||0;
     return {biaya,tb,pend,kg,laba:pend-tb,rc:tb>0?pend/tb:0,hppKg:kg>0?tb/kg:0,hargaRata:kg>0?pend/kg:0,prod:luas>0?kg/luas:0,labaHa:luas>0?(pend-tb)/luas:0,bepHarga:kg>0?tb/kg:0,bepKg:kg>0&&pend>0?tb/(pend/kg):0};
   }
-  const badge=(t,c)=>`<span class="badge ${c}">${t}</span>`;
+  const badge=(t,c)=>`<span class="b b-${c}">${esc(t)}</span>`;
   const tabs=[['ringkas','Panduan Pelaku'],['beli','Beli Hasil Bumi'],['panjar','Panjar Petani'],['tani','Buku Usahatani']];
 
   /* ---------- panduan pelaku ---------- */
@@ -5855,6 +5864,170 @@ ACT['pp-xlsx']=()=>ppXlsxInput().click();
   tabs.push(['olah','Pengolahan'],['kelompok','Kelompok Tani']);
   _tab.olah=tabOlah;_tab.kelompok=tabKelompok;
   window.utShu=shuHitung;window.utRendemen=rendemenOf;
+})();
+
+/* ====== INVESTASI & JASA: aset lanjutan (biaya tambahan, hibah, utang aset, saldo menurun, tanah), proyek dalam pembangunan (kebun/kandang/gudang), jasa non-stok, analisis kelayakan investasi ====== */
+(function(){
+  if(typeof KEU_EXT==='undefined')return;
+  ['cip','jasa','jasaTrx'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
+  Object.assign(ui,{inv:{}});
+  const ymd=()=>todayISO(),R=v=>Math.round(+v||0);
+  const kasAkun=m=>akunKas(m);
+  const saldoKas=m=>{const b=cashBalance();return kasAkun(m)==='kasTunai'?b.tunai:b.bank};
+  const cekKas=(m,v)=>v>saldoKas(m)+0.5?'Saldo '+(kasAkun(m)==='kasTunai'?'kas tunai':'bank')+' tidak cukup (saldo '+rp(saldoKas(m))+')':'';
+  const jmAdd=(o)=>{const id=nextNo('JM-'+yymmdd(o.tgl)+'-');S.jm.push(Object.assign({id,tipe:'umum',modul:'invjasa'},o));return id};
+  const KATA=Object.keys(KAT_ASET).concat(['Tanah']);
+  const METODE=[['garis','Garis lurus (rata tiap bulan)'],['saldo','Saldo menurun (lebih besar di awal)'],['tanpa','Tidak disusutkan (contoh: tanah)']];
+
+  /* ---------- aset lanjutan ---------- */
+  function a2Form(){
+    return `<div class="row"><div class="field" style="flex:2"><label class="lbl" for="a2-nama">Nama aset</label><input class="in" id="a2-nama" placeholder="Contoh: Traktor roda empat"></div><div class="field"><label class="lbl" for="a2-kat">Kategori</label><select class="in" id="a2-kat" data-chg="a2-kat">${KATA.map(k=>`<option>${esc(k)}</option>`).join('')}</select></div></div>
+    <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="a2-tgl">Tanggal perolehan</label><input class="in" type="date" id="a2-tgl" value="${ymd()}"></div><div class="field"><label class="lbl" for="a2-harga">Harga beli (Rp)</label><input class="in" type="number" id="a2-harga" min="0" step="1"></div><div class="field"><label class="lbl" for="a2-tambah">Biaya tambahan (Rp)</label><input class="in" type="number" id="a2-tambah" min="0" step="1" value="0"></div></div>
+    <div class="note" style="margin:6px 0">Biaya tambahan: ongkos kirim, instalasi, bea, notaris, balik nama. Biaya ini ikut menjadi harga perolehan dan disusutkan.</div>
+    <div class="row"><div class="field"><label class="lbl" for="a2-hibah">Hibah / subsidi diterima (Rp)</label><input class="in" type="number" id="a2-hibah" min="0" step="1" value="0"></div><div class="field"><label class="lbl" for="a2-bayar">Pembayaran</label><select class="in" id="a2-bayar"><option>Tunai</option><option>Transfer</option><option value="Utang">Belum dibayar (utang)</option></select></div></div>
+    <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="a2-met">Metode penyusutan</label><select class="in" id="a2-met">${METODE.map(m=>`<option value="${m[0]}">${m[1]}</option>`).join('')}</select></div><div class="field"><label class="lbl" for="a2-umur">Umur manfaat (bulan)</label><input class="in" type="number" id="a2-umur" min="0" step="1" value="${KAT_ASET[KATA[0]]}"></div><div class="field"><label class="lbl" for="a2-res">Nilai sisa (Rp)</label><input class="in" type="number" id="a2-res" min="0" step="1" value="0"></div></div>
+    <div class="note" style="margin-top:8px">Hibah / subsidi mengurangi harga perolehan yang disusutkan. Penyusutan berjalan otomatis tiap akhir bulan. Pengaturan penyusutan untuk pajak berbeda dengan akuntansi; tanyakan akuntan Anda.</div>`;
+  }
+  ACT['a2-kat']=t=>{const k=t.value;$('#a2-umur').value=k==='Tanah'?0:(KAT_ASET[k]||48);$('#a2-met').value=k==='Tanah'?'tanpa':'garis'};
+  ACT['a2-new']=()=>openModal('Daftarkan Aset (lengkap)',a2Form(),`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="a2-ok">Simpan</button>`,'md');
+  ACT['a2-ok']=()=>{
+    const nama=($('#a2-nama').value||'').trim(),kat=$('#a2-kat').value,tgl=$('#a2-tgl').value,harga=R($('#a2-harga').value),tambah=R($('#a2-tambah').value),hibah=R($('#a2-hibah').value),bayar=$('#a2-bayar').value,met=$('#a2-met').value,umur=Math.round(+$('#a2-umur').value||0),res=R($('#a2-res').value);
+    if(!nama)return toast('Nama aset wajib diisi',true);if(!tgl)return toast('Tanggal wajib diisi',true);if(!(harga>0))return toast('Harga harus lebih dari 0',true);if(tambah<0||hibah<0||res<0)return toast('Angka tidak boleh negatif',true);
+    const total=harga+tambah,net=total-hibah;if(hibah>=total)return toast('Hibah harus lebih kecil dari harga perolehan',true);
+    if(met!=='tanpa'&&!(umur>=1))return toast('Umur minimal 1 bulan (atau pilih Tidak disusutkan)',true);if(res>=net)return toast('Nilai sisa harus lebih kecil dari harga perolehan bersih',true);
+    if(bayar!=='Utang'){const e=cekKas(bayar,total);if(e)return toast(e,true)}
+    const id=nextNo('AST-');let kid;
+    if(bayar==='Utang'){kid=jmAdd({tgl,ket:'Perolehan aset '+nama+' (belum dibayar)',lines:[{a:'aset',d:total,k:0},{a:'utangAset',d:0,k:total}],asetRef:id,sub:'perolehan'})}
+    else{kid=noFor('Kas',tgl);S.kas.push({id:kid,tgl,tipe:'investasi',arah:'keluar',nilai:total,metode:bayar,ket:'Investasi / peralatan: '+nama})}
+    let hid=null;if(hibah>0)hid=jmAdd({tgl,ket:'Hibah / subsidi untuk aset '+nama,lines:[{a:'bank',d:hibah,k:0},{a:'aset',d:0,k:hibah}],asetRef:id,sub:'hibah'});
+    S.aset.push({id,nama,tgl,harga:net,umur:met==='tanpa'?0:umur,residu:res,kasId:kid,metode:met,kat,tambah,hibah,hibahJm:hid,utang:bayar==='Utang'?kid:null});
+    try{AUD('Aset didaftarkan (lengkap)',nama+' · '+rp(net),id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Aset '+id+' terdaftar, nilai '+rp(net));
+  };
+  /* bayar utang aset */
+  const utangAsetSisa=a=>{if(!a.utang)return 0;const j=S.jm.find(e=>e.id===a.utang);if(!j||j.batal)return 0;const tot=sum(j.lines.filter(l=>l.a==='utangAset'),l=>+l.k||0);return tot-sum(S.jm.filter(e=>!e.batal&&e.bayarAset===a.id),e=>sum(e.lines.filter(l=>l.a==='utangAset'),l=>+l.d||0))};
+  ACT['a2-bayar']=t=>{const a=S.aset.find(x=>x.id===t.dataset.id);if(!a)return;openModal('Bayar Utang Aset · '+a.nama,`<div class="note">Sisa utang: <b>${rp(utangAsetSisa(a))}</b></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="ba-tgl">Tanggal</label><input class="in" type="date" id="ba-tgl" value="${ymd()}"></div><div class="field"><label class="lbl" for="ba-nilai">Jumlah (Rp)</label><input class="in" type="number" id="ba-nilai" min="0" step="1" value="${R(utangAsetSisa(a))}"></div><div class="field"><label class="lbl" for="ba-met">Dari</label><select class="in" id="ba-met"><option>Tunai</option><option>Transfer</option></select></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="a2-bayar-ok" data-id="${esc(a.id)}">Simpan</button>`,'sm')};
+  ACT['a2-bayar-ok']=t=>{
+    const a=S.aset.find(x=>x.id===t.dataset.id);if(!a)return;const tgl=$('#ba-tgl').value,v=R($('#ba-nilai').value),met=$('#ba-met').value,sisa=utangAsetSisa(a);
+    if(!tgl||tgl<a.tgl)return toast('Tanggal tidak valid',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);if(v>sisa+0.5)return toast('Melebihi sisa utang ('+rp(sisa)+')',true);const e=cekKas(met,v);if(e)return toast(e,true);
+    jmAdd({tgl,ket:'Pembayaran utang aset '+a.nama,lines:[{a:'utangAset',d:v,k:0},{a:kasAkun(met),d:0,k:v}],bayarAset:a.id,sub:'bayarutang'});
+    if(!commit())return;closeModal();refresh();toast('Pembayaran dicatat');
+  };
+
+  /* ---------- proyek dalam pembangunan ---------- */
+  const cipBiaya=c=>S.jm.filter(e=>!e.batal&&e.cipId===c.id&&e.sub==='cipbiaya');
+  const cipTotal=c=>sum(cipBiaya(c),e=>sum(e.lines.filter(l=>l.a==='asetCIP'),l=>+l.d||0));
+  ACT['cip-new']=()=>openModal('Proyek Baru',`<div class="field"><label class="lbl" for="cp-nama">Nama proyek</label><input class="in" id="cp-nama" placeholder="Contoh: Kebun kelapa sawit blok A (belum menghasilkan)"></div><div class="note" style="margin-top:8px">Untuk kebun yang belum panen, kandang, gudang, atau mesin yang sedang dibangun. Biaya dikumpulkan dulu, lalu dijadikan aset saat selesai atau mulai menghasilkan, baru disusutkan.</div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="cip-ok">Simpan</button>`,'sm');
+  ACT['cip-ok']=()=>{const nama=($('#cp-nama').value||'').trim();if(!nama)return toast('Nama proyek wajib diisi',true);if(S.cip.some(c=>c.nama.toLowerCase()===nama.toLowerCase()))return toast('Nama proyek sudah ada',true);let n=S.cip.length+1,id;do{id='CIP-'+String(n++).padStart(3,'0')}while(S.cip.some(c=>c.id===id));S.cip.push({id,nama,tgl:ymd()});if(!commit())return;closeModal();refresh();toast('Proyek '+id+' dibuat')};
+  ACT['cip-biaya']=t=>{const c=S.cip.find(x=>x.id===t.dataset.id);if(!c)return;openModal('Biaya Proyek · '+c.nama,`<div class="row"><div class="field"><label class="lbl" for="cb-tgl">Tanggal</label><input class="in" type="date" id="cb-tgl" value="${ymd()}"></div><div class="field"><label class="lbl" for="cb-nilai">Jumlah (Rp)</label><input class="in" type="number" id="cb-nilai" min="0" step="1"></div><div class="field"><label class="lbl" for="cb-met">Dibayar dari</label><select class="in" id="cb-met"><option>Tunai</option><option>Transfer</option></select></div></div><div class="field" style="margin-top:8px"><label class="lbl" for="cb-ket">Keterangan</label><input class="in" id="cb-ket" placeholder="Contoh: bibit, tenaga tanam, pupuk dasar"></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="cip-biaya-ok" data-id="${esc(c.id)}">Simpan</button>`,'sm')};
+  ACT['cip-biaya-ok']=t=>{
+    const c=S.cip.find(x=>x.id===t.dataset.id);if(!c||c.selesai)return toast('Proyek sudah selesai',true);const tgl=$('#cb-tgl').value,v=R($('#cb-nilai').value),met=$('#cb-met').value,ket=($('#cb-ket').value||'').trim();
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);if(!ket)return toast('Isi keterangan',true);const e=cekKas(met,v);if(e)return toast(e,true);
+    jmAdd({tgl,ket:'Biaya proyek '+c.nama+': '+ket,lines:[{a:'asetCIP',d:v,k:0},{a:kasAkun(met),d:0,k:v}],cipId:c.id,sub:'cipbiaya'});
+    if(!commit())return;closeModal();refresh();toast('Biaya proyek dicatat');
+  };
+  ACT['cip-selesai']=t=>{const c=S.cip.find(x=>x.id===t.dataset.id);if(!c)return;if(!(cipTotal(c)>0))return toast('Belum ada biaya pada proyek ini',true);
+    openModal('Selesaikan Proyek · '+c.nama,`<div class="note">Total biaya terkumpul: <b>${rp(cipTotal(c))}</b>. Nilai ini dipindah ke aset tetap dan mulai disusutkan bulan berikutnya.</div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="cs-tgl">Tanggal selesai / mulai menghasilkan</label><input class="in" type="date" id="cs-tgl" value="${ymd()}"></div><div class="field"><label class="lbl" for="cs-kat">Kategori aset</label><select class="in" id="cs-kat" data-chg="cs-kat">${KATA.map(k=>`<option>${esc(k)}</option>`).join('')}</select></div></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="cs-met">Metode</label><select class="in" id="cs-met">${METODE.map(m=>`<option value="${m[0]}">${m[1]}</option>`).join('')}</select></div><div class="field"><label class="lbl" for="cs-umur">Umur manfaat (bulan)</label><input class="in" type="number" id="cs-umur" min="0" step="1" value="${KAT_ASET[KATA[0]]}"></div><div class="field"><label class="lbl" for="cs-res">Nilai sisa (Rp)</label><input class="in" type="number" id="cs-res" min="0" step="1" value="0"></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="cip-selesai-ok" data-id="${esc(c.id)}">Jadikan Aset</button>`,'md')};
+  ACT['cs-kat']=t=>{const k=t.value;$('#cs-umur').value=k==='Tanah'?0:(KAT_ASET[k]||48);$('#cs-met').value=k==='Tanah'?'tanpa':'garis'};
+  ACT['cip-selesai-ok']=t=>{
+    const c=S.cip.find(x=>x.id===t.dataset.id);if(!c||c.selesai)return;const tgl=$('#cs-tgl').value,kat=$('#cs-kat').value,met=$('#cs-met').value,umur=Math.round(+$('#cs-umur').value||0),res=R($('#cs-res').value),tot=cipTotal(c);
+    const last=cipBiaya(c).reduce((a,e)=>e.tgl>a?e.tgl:a,'');if(!tgl||tgl<last)return toast('Tanggal selesai tidak boleh sebelum biaya terakhir ('+fmtTgl(last)+')',true);
+    if(met!=='tanpa'&&!(umur>=1))return toast('Umur minimal 1 bulan',true);if(res>=tot)return toast('Nilai sisa harus lebih kecil dari total biaya',true);
+    const id=nextNo('AST-'),jid=jmAdd({tgl,ket:'Proyek selesai '+c.nama+' menjadi aset '+id,lines:[{a:'aset',d:tot,k:0},{a:'asetCIP',d:0,k:tot}],cipId:c.id,sub:'cipselesai'});
+    S.aset.push({id,nama:c.nama,tgl,harga:tot,umur:met==='tanpa'?0:umur,residu:res,kasId:jid,metode:met,kat,dariCip:c.id});c.selesai={tgl,aset:id,jm:jid};
+    try{AUD('Proyek selesai',c.nama+' → '+id+' · '+rp(tot),c.id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Proyek menjadi aset '+id);
+  };
+
+  /* ---------- jasa (non-stok) ---------- */
+  const jasaOf=id=>S.jasa.find(j=>j.id===id);
+  const trxBayar=t=>sum(S.jm.filter(e=>!e.batal&&e.jasaBayar===t.id),e=>sum(e.lines.filter(l=>l.a==='piutangJasa'),l=>+l.k||0));
+  const trxSisa=t=>t.batal?0:(t.metode==='Tempo'?Math.max(0,t.total-trxBayar(t)):0);
+  ACT['js-new']=()=>openModal('Jenis Jasa Baru',`<div class="row"><div class="field" style="flex:2"><label class="lbl" for="jn-nama">Nama jasa</label><input class="in" id="jn-nama" placeholder="Contoh: Jasa giling padi, Sewa traktor per hari"></div><div class="field"><label class="lbl" for="jn-harga">Tarif standar (Rp)</label><input class="in" type="number" id="jn-harga" min="0" step="1"></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="js-ok">Simpan</button>`,'sm');
+  ACT['js-ok']=()=>{const nama=($('#jn-nama').value||'').trim(),h=R($('#jn-harga').value);if(!nama)return toast('Nama jasa wajib diisi',true);if(h<0)return toast('Tarif tidak valid',true);if(S.jasa.some(j=>j.nama.toLowerCase()===nama.toLowerCase()))return toast('Nama jasa sudah ada',true);let n=S.jasa.length+1,id;do{id='JSA-'+String(n++).padStart(3,'0')}while(jasaOf(id));S.jasa.push({id,nama,harga:h});if(!commit())return;closeModal();refresh();toast('Jasa '+id+' ditambahkan')};
+  ACT['jt-new']=()=>{if(!S.jasa.length)return toast('Tambah jenis jasa dulu',true);openModal('Catat Penjualan Jasa',`<div class="row"><div class="field"><label class="lbl" for="jt-tgl">Tanggal</label><input class="in" type="date" id="jt-tgl" value="${ymd()}"></div><div class="field" style="flex:2"><label class="lbl" for="jt-jasa">Jasa</label><select class="in" id="jt-jasa" data-chg="jt-pilih">${S.jasa.map(j=>`<option value="${esc(j.id)}">${esc(j.nama)}</option>`).join('')}</select></div></div>
+  <div class="row" style="margin-top:8px"><div class="field" style="flex:2"><label class="lbl" for="jt-mitra">Pelanggan</label><select class="in" id="jt-mitra"><option value="">– umum / tanpa nama –</option>${S.mitra.filter(m=>m.jenis==='Pelanggan').map(m=>`<option value="${esc(m.id)}">${esc(m.nama)}</option>`).join('')}</select></div><div class="field"><label class="lbl" for="jt-qty">Jumlah</label><input class="in" type="number" id="jt-qty" min="0" step="0.01" value="1"></div><div class="field"><label class="lbl" for="jt-harga">Tarif (Rp)</label><input class="in" type="number" id="jt-harga" min="0" step="1" value="${S.jasa[0].harga||0}"></div></div>
+  <div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="jt-met">Pembayaran</label><select class="in" id="jt-met"><option>Tunai</option><option>Transfer</option><option>Tempo</option></select></div><div class="field"><label class="lbl" for="jt-hari">Jatuh tempo (hari)</label><input class="in" type="number" id="jt-hari" min="1" value="14"></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="jt-ok">Simpan</button>`,'md')};
+  ACT['jt-pilih']=t=>{const j=jasaOf(t.value);if(j)$('#jt-harga').value=j.harga||0};
+  ACT['jt-ok']=()=>{
+    const tgl=$('#jt-tgl').value,jid=$('#jt-jasa').value,mitra=$('#jt-mitra').value,qty=+($('#jt-qty').value||0),h=R($('#jt-harga').value),met=$('#jt-met').value,hari=Math.max(1,+($('#jt-hari').value||14));
+    if(!tgl)return toast('Tanggal wajib diisi',true);if(!(qty>0))return toast('Jumlah harus lebih dari 0',true);if(!(h>0))return toast('Tarif harus lebih dari 0',true);if(met==='Tempo'&&!mitra)return toast('Penjualan tempo wajib memilih pelanggan terdaftar',true);
+    const total=R(qty*h);if(!(total>0))return toast('Total harus lebih dari 0',true);
+    let n=S.jasaTrx.length+1,id;do{id='JT-'+yymm(tgl)+'-'+String(n++).padStart(4,'0')}while(S.jasaTrx.some(t=>t.id===id));
+    const j=jasaOf(jid),akun=met==='Tempo'?'piutangJasa':kasAkun(met);
+    const jm=jmAdd({tgl,ket:'Jasa '+j.nama+' '+num(qty)+' × '+rp(h)+(mitra?' · '+mitraNama(mitra):''),lines:[{a:akun,d:total,k:0},{a:'pendJasa',d:0,k:total}],jasaId:id,sub:'jasajual'});
+    S.jasaTrx.push({id,tgl,jasa:jid,mitra,qty,harga:h,total,metode:met,jt:met==='Tempo'?addDays(tgl,hari):null,jm});
+    try{AUD('Penjualan jasa',j.nama+' · '+rp(total),id)}catch(e){}
+    if(!commit())return;closeModal();refresh();toast('Jasa '+id+' dicatat: '+rp(total));
+  };
+  ACT['jt-bayar']=t=>{const x=S.jasaTrx.find(y=>y.id===t.dataset.id);if(!x)return;openModal('Terima Pembayaran Jasa · '+x.id,`<div class="note">Sisa tagihan: <b>${rp(trxSisa(x))}</b></div><div class="row" style="margin-top:8px"><div class="field"><label class="lbl" for="jb-tgl">Tanggal</label><input class="in" type="date" id="jb-tgl" value="${ymd()}"></div><div class="field"><label class="lbl" for="jb-nilai">Jumlah (Rp)</label><input class="in" type="number" id="jb-nilai" min="0" step="1" value="${R(trxSisa(x))}"></div><div class="field"><label class="lbl" for="jb-met">Diterima di</label><select class="in" id="jb-met"><option>Tunai</option><option>Transfer</option></select></div></div>`,`<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="jb-ok" data-id="${esc(x.id)}">Simpan</button>`,'sm')};
+  ACT['jb-ok']=t=>{
+    const x=S.jasaTrx.find(y=>y.id===t.dataset.id);if(!x)return;const tgl=$('#jb-tgl').value,v=R($('#jb-nilai').value),met=$('#jb-met').value,s=trxSisa(x);
+    if(!tgl||tgl<x.tgl)return toast('Tanggal tidak valid',true);if(!(v>0))return toast('Jumlah harus lebih dari 0',true);if(v>s+0.5)return toast('Melebihi sisa tagihan ('+rp(s)+')',true);
+    jmAdd({tgl,ket:'Penerimaan jasa '+x.id,lines:[{a:kasAkun(met),d:v,k:0},{a:'piutangJasa',d:0,k:v}],jasaBayar:x.id,sub:'jasabayar'});
+    if(!commit())return;closeModal();refresh();toast('Pembayaran diterima');
+  };
+  ACT['jt-batal']=t=>{
+    const x=S.jasaTrx.find(y=>y.id===t.dataset.id);if(!x||x.batal)return;
+    x.batal=true;S.jm.forEach(e=>{if(e.jasaId===x.id||e.jasaBayar===x.id)e.batal=true});try{AUD('Batal jasa',x.id,x.id)}catch(e){}
+    if(!commit()){x.batal=false;return}refresh();toast('Transaksi jasa dibatalkan');
+  };
+
+  /* entri milik menu ini tidak dibatalkan dari Jurnal Manual (supaya sub-buku tetap cocok) */
+  const _jb=ACT['jm-batal'];
+  ACT['jm-batal']=t=>{const e=S.jm.find(x=>x.id===t.dataset.id);if(e&&e.modul==='invjasa')return toast('Entri ini dikelola menu Investasi & Jasa. Batalkan dari menu tersebut.',true);_jb(t)};
+
+  /* ---------- analisis kelayakan ---------- */
+  function analisis(inv,arus,r){
+    const n=arus.length;let npv=-inv,cum=-inv,pb=null;
+    arus.forEach((c,i)=>{npv+=c/Math.pow(1+r,i+1);const prev=cum;cum+=c;if(pb===null&&cum>=0&&c>0)pb=i+(-prev)/c});
+    const f=x=>{let v=-inv;arus.forEach((c,i)=>{v+=c/Math.pow(1+x,i+1)});return v};
+    let irr=null;if(f(-0.99)>0&&f(10)<0){let lo=-0.99,hi=10;for(let k=0;k<200;k++){const m=(lo+hi)/2;if(f(m)>0)lo=m;else hi=m}irr=(lo+hi)/2}
+    const pvIn=arus.reduce((a,c,i)=>a+c/Math.pow(1+r,i+1),0);
+    return {npv,irr,payback:pb,bc:inv>0?pvIn/inv:0,roi:inv>0?(arus.reduce((a,c)=>a+c,0)-inv)/inv:0,n};
+  }
+  window.invAnalisis=analisis;
+  ACT['an-hit']=()=>{
+    const inv=+($('#an-inv').value||0),r=(+($('#an-r').value||0))/100,arus=($('#an-arus').value||'').split(/[,;\s]+/).filter(Boolean).map(Number);
+    const el=$('#an-out');if(!el)return;
+    if(!(inv>0)||!arus.length||arus.some(x=>!isFinite(x))){el.innerHTML='Isi investasi awal dan arus kas bersih per tahun (pisahkan dengan koma).';return}
+    const a=analisis(inv,arus,r);
+    el.innerHTML=`<table class="tbl"><tbody><tr><td>Nilai bersih sekarang (NPV)</td><td class="r bold ${a.npv>=0?'ok-t':'bad-t'}">${rp(a.npv)}</td></tr><tr><td>Tingkat pengembalian (IRR)</td><td class="r">${a.irr===null?'tidak terhitung':pct(a.irr)}</td></tr><tr><td>Balik modal</td><td class="r">${a.payback===null?'belum balik modal dalam '+a.n+' tahun':dec(a.payback,1)+' tahun'}</td></tr><tr><td>Rasio manfaat / biaya (B/C)</td><td class="r">${dec(a.bc,2)}</td></tr><tr><td>Total laba / modal (ROI)</td><td class="r">${pct(a.roi)}</td></tr></tbody></table><div class="note" style="margin-top:8px">${a.npv>=0?'NPV positif: investasi layak pada tingkat diskonto ini.':'NPV negatif: pada tingkat diskonto ini investasi belum layak.'} Hitungan memakai angka yang Anda masukkan, hasilnya bergantung pada kebenaran asumsi.</div>`;
+  };
+
+  /* ---------- halaman ---------- */
+  KEU_EXT.aset2=()=>{
+    const today=todayISO();
+    const cips=S.cip.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(c.nama)}</td><td class="r">${rp(cipTotal(c))}</td><td>${c.selesai?badge('ok','Jadi aset '+c.selesai.aset):badge('warn','Berjalan')}</td><td>${c.selesai?'':`<button class="btn sm" data-act="cip-biaya" data-id="${esc(c.id)}">Biaya</button> <button class="btn sm pri" data-act="cip-selesai" data-id="${esc(c.id)}">Selesai</button>`}</td></tr>`).join('');
+    const utangAs=S.aset.filter(a=>a.utang&&utangAsetSisa(a)>0.5).map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.nama)}</td><td class="r">${rp(utangAsetSisa(a))}</td><td><button class="btn sm" data-act="a2-bayar" data-id="${esc(a.id)}">Bayar</button></td></tr>`).join('');
+    const jt=S.jasaTrx.slice().reverse().slice(0,40).map(t=>`<tr><td>${fmtTgl(t.tgl)}</td><td>${esc(t.id)}</td><td>${esc((jasaOf(t.jasa)||{}).nama||t.jasa)}</td><td>${esc(t.mitra?mitraNama(t.mitra):'umum')}</td><td class="r">${rp(t.total)}</td><td>${t.batal?badge('mute','Batal'):t.metode==='Tempo'?(trxSisa(t)>0.5?badge(t.jt&&t.jt<today?'bad':'warn','Sisa '+rp(trxSisa(t))):badge('ok','Lunas')):badge('ok',t.metode)}</td><td>${t.batal?'':(t.metode==='Tempo'&&trxSisa(t)>0.5?`<button class="btn sm" data-act="jt-bayar" data-id="${esc(t.id)}">Terima</button> `:'')+`<button class="btn sm ghost" data-act="jt-batal" data-id="${esc(t.id)}">Batal</button>`}</td></tr>`).join('');
+    const totJasa=sum(S.jasaTrx.filter(t=>!t.batal),t=>t.total),piuJasa=sum(S.jasaTrx,trxSisa);
+    return `<div class="card"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Aset Lengkap</h3><button class="btn pri" style="margin-left:auto" data-act="a2-new">${ic('plus')}Daftarkan Aset (lengkap)</button></div><div class="note">Mendukung biaya tambahan, hibah / subsidi, pembelian belum lunas, tanah (tidak disusutkan), dan penyusutan saldo menurun. Daftar aset dan jadwal penyusutan ada di tab Aset Tetap.</div>
+    ${utangAs?`<table class="tbl" style="margin-top:8px"><thead><tr><th>Aset</th><th>Nama</th><th class="r">Sisa utang aset</th><th></th></tr></thead><tbody>${utangAs}</tbody></table>`:''}</div>
+    <div class="card" style="margin-top:12px"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Proyek Dalam Pembangunan</h3><button class="btn pri" style="margin-left:auto" data-act="cip-new">${ic('plus')}Proyek Baru</button></div><div class="note" style="margin-bottom:8px">Kebun belum menghasilkan, kandang, gudang, dan mesin yang sedang dibangun. Total di neraca: <b>${rp(trial().asetCIP.saldo)}</b>.</div>
+    ${cips?`<div class="scroll"><table class="tbl"><thead><tr><th>Kode</th><th>Proyek</th><th class="r">Biaya terkumpul</th><th>Status</th><th></th></tr></thead><tbody>${cips}</tbody></table></div>`:'<div class="note">Belum ada proyek.</div>'}</div>
+    <div class="card" style="margin-top:12px"><div class="row" style="margin-bottom:8px"><h3 class="ch" style="margin:0">Jasa (tanpa stok)</h3><button class="btn" style="margin-left:auto" data-act="js-new">${ic('plus')}Jenis Jasa</button><button class="btn pri" style="margin-left:8px" data-act="jt-new">${ic('plus')}Catat Penjualan Jasa</button></div><div class="note" style="margin-bottom:8px">Contoh: jasa giling, sewa traktor, jasa semprot, angkut, penyuluhan. Masuk ke Pendapatan jasa di Laba Rugi. Total jasa: <b>${rp(totJasa)}</b> · Piutang jasa: <b>${rp(piuJasa)}</b>. Biaya jasa yang Anda bayar ke pihak lain dicatat lewat Catat Kas (kategori Jasa &amp; sewa pihak ketiga).</div>
+    ${jt?`<div class="scroll"><table class="tbl"><thead><tr><th>Tanggal</th><th>No</th><th>Jasa</th><th>Pelanggan</th><th class="r">Total</th><th>Status</th><th></th></tr></thead><tbody>${jt}</tbody></table></div>`:'<div class="note">Belum ada transaksi jasa.</div>'}</div>
+    <div class="card" style="margin-top:12px"><h3 class="ch">Analisis Kelayakan Investasi</h3><div class="row"><div class="field"><label class="lbl" for="an-inv">Investasi awal (Rp)</label><input class="in" id="an-inv" type="number" min="0" data-inp="an-hit"></div><div class="field"><label class="lbl" for="an-r">Tingkat diskonto (% per tahun)</label><input class="in" id="an-r" type="number" min="0" value="10" data-inp="an-hit"></div></div><div class="field" style="margin-top:8px"><label class="lbl" for="an-arus">Arus kas bersih per tahun (pisahkan koma)</label><input class="in" id="an-arus" placeholder="Contoh: 20000000, 25000000, 30000000" data-inp="an-hit"></div><div id="an-out" style="margin-top:10px" class="note">Isi investasi awal dan arus kas bersih per tahun.</div></div>`;
+  };
+
+  /* pemeriksaan sistem: jurnal harus sama dengan rincian tiap menu */
+  if(typeof checks==='function'){
+    const _ck=checks;
+    checks=function(){
+      const r=_ck.apply(this,arguments);
+      try{
+        const t=trial(null,null),add=(n,v)=>r.push([n,Math.abs(v)<1,rp(v)]);
+        add('Panjar petani: jurnal = rincian',t.panjarTani.saldo-sum(S.mitra,m=>window.utPanjarOf?window.utPanjarOf(m.id):0));
+        add('Simpanan anggota: jurnal = rincian',-t.simpananAnggota.saldo-sum((S.simpanan||[]).filter(x=>!x.batal&&!((S.jm||[]).find(e=>e.id===x.jm)||{}).batal),x=>x.arah==='masuk'?+x.nilai:-(+x.nilai)));
+        add('Piutang jasa: jurnal = rincian',t.piutangJasa.saldo-sum(S.jasaTrx,trxSisa));
+        add('Utang aset: jurnal = rincian',-t.utangAset.saldo-sum(S.aset,a=>utangAsetSisa(a)));
+        add('Proyek dalam pembangunan: jurnal = rincian',t.asetCIP.saldo-sum(S.cip.filter(c=>!c.selesai),cipTotal));
+        add('Aset tetap: jurnal = daftar aset',t.aset.saldo-sum(S.aset.filter(a=>!a.lepas),a=>+a.harga));
+      }catch(e){}
+      return r;
+    };
+  }
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
@@ -9326,7 +9499,7 @@ ACT['bk-ke-keuangan']=()=>{ui.keu.tab='benefit';ui.keu.page=1;location.hash='#ke
   const _k=PAGES.keuangan;
   PAGES.keuangan=function(){
     const r=_k.apply(this,arguments),T=ui.keu;
-    const tabs=[['kas','Kas & Bank'],['benefit','Benefit Pemasok ('+num(bkMenunggu())+' menunggu)'],['lr','Laba Rugi & Posisi'],['bs','Neraca'],['neraca','Neraca Saldo'],['bb','Buku Besar'],['jurnal','Jurnal Umum'],['jm','Jurnal Manual & Transfer'],['aset','Aset Tetap'],['pinjaman','Pinjaman'],['rek','Rekonsiliasi Bank'],['ang','Anggaran'],['coa','Bagan Akun'],['tutup','Tutup Buku']];
+    const tabs=[['kas','Kas & Bank'],['benefit','Benefit Pemasok ('+num(bkMenunggu())+' menunggu)'],['lr','Laba Rugi & Posisi'],['bs','Neraca'],['neraca','Neraca Saldo'],['bb','Buku Besar'],['jurnal','Jurnal Umum'],['jm','Jurnal Manual & Transfer'],['aset','Aset Tetap'],['aset2','Investasi & Jasa'],['pinjaman','Pinjaman'],['rek','Rekonsiliasi Bank'],['ang','Anggaran'],['coa','Bagan Akun'],['tutup','Tutup Buku']];
     const rest=r.html.slice(r.html.indexOf('</div>')+6);
     r.html='<div class="tabs">'+tabs.map(t=>'<button class="tab '+(T.tab===t[0]?'on':'')+'" data-act="keu-tab" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+(T.tab==='benefit'?bkHtml():rest);
     return r;
