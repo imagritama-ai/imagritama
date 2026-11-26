@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2420"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2430"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5355,6 +5355,74 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
     if(typeof posStatusOn!=='undefined'&&posStatusOn&&typeof posStatusT!=='undefined'){clearTimeout(posStatusT);
       posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},90000)}}catch(x){}};
   ['wheel','pointerdown','scroll','touchmove'].forEach(ev=>document.addEventListener(ev,rearm,{capture:true,passive:true}));
+})();
+
+/* ====== PERUSAHAAN PRODUK: pilih file Excel (.xlsx) -> isi otomatis kotak tempel, lalu Periksa & Terapkan seperti biasa ====== */
+async function ppXlsxEntries(buf){
+  const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);
+  let e=-1;for(let i=buf.length-22;i>=Math.max(0,buf.length-70000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
+  if(e<0)throw new Error('File Excel tidak terbaca');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out={};
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const meth=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    const nama=new TextDecoder().decode(buf.subarray(p+46,p+46+nl));p+=46+nl+xl+cl;
+    if(!/^xl\/(sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(nama))continue;
+    const ln=dv.getUint16(lo+26,true),lx=dv.getUint16(lo+28,true),ds=lo+30+ln+lx,data=buf.subarray(ds,ds+cs);
+    let bytes;
+    if(meth===0)bytes=data;
+    else if(meth===8){const s=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));bytes=new Uint8Array(await new Response(s).arrayBuffer())}
+    else continue;
+    out[nama]=new TextDecoder().decode(bytes);
+  }
+  return out;
+}
+const ppColNo=r=>{const m=/^([A-Z]+)/.exec(r||'');if(!m)return -1;let n=0;for(const ch of m[1])n=n*26+ch.charCodeAt(0)-64;return n-1};
+async function ppXlsxRows(file){
+  const ent=await ppXlsxEntries(new Uint8Array(await file.arrayBuffer()));
+  const sh=Object.keys(ent).filter(k=>/worksheets\//.test(k)).sort()[0];
+  if(!sh)throw new Error('Lembar kerja tidak ditemukan');
+  const dp=new DOMParser(),ss=[];
+  if(ent['xl/sharedStrings.xml']){const d=dp.parseFromString(ent['xl/sharedStrings.xml'],'application/xml');d.querySelectorAll('si').forEach(si=>ss.push(Array.from(si.querySelectorAll('t')).map(t=>t.textContent).join('')))}
+  const d=dp.parseFromString(ent[sh],'application/xml'),rows=[];
+  d.querySelectorAll('sheetData>row').forEach(r=>{const a=[];
+    r.querySelectorAll(':scope>c').forEach(c=>{const i=ppColNo(c.getAttribute('r'));if(i<0)return;const t=c.getAttribute('t');let v='';
+      if(t==='s'){const x=c.querySelector('v');v=x?ss[+x.textContent]||'':''}
+      else if(t==='inlineStr'){v=Array.from(c.querySelectorAll('t')).map(x=>x.textContent).join('')}
+      else{const x=c.querySelector('v');v=x?x.textContent:''}
+      a[i]=String(v).trim()});
+    rows.push(a)});
+  return rows;
+}
+async function ppXlsxMasuk(file){
+  toast('Membaca file Excel…');
+  try{
+    const rows=await ppXlsxRows(file);
+    const hi=rows.findIndex(r=>r&&r.some(x=>/^product_?id$/i.test(x||''))&&r.some(x=>/perusahaan|principal/i.test(x||'')));
+    if(hi<0)throw new Error('Judul kolom "Product_ID" dan "Perusahaan (principal)" tidak ditemukan');
+    const h=rows[hi],ci=h.findIndex(x=>/^product_?id$/i.test(x||'')),cp=h.findIndex(x=>/perusahaan|principal/i.test(x||''));
+    const L=[];let kosong=0;
+    rows.slice(hi+1).forEach(r=>{if(!r)return;const id=(r[ci]||'').trim(),pr=(r[cp]||'').trim();if(!id)return;if(!pr){kosong++;return}L.push(id+'\t'+pr)});
+    const t=document.getElementById('pp-teks');if(!t)return toast('Buka dulu jendela Perusahaan produk',true);
+    t.value=L.join('\n');ACT['pp-cek']();
+    toast(L.length+' baris terbaca dari Excel'+(kosong?', '+kosong+' baris perusahaan kosong dilewati (data lama tidak diubah)':''));
+  }catch(e){toast('Gagal membaca Excel: '+(e&&e.message||e),true)}
+}
+function ppXlsxInput(){
+  let i=document.getElementById('ppxin');
+  if(!i){i=document.createElement('input');i.type='file';i.id='ppxin';i.accept='.xlsx';i.style.display='none';document.body.appendChild(i);
+    i.addEventListener('change',async()=>{const f=i.files&&i.files[0];i.value='';if(f)await ppXlsxMasuk(f)})}
+  return i;
+}
+ACT['pp-xlsx']=()=>ppXlsxInput().click();
+(function(){
+  const _o=ACT['pp-open'];
+  ACT['pp-open']=function(){
+    const r=_o.apply(this,arguments);
+    try{const b=document.querySelector('[data-act="pp-tpl"]');
+      if(b&&!document.querySelector('[data-act="pp-xlsx"]')){const x=document.createElement('button');x.className='btn pri';x.setAttribute('data-act','pp-xlsx');x.textContent='Pilih file Excel (.xlsx) yang sudah diisi';b.parentNode.insertBefore(x,b)}}catch(e){}
+    return r;
+  };
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
