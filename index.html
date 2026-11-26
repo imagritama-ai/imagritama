@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1012"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-1014"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -8274,6 +8274,36 @@ function ktCari(r){
     if(tan!==null&&S.spek[pid]){S.spek[pid].tan=tan;commit()}
   };
 }
+
+/* ====== Kelengkapan data label pestisida (pemilik): daftar produk yang belum bisa disarankan Konsultasi ====== */
+const KV_KAT=['Insektisida','Fungisida','Herbisida Selektif','Herbisida Umum'];
+function kvList(){
+  return S.produk.filter(p=>KV_KAT.includes(p.kategori)).map(p=>{
+    const sp=spekOf(p.id)||{},opts=ktOpts(p),tan=String(sp.tan||'').trim(),ver=sp.status==='Terverifikasi';
+    const st=opts.length&&tan&&ver?'lengkap':opts.length?'draf':'kosong';
+    const stok=sum(S.sku.filter(s=>s.pid===p.id),s=>(D.inv[s.sku]||{}).qty||0);
+    return {p,sp,st,stok,opts,tan};
+  });
+}
+{
+  const _k=konsulHTML;
+  konsulHTML=function(){
+    let h=_k.apply(this,arguments);if(!finOK())return h;
+    const L=kvList(),n=k=>L.filter(x=>x.st===k).length;
+    const card='<section class="card" style="margin-top:12px"><h3 class="ch">Kelengkapan data label pestisida</h3><div class="small muted">Konsultasi hanya menyarankan produk yang labelnya tercatat. Makin lengkap datanya, makin tepat sarannya.</div>'
+      +'<div class="row" style="gap:10px;margin:8px 0">'+kpi('green','box','Siap disarankan',n('lengkap'),'hama + tanaman + terverifikasi')+kpi('amber','warn','Draf',n('draf'),'perlu tanaman / verifikasi')+kpi('red','warn','Belum ada data',n('kosong'),'tidak akan disarankan')+'</div>'
+      +'<button class="btn pri" data-act="kv-daftar">Lengkapi data produk</button></section>';
+    return h+card;
+  };
+}
+ACT['kv-daftar']=()=>{
+  if(!finOK())return;
+  const L=kvList().filter(x=>x.st!=='lengkap').sort((a,b)=>(b.stok>0)-(a.stok>0)||(a.st==='draf'?-1:1)-(b.st==='draf'?-1:1)||b.stok-a.stok).slice(0,60);
+  openModal('Lengkapi data label ('+L.length+' produk teratas)','<div class="small muted" style="margin-bottom:6px">Isi dari label kemasan: hama atau penyakit sasaran (pisahkan koma), tanaman yang tercantum, lalu ubah status ke Terverifikasi setelah Anda cocokkan dengan label. Produk yang ada stoknya di atas.</div>'
+   +'<div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th>Kategori</th><th class="r">Stok</th><th>Hama/penyakit sasaran</th><th>Tanaman</th><th>Status</th><th></th></tr></thead><tbody>'
+   +L.map(x=>'<tr><td><b>'+esc(x.p.nama)+'</b><div class="small muted">'+esc(x.p.id)+'</div></td><td class="small">'+esc(x.p.kategori)+'</td><td class="r">'+nd(x.stok)+'</td><td class="small">'+esc(x.p.target||'–')+'</td><td class="small">'+esc(x.tan||'–')+'</td><td>'+(x.st==='draf'?badge('warn','Draf'):badge('mute','Kosong'))+'</td><td><button class="btn sm" data-act="spek-edit" data-pid="'+esc(x.p.id)+'">Isi</button></td></tr>').join('')
+   +'</tbody></table></div>','<button class="btn pri" data-act="close">Tutup</button>','lg');
+};
 
 if(typeof onlineBoot==='function'&&onlineBoot)onlineBoot();else{shell();route()}
 
