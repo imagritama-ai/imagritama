@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2410"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2420"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5231,7 +5231,22 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
 .stpop>.card:first-of-type>div:first-child{padding-right:36px}
 .stpop .stx{position:absolute;top:6px;right:8px;z-index:5;width:28px;height:28px;border-radius:50%;border:1px solid var(--line,#d9e2f1);background:#fff;color:#475467;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .stpop .stx:hover{background:#fee4e2;color:#b42318}
-.stpop .stef{width:118px;max-width:100%;text-align:right;font-weight:700;padding:4px 6px;font-size:13px}
+/* kepala panel dibuat ringkas supaya daftar produk lebih banyak terlihat */
+.stpop>.card:first-of-type{padding:6px 10px!important}
+.stpop>.card:first-of-type>div:first-of-type>div:first-child{display:flex!important;align-items:baseline;gap:8px}
+.stpop>.card:first-of-type>div:first-of-type>div:first-child>div{font-size:16px!important;line-height:1.2}
+.stpop>.card:first-of-type>div:first-of-type>div:nth-child(2){font-size:18px!important}
+.stpop>.card:first-of-type>div[style*="repeat(6"]{margin-top:3px!important;gap:3px!important}
+.stpop>.card:first-of-type>div[style*="repeat(6"]>div>div:first-child{height:5px!important}
+.stpop>.card:first-of-type>div[style*="repeat(6"]>div>div:nth-child(2){margin-top:1px!important;font-size:10px!important}
+.stpop>.card:first-of-type>div[style*="repeat(6"]>div>div:nth-child(3){display:none!important}
+.stpop>.card:first-of-type>div[style*="font-weight:600"]{margin-top:3px!important;font-size:12.5px}
+.stpop>.card:first-of-type .totbox{margin-top:4px!important;padding:4px 10px!important;gap:6px!important}
+.stpop>.card:first-of-type .totbox .line{font-size:11px;color:#667085}
+.stpop>.card:first-of-type .totbox .line b{font-size:13px;color:inherit}
+.stpop>.card:first-of-type .totbox .line:not(:has(b[style])) b{color:#101828}
+.stpop.stown .tbl th,.stpop.stown .tbl td{padding-top:4px!important;padding-bottom:4px!important}
+.stpop .stef{width:132px;max-width:100%;text-align:right;font-weight:700;padding:4px 8px;font-size:13px}
 }
 /* semua kartu: area foto kecil dan seragam; produk tanpa foto memakai ikon samar */
 .pgrid .pc .pi{height:56px;min-height:0;margin:0 0 2px}
