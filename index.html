@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0826"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-0837"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -7613,11 +7613,14 @@ function plHitung(p){
   return {tunai,barang,pribadi,peleb,bonus,bel,tgt,pembagi,tercapai:tgt>0&&bel>=tgt,pct:tgt>0?bel/tgt:0,
     rA:pembagi>0?peleb/pembagi:0,rB:pembagi>0?(peleb+bonus)/pembagi:0};
 }
+function plNilaiSku(p,k){let v=0;for(const x of plDocs(p))if(x.it.sku===k)v+=(+x.it.qty||0)*(+x.it.harga||0);return v>0?v:(+(p.rencana||{})[k]||0)}
 function plEfektif(p){
-  const H=plHitung(p);
-  return (p.skus||[]).map(sku=>{const s=skuOf(sku)||{},hb=plHargaBeli(p,sku),pes=+(p.pesaing||{})[sku]||0;
-    const A=hb.h*(1-H.rA),Bv=hb.h*(1-H.rB);
-    return {sku,nama:s.nama||sku,jual:+s.harga||0,beli:hb.h,sumber:hb.sumber,A,B:Bv,pes,mA:pes?pes-A:null,mB:pes?pes-Bv:null};
+  const H=plHitung(p),all=p.skus||[],sel=Array.isArray(p.lebur)?all.filter(k=>p.lebur.includes(k)):all,sub=sel.length<all.length;
+  const nilaiSel=sub?sel.reduce((a,k)=>a+plNilaiSku(p,k),0):H.pembagi;
+  const rA=nilaiSel>0?Math.min(1,H.peleb/nilaiSel):0,rB=nilaiSel>0?Math.min(1,(H.peleb+H.bonus)/nilaiSel):0;
+  return all.map(sku=>{const s=skuOf(sku)||{},hb=plHargaBeli(p,sku),pes=+(p.pesaing||{})[sku]||0,on=sel.includes(sku);
+    const A=on?hb.h*(1-rA):hb.h,Bv=on?hb.h*(1-rB):hb.h;
+    return {sku,nama:s.nama||sku,jual:+s.harga||0,beli:hb.h,sumber:hb.sumber,A,B:Bv,pes,mA:pes?pes-A:null,mB:pes?pes-Bv:null,on,sub,rA,rB,nilaiSel,aktual:plNilaiSku(p,sku)>0&&plDocs(p).some(x=>x.it.sku===sku),ren:+(p.rencana||{})[sku]||0};
   });
 }
 /* ---------- tampilan ---------- */
@@ -7640,8 +7643,8 @@ function plCard(p,can){
    +'</tbody></table></div>'+(can?'<div style="margin-top:8px"><button class="btn sm pri" data-act="pl-bn-form" data-p="'+esc(p.id)+'">'+ic('plus')+'Tambah benefit</button> <button class="btn sm" data-act="pl-massal" data-p="'+esc(p.id)+'" data-m="pendLain">Semua tunai → bonus (bukan pelebur HPP)</button> <button class="btn sm" data-act="pl-massal" data-p="'+esc(p.id)+'" data-m="hpp">Semua tunai → pelebur HPP</button></div>':'')
    +(H.pribadi>0?'<div class="note" style="margin-top:8px">Benefit pribadi '+rp(H.pribadi)+' tidak ikut dihitung dan tidak masuk pembukuan toko. Konsultasikan perlakuan pajaknya.</div>':'')
    +'<h3 style="margin:14px 0 6px">HPP efektif per produk</h3><div class="note" style="margin-bottom:8px">Benefit dibagi ke produk menurut <b>nilai belanja</b> (pembagi: '+rp(H.pembagi)+'). <b>Skenario A</b> = hanya benefit berperlakuan Pengurang HPP ('+pct(H.rA)+'). <b>Skenario B</b> = A + bonus berperlakuan Pendapatan lain ('+pct(H.rB)+'). '+(H.tercapai?'Target sudah tercapai.':'Target belum tercapai, jadi angka ini <b>perkiraan bila target tercapai</b>.')+' Ini angka bantu untuk harga, bukan pembukuan: HPP di laporan baru berkurang saat benefit dicairkan.</div>'
-   +'<div class="scroll"><table class="tbl"><thead><tr><th>Produk</th><th class="r">Harga beli</th><th class="r">HPP efektif A</th><th class="r">HPP efektif B</th><th class="r">Harga jual toko</th><th class="r">Harga pesaing</th><th class="r">Sisa untung vs pesaing (B)</th></tr></thead><tbody>'
-   +(E.map(e=>'<tr><td>'+esc(e.nama)+'<div class="small muted">'+esc(e.sku)+(e.sumber?' · '+e.sumber:'')+'</div></td><td class="r">'+(e.beli?rp(e.beli):'–')+'</td><td class="r">'+(e.beli?rp(e.A):'–')+'</td><td class="r"><b>'+(e.beli?rp(e.B):'–')+'</b></td><td class="r">'+(e.jual?rp(e.jual):'–')+'</td><td class="r">'+(can?'<input class="in" type="number" min="0" style="width:110px;text-align:right" value="'+(e.pes||'')+'" data-chg="pl-pes" data-p="'+esc(p.id)+'" data-sku="'+esc(e.sku)+'" aria-label="Harga pesaing '+esc(e.nama)+'">':(e.pes?rp(e.pes):'–'))+'</td><td class="r">'+(e.pes&&e.beli?'<span style="color:var(--'+(e.mB<0?'red':'green')+')">'+rp(e.mB)+'</span>':'–')+'</td></tr>').join('')||'<tr><td colspan="7" class="empty">Belum ada produk di program ini.</td></tr>')
+   +(E.length&&E[0].sub?'<div class="note" style="margin-bottom:8px">Benefit hanya melebur <b>produk yang dicentang</b> ('+E.filter(e=>e.on).length+' dari '+E.length+'). Pembagi: <b>'+rp(E[0].nilaiSel)+'</b> (belanja produk dicentang; bila belum ada pembelian, isi Rencana belanja). Persentase A '+pct(E[0].rA)+', B '+pct(E[0].rB)+'. Produk tidak dicentang tetap di harga beli penuh.'+(E[0].nilaiSel<=0?' <b>Isi Rencana belanja produk yang dicentang.</b>':'')+'</div>':'')+'<div class="scroll"><table class="tbl"><thead><tr><th>Lebur?</th><th>Produk</th><th class="r">Harga beli</th><th class="r">HPP efektif A</th><th class="r">HPP efektif B</th><th class="r">Harga jual toko</th><th class="r">Harga pesaing</th><th class="r">Sisa untung vs pesaing (B)</th></tr></thead><tbody>'
+   +(E.map(e=>'<tr><td>'+(can?'<input type="checkbox" data-chg="pl-lebur" data-p="'+esc(p.id)+'" data-sku="'+esc(e.sku)+'"'+(e.on?' checked':'')+' aria-label="Lebur HPP '+esc(e.nama)+'">':(e.on?'Ya':'–'))+(can&&e.sub&&e.on&&!e.aktual?'<div class="small muted">Rencana belanja</div><input class="in" type="number" min="0" style="width:100px;text-align:right" value="'+(e.ren||'')+'" data-chg="pl-ren" data-p="'+esc(p.id)+'" data-sku="'+esc(e.sku)+'" aria-label="Rencana belanja '+esc(e.nama)+'">':'')+'</td><td>'+esc(e.nama)+'<div class="small muted">'+esc(e.sku)+(e.sumber?' · '+e.sumber:'')+'</div></td><td class="r">'+(e.beli?rp(e.beli):'–')+'</td><td class="r">'+(e.beli?rp(e.A):'–')+'</td><td class="r"><b>'+(e.beli?rp(e.B):'–')+'</b></td><td class="r">'+(e.jual?rp(e.jual):'–')+'</td><td class="r">'+(can?'<input class="in" type="number" min="0" style="width:110px;text-align:right" value="'+(e.pes||'')+'" data-chg="pl-pes" data-p="'+esc(p.id)+'" data-sku="'+esc(e.sku)+'" aria-label="Harga pesaing '+esc(e.nama)+'">':(e.pes?rp(e.pes):'–'))+'</td><td class="r">'+(e.pes&&e.beli?'<span style="color:var(--'+(e.mB<0?'red':'green')+')">'+rp(e.mB)+'</span>':'–')+'</td></tr>').join('')||'<tr><td colspan="8" class="empty">Belum ada produk di program ini.</td></tr>')
    +'</tbody></table></div></div>';
 }
 function plHtml(){
@@ -7699,6 +7702,16 @@ ACT['pl-del-ok']=t=>{
   if(!hbBolehUbah())return;const i=plList().findIndex(p=>p.id===t.dataset.id);if(i<0)return;const p=plList()[i];
   if((p.benefit||[]).some(b=>b.status==='Cair'))return;
   plList().splice(i,1);AUD('Program belanja dihapus',p.id+' '+p.nama,p.id);if(!commit())return;closeModal();refresh();toast('Program dihapus');
+};
+ACT['pl-lebur']=el=>{
+  if(!hbBolehUbah())return;const p=plP(el.dataset.p);if(!p)return;const all=p.skus||[];
+  let cur=Array.isArray(p.lebur)?p.lebur.filter(k=>all.includes(k)):[...all];
+  if(el.checked){if(!cur.includes(el.dataset.sku))cur.push(el.dataset.sku)}else cur=cur.filter(k=>k!==el.dataset.sku);
+  p.lebur=cur.length===all.length?null:cur;AUD('Produk pelebur HPP diubah',p.id+' '+(p.lebur?p.lebur.length+' dari '+all.length+' produk':'semua produk'),p.id);if(!commit())return;refresh();
+};
+ACT['pl-ren']=el=>{
+  if(!hbBolehUbah())return;const p=plP(el.dataset.p);if(!p)return;p.rencana=p.rencana||{};const v=+el.value;
+  if(v>0)p.rencana[el.dataset.sku]=v;else delete p.rencana[el.dataset.sku];if(!commit())return;refresh();
 };
 ACT['pl-pes']=el=>{
   if(!hbBolehUbah())return;const p=plP(el.dataset.p);if(!p)return;p.pesaing=p.pesaing||{};const v=+el.value;
