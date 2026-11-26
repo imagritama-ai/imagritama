@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2100"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2200"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5075,6 +5075,61 @@ function kcTabel(rows){
     const bd=w.tier===1?badge('ok','Sesuai label'):w.umum?badge('mute','Cocok umum saja'):badge('warn','Perlu dicek');
     return '<tr><td><b>'+esc(s.nama)+'</b><br><span class="small muted">'+esc(s.pid)+' · '+esc(s.sku)+'</span></td><td>'+packLabel(s)+'</td><td class="r">'+rp(s.harga)+'</td><td class="r">'+nd(D.inv[w.sku].qty)+'</td><td class="small">'+bd+' '+esc(w.alasan)+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="kon-sim" data-sku="'+esc(w.sku)+'">'+ic('calc')+'Simulasikan</button> <button class="btn sm ghost" data-act="kon-bdg" data-sku="'+esc(w.sku)+'">'+ic('scale')+'Bandingkan</button> <button class="btn sm ghost" data-act="kon-cart" data-sku="'+esc(w.sku)+'">'+ic('plus')+'Keranjang</button></td></tr>'}).join('')+'</tbody></table></div>';
 }
+/* ====== Bersihkan Transaksi: hapus semua transaksi tetapi data produk, harga, data teknis, mitra, dan pengaturan TETAP ====== */
+const BS_KEY='imagritama.cadangan.sebelum-bersih';
+const BS_SIMPAN=['produk','sku','spek','settings','coa','gudang','paket','principal','hbeli','mh','anggaran','program'];
+function bsRingkas(){
+  const asal=S.docs.filter(d=>d.cat==='Saldo awal (Excel)').length;
+  return {faktur:S.docs.filter(d=>d.cat!=='Saldo awal (Excel)').length,kas:(S.kas||[]).length,jm:(S.jm||[]).length,konsultasi:(S.konsultasi||[]).length,penawaran:(S.penawaran||[]).length,draf:(S.drafts||[]).length,po:(S.po||[]).length,
+    demo:S.docs.some(d=>d.demo),asal,produk:S.produk.length,spek:Object.keys(S.spek||{}).length,mitra:S.mitra.filter(m=>!m.demo).length};
+}
+(function(){
+  const _p=PAGES.pengaturan;
+  PAGES.pengaturan=function(){
+    const r=_p.apply(this,arguments);
+    try{
+      if(typeof finOK==='function'&&!finOK())return r;
+      let pulih='';try{const c=localStorage.getItem(BS_KEY);if(c){const o=JSON.parse(c);pulih='<button class="btn" data-act="bersih-pulih">Pulihkan cadangan terakhir ('+esc(o.waktu||'')+')</button>'}}catch(e){}
+      const card='<div class="card" style="margin-top:12px"><h3>Bersihkan Transaksi (data produk tetap)</h3><p class="small muted">Menghapus semua transaksi: penjualan, pembelian baru, retur, biaya, kas, jurnal manual, riwayat konsultasi, dan data contoh. <b>Tetap aman</b>: data produk dan SKU (nama, harga, kemasan), data teknis/sasaran/tanaman, pelanggan dan pemasok Anda, gudang, daftar akun, serta pengaturan toko. Stok dan utang kembali ke saldo awal dari Excel. Sebelum menghapus, sistem membuat cadangan otomatis.</p><div class="row"><button class="btn danger" data-act="bersih-ask">Bersihkan Transaksi</button>'+pulih+'</div></div>';
+      r.html=r.html+card;
+    }catch(e){console.error(e)}
+    return r;
+  };
+})();
+ACT['bersih-ask']=()=>{
+  const x=bsRingkas();
+  openModal('Bersihkan Transaksi',
+   '<p>Yang akan <b>dihapus</b>:</p><ul class="small" style="margin:4px 0 8px 18px"><li>'+x.faktur+' faktur/transaksi (penjualan, pembelian baru, retur, opname)</li><li>'+x.kas+' catatan kas/biaya, '+x.jm+' jurnal manual</li><li>'+x.konsultasi+' riwayat konsultasi, '+x.penawaran+' penawaran, '+x.draf+' draf, '+x.po+' pesanan</li>'+(x.demo?'<li>Data contoh</li>':'')+'</ul>'
+   +'<p>Yang <b>tetap ada</b>:</p><ul class="small" style="margin:4px 0 8px 18px"><li>'+x.produk+' produk dan semua SKU beserta perubahan Anda (nama, harga, kemasan)</li><li>'+x.spek+' data teknis produk, serta isi sasaran/tanaman/bahan aktif</li><li>'+x.mitra+' pelanggan/pemasok, gudang, daftar akun, pengaturan toko (nama usaha, alamat, pajak)</li><li>'+x.asal+' faktur saldo awal dari Excel (stok dan utang awal)</li></ul>'
+   +'<div class="note">Cadangan otomatis disimpan di perangkat ini dan bisa dipulihkan dari Pengaturan. Untuk keamanan ekstra, salin juga lewat "Cadangkan (salin JSON)".</div>'
+   +'<div class="field" style="margin-top:10px"><label class="lbl" for="bs-ketik">Ketik BERSIH untuk melanjutkan</label><input class="in" id="bs-ketik" autocomplete="off" placeholder="BERSIH"></div>',
+   '<button class="btn" data-act="close">Batal</button><button class="btn danger" data-act="bersih-ok">Hapus Transaksi</button>','md');
+};
+ACT['bersih-ok']=()=>{
+  const el=$('#bs-ketik');if(!el||String(el.value).trim().toUpperCase()!=='BERSIH')return toast('Ketik BERSIH dulu untuk melanjutkan',true);
+  const waktu=new Date().toLocaleString('id-ID');
+  try{localStorage.setItem(BS_KEY,JSON.stringify({waktu,data:S}))}catch(e){return toast('Cadangan otomatis gagal (penyimpanan penuh). Salin cadangan manual dulu di Pengaturan, tidak ada yang dihapus.',true)}
+  const fresh=seedState(),lama=S;
+  BS_SIMPAN.forEach(k=>{if(lama[k]!==undefined)fresh[k]=lama[k]});
+  fresh.mitra=lama.mitra.filter(m=>!m.demo);
+  if(fresh.settings){delete fresh.settings.kunci}
+  ['kas','drafts','konsultasi','penawaran','tugas','approval','audit'].forEach(k=>{if(!Array.isArray(fresh[k]))fresh[k]=[]});
+  S=fresh;['jm','aset','po'].forEach(k=>{if(!S[k])S[k]=[]});if(!S.rekon)S.rekon={cleared:{},saldo:0};
+  try{rebuildAkun()}catch(e){}
+  ui.chat=[];resetCart();ui.trx.sel=null;
+  try{AUD('Pengaturan','Bersihkan transaksi (data produk dan pengaturan dipertahankan)','')}catch(e){}
+  commit();closeModal();location.hash='#dashboard';refresh();toast('Transaksi dibersihkan. Data produk dan pengaturan tetap. Cadangan tersimpan.');
+};
+ACT['bersih-pulih']=()=>{
+  openModal('Pulihkan Cadangan','<p>Data saat ini akan <b>diganti</b> dengan cadangan terakhir sebelum pembersihan. Lanjutkan?</p>','<button class="btn" data-act="close">Batal</button><button class="btn pri" data-act="bersih-pulih-ok">Ya, pulihkan</button>','sm');
+};
+ACT['bersih-pulih-ok']=()=>{
+  try{
+    const o=JSON.parse(localStorage.getItem(BS_KEY));if(!o||!o.data)throw 0;
+    const ta=document.createElement('textarea');ta.id='bk-in';ta.style.display='none';ta.value=JSON.stringify(o.data);document.body.appendChild(ta);
+    try{ACT['bk-go']()}finally{ta.remove()}
+  }catch(e){toast('Cadangan tidak ditemukan',true)}
+};
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
 const TKEY='imagritama_tema_v1';
 function temaGet(){let t='terang';try{t=localStorage.getItem(TKEY)||'terang'}catch(e){}return t==='navy'?'navy':'terang'}
