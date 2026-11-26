@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2380"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2390"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5203,15 +5203,23 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
     st.textContent=`
 /* panel Status & Nego cepat: lebih tinggi dan lebar, memakai tinggi layar yang ada */
 @media (min-width:901px){.stpop{position:fixed!important;left:auto!important;right:14px!important;top:var(--stpt,112px)!important;bottom:14px!important;max-height:none!important;width:min(480px,calc(100vw - 28px))!important;overscroll-behavior:contain;z-index:120!important}}
-/* tampilan Owner: panel dilebarkan agar tabel harga efektif, HPP, impas, target, margin terlihat penuh tanpa digeser; nama produk tidak dipotong */
+/* tampilan Owner: panel lebar; judul tabel dan ringkasan tetap diam, hanya baris produk yang bergulir; nama produk tidak dipotong */
 @media (min-width:901px){
-.stpop.stown{width:min(1040px,calc(100vw - 28px))!important}
-.stpop.stown .scroll{overflow:visible!important;max-height:none!important}
+.stpop.stown{width:min(1040px,calc(100vw - 28px))!important;display:flex!important;flex-direction:column;overflow:hidden!important}
+.stpop.stown>.card:first-child{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.stpop.stown>.card:first-child .scroll{flex:1 1 auto;min-height:0;overflow:auto!important;max-height:none!important}
+.stpop.stown>.card:last-child:not(:first-child){flex:0 1 auto;max-height:28%;overflow:auto}
 .stpop.stown .tbl{width:100%;table-layout:auto}
+.stpop.stown .tbl thead th{position:sticky;top:0;z-index:2;background:#eaf0fb}
 .stpop.stown .tbl th,.stpop.stown .tbl td{white-space:nowrap;padding:6px 8px}
 .stpop.stown .tbl td:first-child,.stpop.stown .tbl th:first-child{white-space:normal;word-break:break-word;min-width:220px;max-width:320px}
-.stpop.stown .totbox{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stpop.stown .totbox{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:none}
 .stpop.stown .totbox .line{flex-direction:column;align-items:flex-start;gap:2px}
+}
+@media (min-width:1200px){
+.stpop.stown{width:min(1260px,calc(100vw - 28px))!important;display:grid!important;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:minmax(0,1fr);gap:10px}
+.stpop.stown>*+*{margin-top:0!important}
+.stpop.stown>.card:last-child:not(:first-child){max-height:none;overflow:auto;min-height:0}
 }
 /* semua kartu: area foto kecil dan seragam; produk tanpa foto memakai ikon samar */
 .pgrid .pc .pi{height:56px;min-height:0;margin:0 0 2px}
@@ -5274,19 +5282,21 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
 /* ---------- posisi gulir keranjang & katalog dipertahankan saat keranjang digambar ulang (Status, Nego cepat, Target, Diskon) ---------- */
 (function(){
   if(typeof cartHTML!=='function')return;
+  const stSave=sp=>sp?Array.from(sp.querySelectorAll('.scroll,.card')).map(x=>x.scrollTop):[];
+  const stLoad=(sp,a)=>{if(!sp||!a)return;Array.from(sp.querySelectorAll('.scroll,.card')).forEach((x,i)=>{if(a[i]&&x.scrollTop!==a[i])x.scrollTop=a[i]})};
   const _c=cartHTML;
   cartHTML=function(){
     let keep=null;
     try{const cc=document.getElementById('cartcol');
       if(cc){const sc=cc.querySelector(':scope>.scroll'),pg=document.getElementById('pgrid');
-        const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');keep={cc:cc.scrollTop,sc:sc?sc.scrollTop:0,pg:pg?pg.scrollTop:0,sp:sp?sp.scrollTop:0}}}catch(e){}
+        const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');keep={cc:cc.scrollTop,sc:sc?sc.scrollTop:0,pg:pg?pg.scrollTop:0,sp:sp?sp.scrollTop:0,sx:stSave(sp)}}}catch(e){}
     let h=_c.apply(this,arguments);
     try{if(h&&h.indexOf('id="stpop"')>-1&&h.indexOf('Harga efektif')>-1)h=h.replace('<div class="stpop" id="stpop">','<div class="stpop stown" id="stpop">')}catch(e){}
-    if(keep&&(keep.cc||keep.sc||keep.pg||keep.sp)){
+    if(keep&&(keep.cc||keep.sc||keep.pg||keep.sp||(keep.sx&&keep.sx.some(Boolean)))){
       const re=()=>{try{const cc=document.getElementById('cartcol');if(!cc)return;
         if(cc.scrollTop!==keep.cc)cc.scrollTop=keep.cc;
         const sc=cc.querySelector(':scope>.scroll');if(sc&&sc.scrollTop!==keep.sc)sc.scrollTop=keep.sc;
-        const pg=document.getElementById('pgrid');if(pg&&pg.scrollTop!==keep.pg)pg.scrollTop=keep.pg;const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');if(sp&&sp.scrollTop!==keep.sp)sp.scrollTop=keep.sp}catch(e){}};
+        const pg=document.getElementById('pgrid');if(pg&&pg.scrollTop!==keep.pg)pg.scrollTop=keep.pg;const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');if(sp&&sp.scrollTop!==keep.sp)sp.scrollTop=keep.sp;stLoad(sp,keep.sx)}catch(e){}};
       Promise.resolve().then(re);
       if(window.requestAnimationFrame)requestAnimationFrame(()=>{re();requestAnimationFrame(re)});
       setTimeout(re,150);
@@ -5297,7 +5307,7 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
         posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},90000);
       }
     }catch(e){}
-    const mv=()=>{try{if(innerWidth<=900)return;const np=document.querySelector('#cartcol #stpop');if(np){document.querySelectorAll('body>#stpop').forEach(x=>x.remove());document.body.appendChild(np);if(keep&&keep.sp)np.scrollTop=keep.sp}}catch(e){}};
+    const mv=()=>{try{if(innerWidth<=900)return;const np=document.querySelector('#cartcol #stpop');if(np){document.querySelectorAll('body>#stpop').forEach(x=>x.remove());document.body.appendChild(np);if(keep&&keep.sp)np.scrollTop=keep.sp;if(keep)stLoad(np,keep.sx)}}catch(e){}};
     Promise.resolve().then(mv);if(window.requestAnimationFrame)requestAnimationFrame(mv);
     if(window.requestAnimationFrame)requestAnimationFrame(()=>{try{const cc=document.getElementById('cartcol');if(cc&&innerWidth>900){const r=cc.getBoundingClientRect();document.documentElement.style.setProperty('--stpt',Math.max(8,Math.round(r.top+6))+'px')}}catch(e){}});
     return h;
