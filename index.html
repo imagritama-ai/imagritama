@@ -1,4 +1,4 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2360"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="imagritama-build" content="20261126-2370"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0a1b44"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="IMAGRITAMA"><meta name="format-detection" content="telephone=no"></head><body style="margin:0"><title>IMAGRITAMA</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: navy chrome (header + sidebar) around a light work area; cards on a pale blue ground. */
@@ -5201,6 +5201,8 @@ fotoBody=function(){return '<div style="margin-bottom:8px"><button class="btn pr
   if(!document.getElementById('kasir-lega-css')){
     const st=document.createElement('style');st.id='kasir-lega-css';
     st.textContent=`
+/* panel Status & Nego cepat: lebih tinggi dan lebar, memakai tinggi layar yang ada */
+@media (min-width:901px){.stpop{position:fixed!important;left:auto!important;right:14px!important;top:var(--stpt,112px)!important;bottom:14px!important;max-height:none!important;width:min(480px,calc(100vw - 28px))!important;overscroll-behavior:contain;z-index:120!important}}
 /* semua kartu: area foto kecil dan seragam; produk tanpa foto memakai ikon samar */
 .pgrid .pc .pi{height:56px;min-height:0;margin:0 0 2px}
 .pgrid .pc .pi>svg{height:34px;width:auto;opacity:.4}
@@ -5254,6 +5256,7 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
   setInterval(()=>{try{
     const on=!!document.querySelector('#view .pgrid'),b=document.body;
     b.classList.toggle('kasirlega',on);
+    if(!document.getElementById('cartcol')||(typeof posStatusOn!=='undefined'&&!posStatusOn))document.querySelectorAll('body>#stpop').forEach(x=>x.remove());
     if(on&&!skip&&window.innerWidth>1100&&!b.classList.contains('sidec')){b.classList.add('sidec');auto=true}
     if(!on){skip=false;if(auto){auto=false;let c=false;try{c=localStorage.getItem(KEY)==='1'}catch(e){}b.classList.toggle('sidec',c)}}
   }catch(e){}},300);
@@ -5266,19 +5269,33 @@ body #cartcol .cart td:nth-child(1),body #cartcol .cart th:nth-child(1){width:24
     let keep=null;
     try{const cc=document.getElementById('cartcol');
       if(cc){const sc=cc.querySelector(':scope>.scroll'),pg=document.getElementById('pgrid');
-        keep={cc:cc.scrollTop,sc:sc?sc.scrollTop:0,pg:pg?pg.scrollTop:0}}}catch(e){}
+        const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');keep={cc:cc.scrollTop,sc:sc?sc.scrollTop:0,pg:pg?pg.scrollTop:0,sp:sp?sp.scrollTop:0}}}catch(e){}
     const h=_c.apply(this,arguments);
-    if(keep&&(keep.cc||keep.sc||keep.pg)){
+    if(keep&&(keep.cc||keep.sc||keep.pg||keep.sp)){
       const re=()=>{try{const cc=document.getElementById('cartcol');if(!cc)return;
         if(cc.scrollTop!==keep.cc)cc.scrollTop=keep.cc;
         const sc=cc.querySelector(':scope>.scroll');if(sc&&sc.scrollTop!==keep.sc)sc.scrollTop=keep.sc;
-        const pg=document.getElementById('pgrid');if(pg&&pg.scrollTop!==keep.pg)pg.scrollTop=keep.pg}catch(e){}};
+        const pg=document.getElementById('pgrid');if(pg&&pg.scrollTop!==keep.pg)pg.scrollTop=keep.pg;const sp=document.querySelector('body>#stpop')||document.getElementById('stpop');if(sp&&sp.scrollTop!==keep.sp)sp.scrollTop=keep.sp}catch(e){}};
       Promise.resolve().then(re);
       if(window.requestAnimationFrame)requestAnimationFrame(()=>{re();requestAnimationFrame(re)});
       setTimeout(re,150);
     }
+    try{
+      if(typeof posStatusOn!=='undefined'&&posStatusOn&&typeof posStatusT!=='undefined'){
+        clearTimeout(posStatusT);
+        posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},90000);
+      }
+    }catch(e){}
+    const mv=()=>{try{if(innerWidth<=900)return;const np=document.querySelector('#cartcol #stpop');if(np){document.querySelectorAll('body>#stpop').forEach(x=>x.remove());document.body.appendChild(np);if(keep&&keep.sp)np.scrollTop=keep.sp}}catch(e){}};
+    Promise.resolve().then(mv);if(window.requestAnimationFrame)requestAnimationFrame(mv);
+    if(window.requestAnimationFrame)requestAnimationFrame(()=>{try{const cc=document.getElementById('cartcol');if(cc&&innerWidth>900){const r=cc.getBoundingClientRect();document.documentElement.style.setProperty('--stpt',Math.max(8,Math.round(r.top+6))+'px')}}catch(e){}});
     return h;
   };
+  /* panel Status/Nego tetap terbuka selama Anda masih menggulir atau menekan di dalamnya */
+  const rearm=e=>{try{if(!(e.target&&e.target.closest&&e.target.closest('#stpop')))return;
+    if(typeof posStatusOn!=='undefined'&&posStatusOn&&typeof posStatusT!=='undefined'){clearTimeout(posStatusT);
+      posStatusT=setTimeout(()=>{posStatusOn=false;if(ui.page==='pos'&&$('#cartcol'))rCart()},90000)}}catch(x){}};
+  ['wheel','pointerdown','scroll','touchmove'].forEach(ev=>document.addEventListener(ev,rearm,{capture:true,passive:true}));
 })();
 
 /* ====== PILIHAN TEMA: Terang (bawaan) atau Navy ====== */
